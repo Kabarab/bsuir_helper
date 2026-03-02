@@ -1,0 +1,637 @@
+{
+    "670": {
+        "faculty_code": "7",
+        "faculty_name": "Аспирантура",
+        "spec_code": "67",
+        "spec_name": "БАиЦМ",
+        "study_form": "0",
+        "sdefs": [
+            20672,
+            20674
+        ]
+    },
+    "050": {
+        "faculty_code": "5",
+        "faculty_name": "Аспирантура",
+        "spec_code": "05",
+        "spec_name": "ВМСиС",
+        "study_form": "0",
+        "sdefs": [
+            20539,
+            20633
+        ]
+    },
+    "510": {
+        "faculty_code": "1",
+        "faculty_name": "Аспирантура",
+        "spec_code": "51",
+        "spec_name": "ИГиКГ",
+        "study_form": "0",
+        "sdefs": [
+            20613
+        ]
+    },
+    "460": {
+        "faculty_code": "4",
+        "faculty_name": "Аспирантура",
+        "spec_code": "46",
+        "spec_name": "ИПД",
+        "study_form": "0",
+        "sdefs": [
+            20630
+        ]
+    },
+    "300": {
+        "faculty_code": "6",
+        "faculty_name": "Аспирантура",
+        "spec_code": "30",
+        "spec_name": "ИКТ",
+        "study_form": "0",
+        "sdefs": [
+            20542
+        ]
+    },
+    "350": {
+        "faculty_code": "5",
+        "faculty_name": "Аспирантура",
+        "spec_code": "35",
+        "spec_name": "ИиТП",
+        "study_form": "0",
+        "sdefs": [
+            20657
+        ]
+    },
+    "620": {
+        "faculty_code": "5",
+        "faculty_name": "Аспирантура",
+        "spec_code": "62",
+        "spec_name": "ИиТП",
+        "study_form": "0",
+        "sdefs": [
+            20669
+        ]
+    },
+    "720": {
+        "faculty_code": "6",
+        "faculty_name": "Аспирантура",
+        "spec_code": "72",
+        "spec_name": "ИБ",
+        "study_form": "0",
+        "sdefs": [
+            20620
+        ]
+    },
+    "450": {
+        "faculty_code": "3",
+        "faculty_name": "Аспирантура",
+        "spec_code": "45",
+        "spec_name": "ИБ",
+        "study_form": "0",
+        "sdefs": [
+            20653
+        ]
+    },
+    "730": {
+        "faculty_code": "6",
+        "faculty_name": "Аспирантура",
+        "spec_code": "73",
+        "spec_name": "ИБ",
+        "study_form": "0",
+        "sdefs": [
+            20690
+        ]
+    },
+    "820": {
+        "faculty_code": "6",
+        "faculty_name": "Аспирантура",
+        "spec_code": "82",
+        "spec_name": "ИБ",
+        "study_form": "0",
+        "sdefs": [
+            20577,
+            20829,
+            20869
+        ]
+    },
+    "930": {
+        "faculty_code": "3",
+        "faculty_name": "Аспирантура",
+        "spec_code": "93",
+        "spec_name": "ИБ",
+        "study_form": "0",
+        "sdefs": [
+            20887
+        ]
+    },
+    "800": {
+        "faculty_code": "4",
+        "faculty_name": "Аспирантура",
+        "spec_code": "80",
+        "spec_name": "ИиУСФУ",
+        "study_form": "0",
+        "sdefs": [
+            20575,
+            20641
+        ]
+    },
+    "430": {
+        "faculty_code": "1",
+        "faculty_name": "Аспирантура",
+        "spec_code": "43",
+        "spec_name": "ИСиТ",
+        "study_form": "0",
+        "sdefs": [
+            20611
+        ]
+    },
+    "440": {
+        "faculty_code": "2",
+        "faculty_name": "Аспирантура",
+        "spec_code": "44",
+        "spec_name": "ИСиТ",
+        "study_form": "0",
+        "sdefs": [
+            20625
+        ]
+    },
+    "810": {
+        "faculty_code": "1",
+        "faculty_name": "Аспирантура",
+        "spec_code": "81",
+        "spec_name": "ИСиТ",
+        "study_form": "0",
+        "sdefs": [
+            20576,
+            20648,
+            20830,
+            20831,
+            20840,
+            20841,
+            20842,
+            20843
+        ]
+    },
+    "660": {
+        "faculty_code": "1",
+        "faculty_name": "Аспирантура",
+        "spec_code": "66",
+        "spec_name": "ИСиТ",
+        "study_form": "0",
+        "sdefs": [
+            20681
+        ]
+    },
+    "240": {
+        "faculty_code": "2",
+        "faculty_name": "Аспирантура",
+        "spec_code": "24",
+        "spec_name": "ИТиУвТС",
+        "study_form": "0",
+        "sdefs": [
+            20540,
+            20624
+        ]
+    },
+    "170": {
+        "faculty_code": "2",
+        "faculty_name": "Аспирантура",
+        "spec_code": "17",
+        "spec_name": "ИИ",
+        "study_form": "0",
+        "sdefs": [
+            20621
+        ]
+    },
+    "640": {
+        "faculty_code": "2",
+        "faculty_name": "Аспирантура",
+        "spec_code": "64",
+        "spec_name": "ИИ",
+        "study_form": "0",
+        "sdefs": [
+            20671
+        ]
+    },
+    "770": {
+        "faculty_code": "2",
+        "faculty_name": "Аспирантура",
+        "spec_code": "77",
+        "spec_name": "КС",
+        "study_form": "0",
+        "sdefs": [
+            20870
+        ]
+    },
+    "580": {
+        "faculty_code": "5",
+        "faculty_name": "Аспирантура",
+        "spec_code": "58",
+        "spec_name": "КИ",
+        "study_form": "0",
+        "sdefs": [
+            20629
+        ]
+    },
+    "250": {
+        "faculty_code": "8",
+        "faculty_name": "Аспирантура",
+        "spec_code": "25",
+        "spec_name": "КИ",
+        "study_form": "0",
+        "sdefs": [
+            20632
+        ]
+    },
+    "380": {
+        "faculty_code": "1",
+        "faculty_name": "Аспирантура",
+        "spec_code": "38",
+        "spec_name": "КИ",
+        "study_form": "0",
+        "sdefs": [
+            20609,
+            20862
+        ]
+    },
+    "470": {
+        "faculty_code": "3",
+        "faculty_name": "Аспирантура",
+        "spec_code": "47",
+        "spec_name": "КИ",
+        "study_form": "0",
+        "sdefs": [
+            20647,
+            20863
+        ]
+    },
+    "570": {
+        "faculty_code": "5",
+        "faculty_name": "Аспирантура",
+        "spec_code": "57",
+        "spec_name": "КИ",
+        "study_form": "0",
+        "sdefs": [
+            20679,
+            20873
+        ]
+    },
+    "830": {
+        "faculty_code": "1",
+        "faculty_name": "Аспирантура",
+        "spec_code": "83",
+        "spec_name": "КИ",
+        "study_form": "0",
+        "sdefs": [
+            20608,
+            20833,
+            20839
+        ]
+    },
+    "860": {
+        "faculty_code": "4",
+        "faculty_name": "Аспирантура",
+        "spec_code": "86",
+        "spec_name": "МиН",
+        "study_form": "0",
+        "sdefs": [
+            20836,
+            20854
+        ]
+    },
+    "780": {
+        "faculty_code": "4",
+        "faculty_name": "Аспирантура",
+        "spec_code": "78",
+        "spec_name": "МиНЭ",
+        "study_form": "0",
+        "sdefs": [
+            20867
+        ]
+    },
+    "680": {
+        "faculty_code": "4",
+        "faculty_name": "Аспирантура",
+        "spec_code": "68",
+        "spec_name": "МиНЭ",
+        "study_form": "0",
+        "sdefs": [
+            20875
+        ]
+    },
+    "320": {
+        "faculty_code": "4",
+        "faculty_name": "Аспирантура",
+        "spec_code": "32",
+        "spec_name": "НиН",
+        "study_form": "0",
+        "sdefs": [
+            20645
+        ]
+    },
+    "690": {
+        "faculty_code": "4",
+        "faculty_name": "Аспирантура",
+        "spec_code": "69",
+        "spec_name": "НиН",
+        "study_form": "0",
+        "sdefs": [
+            20860
+        ]
+    },
+    "090": {
+        "faculty_code": "1",
+        "faculty_name": "Аспирантура",
+        "spec_code": "09",
+        "spec_name": "ПИ",
+        "study_form": "0",
+        "sdefs": [
+            20605,
+            20606
+        ]
+    },
+    "100": {
+        "faculty_code": "5",
+        "faculty_name": "Аспирантура",
+        "spec_code": "10",
+        "spec_name": "ПИ",
+        "study_form": "0",
+        "sdefs": [
+            20642
+        ]
+    },
+    "630": {
+        "faculty_code": "5",
+        "faculty_name": "Аспирантура",
+        "spec_code": "63",
+        "spec_name": "ПИ",
+        "study_form": "0",
+        "sdefs": [
+            20677,
+            20886
+        ]
+    },
+    "020": {
+        "faculty_code": "1",
+        "faculty_name": "Аспирантура",
+        "spec_code": "02",
+        "spec_name": "ПиППУЭС",
+        "study_form": "0",
+        "sdefs": [
+            20594
+        ]
+    },
+    "040": {
+        "faculty_code": "4",
+        "faculty_name": "Аспирантура",
+        "spec_code": "04",
+        "spec_name": "РиР",
+        "study_form": "0",
+        "sdefs": [
+            20634
+        ]
+    },
+    "880": {
+        "faculty_code": "4",
+        "faculty_name": "Аспирантура",
+        "spec_code": "88",
+        "spec_name": "РиР",
+        "study_form": "0",
+        "sdefs": [
+            20650,
+            20837,
+            20855,
+            20856,
+            20857
+        ]
+    },
+    "420": {
+        "faculty_code": "3",
+        "faculty_name": "Аспирантура",
+        "spec_code": "42",
+        "spec_name": "РиР",
+        "study_form": "0",
+        "sdefs": [
+            20654
+        ]
+    },
+    "520": {
+        "faculty_code": "4",
+        "faculty_name": "Аспирантура",
+        "spec_code": "52",
+        "spec_name": "РСиРТ",
+        "study_form": "0",
+        "sdefs": [
+            20667
+        ]
+    },
+    "530": {
+        "faculty_code": "4",
+        "faculty_name": "Аспирантура",
+        "spec_code": "53",
+        "spec_name": "РСиРТ",
+        "study_form": "0",
+        "sdefs": [
+            20678
+        ]
+    },
+    "490": {
+        "faculty_code": "6",
+        "faculty_name": "Аспирантура",
+        "spec_code": "49",
+        "spec_name": "СС",
+        "study_form": "0",
+        "sdefs": [
+            20885
+        ]
+    },
+    "340": {
+        "faculty_code": "6",
+        "faculty_name": "Аспирантура",
+        "spec_code": "34",
+        "spec_name": "СиСИ",
+        "study_form": "0",
+        "sdefs": [
+            20636
+        ]
+    },
+    "370": {
+        "faculty_code": "3",
+        "faculty_name": "Аспирантура",
+        "spec_code": "37",
+        "spec_name": "СиСИ",
+        "study_form": "0",
+        "sdefs": [
+            20649
+        ]
+    },
+    "480": {
+        "faculty_code": "3",
+        "faculty_name": "Аспирантура",
+        "spec_code": "48",
+        "spec_name": "СиСИ",
+        "study_form": "0",
+        "sdefs": [
+            20658
+        ]
+    },
+    "700": {
+        "faculty_code": "6",
+        "faculty_name": "Аспирантура",
+        "spec_code": "70",
+        "spec_name": "СиСИ",
+        "study_form": "0",
+        "sdefs": [
+            20660,
+            20883
+        ]
+    },
+    "840": {
+        "faculty_code": "6",
+        "faculty_name": "Аспирантура",
+        "spec_code": "84",
+        "spec_name": "СиСИ",
+        "study_form": "0",
+        "sdefs": [
+            20834,
+            20849,
+            20850,
+            20851,
+            20852,
+            20655
+        ]
+    },
+    "590": {
+        "faculty_code": "2",
+        "faculty_name": "Аспирантура",
+        "spec_code": "59",
+        "spec_name": "СУИ",
+        "study_form": "0",
+        "sdefs": [
+            20626,
+            20668
+        ]
+    },
+    "060": {
+        "faculty_code": "2",
+        "faculty_name": "Аспирантура",
+        "spec_code": "06",
+        "spec_name": "СУИ",
+        "study_form": "0",
+        "sdefs": [
+            20835
+        ]
+    },
+    "850": {
+        "faculty_code": "2",
+        "faculty_name": "Аспирантура",
+        "spec_code": "85",
+        "spec_name": "СУИ",
+        "study_form": "0",
+        "sdefs": [
+            20853
+        ]
+    },
+    "760": {
+        "faculty_code": "7",
+        "faculty_name": "Аспирантура",
+        "spec_code": "76",
+        "spec_name": "ЦМ",
+        "study_form": "0",
+        "sdefs": [
+            20861
+        ]
+    },
+    "390": {
+        "faculty_code": "7",
+        "faculty_name": "Аспирантура",
+        "spec_code": "39",
+        "spec_name": "ЭЭ",
+        "study_form": "0",
+        "sdefs": [
+            20643,
+            20878
+        ]
+    },
+    "650": {
+        "faculty_code": "7",
+        "faculty_name": "Аспирантура",
+        "spec_code": "65",
+        "spec_name": "ЭЭ",
+        "study_form": "0",
+        "sdefs": [
+            20673
+        ]
+    },
+    "750": {
+        "faculty_code": "1",
+        "faculty_name": "Аспирантура",
+        "spec_code": "75",
+        "spec_name": "ЭМС",
+        "study_form": "0",
+        "sdefs": [
+            20865
+        ]
+    },
+    "870": {
+        "faculty_code": "1",
+        "faculty_name": "Аспирантура",
+        "spec_code": "87",
+        "spec_name": "ЭСиТ",
+        "study_form": "0",
+        "sdefs": [
+            20604,
+            20635,
+            20639,
+            20844,
+            20845,
+            20846,
+            20847,
+            20848
+        ]
+    },
+    "540": {
+        "faculty_code": "1",
+        "faculty_name": "Аспирантура",
+        "spec_code": "54",
+        "spec_name": "ЭСиТ",
+        "study_form": "0",
+        "sdefs": [
+            20614,
+            20616,
+            20617,
+            20663,
+            20874
+        ]
+    },
+    "190": {
+        "faculty_code": "2",
+        "faculty_name": "Аспирантура",
+        "spec_code": "19",
+        "spec_name": "ЭСиТ",
+        "study_form": "0",
+        "sdefs": [
+            20622,
+            20623
+        ]
+    },
+    "400": {
+        "faculty_code": "7",
+        "faculty_name": "Аспирантура",
+        "spec_code": "40",
+        "spec_name": "ЭМ",
+        "study_form": "0",
+        "sdefs": [
+            20877
+        ]
+    },
+    "150": {
+        "faculty_code": "8",
+        "faculty_name": "ФИБ",
+        "spec_code": "15",
+        "spec_name": "ПИ",
+        "study_form": "0",
+        "sdefs": [
+            20631
+        ]
+    }
+}

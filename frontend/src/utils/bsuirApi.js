@@ -1,0 +1,388 @@
+import axios from 'axios';
+
+/**
+ * Utility to fetch and parse XML from BSUIR IIS API.
+ */
+
+const PROXY_URL = '/api/bsuir/proxy';
+
+/**
+ * Fetches raw content (XML) via backend proxy.
+ */
+export async function fetchRaw(url) {
+  // Use proxy and force text response to prevent axios from trying to parse JSON if content-type is liar
+  const response = await axios.get(`/api/bsuir/proxy?url=${encodeURIComponent(url)}`, {
+    responseType: 'text',
+    transformResponse: [(data) => data] // Prevent any automatic parsing
+  });
+  return response.data;
+}
+
+/**
+ * Parses XML string into a DOM object.
+ */
+function parseXml(xmlString) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(xmlString, "text/xml");
+  const parseError = doc.getElementsByTagName("parsererror");
+  if (parseError.length > 0) {
+    console.error("XML Parsing Error:", parseError[0].textContent);
+    // Try to see if it's actually JSON and they lied
+    try {
+      const json = JSON.parse(xmlString);
+      console.log("XML Parsing failed, but content is valid JSON. This shouldn't happen based on user rules, but let's check.");
+    } catch(e) {}
+  }
+  return doc;
+}
+
+/**
+ * Task 1: Parse Student Grades
+ * @param {string} studentCardNumber 
+ */
+export async function getStudentGrades(studentCardNumber) {
+  const url = `https://iis.bsuir.by/api/v1/rating/studentRating?studentCardNumber=${studentCardNumber}`;
+  console.log("Fetching marks for card:", studentCardNumber);
+  const rawText = await fetchRaw(url);
+  
+  if (!rawText) return [];
+  const processedIds = new Set();
+  
+  // 1. Try JSON parsing first if it looks like JSON
+  if (rawText.trim().startsWith('{') || rawText.trim().startsWith('[')) {
+    try {
+      const data = JSON.parse(rawText);
+      const lessons = data.lessons || [];
+      const resMap = {};
+      
+      const extractMarks = (marksObj) => {
+        if (!marksObj) return [];
+        if (typeof marksObj === 'number') return [marksObj];
+        if (typeof marksObj === 'string' && /^\d+$/.test(marksObj)) return [parseInt(marksObj, 10)];
+        
+        let found = [];
+        if (Array.isArray(marksObj)) {
+          marksObj.forEach(item => {
+            found = found.concat(extractMarks(item));
+          });
+        } else if (typeof marksObj === 'object') {
+          Object.entries(marksObj).forEach(([key, val]) => {
+            if (key.toLowerCase() === 'id') return; // skip IDs explicitly
+            if (key.toLowerCase().includes('id') && typeof val !== 'object') return; // skip other ID-like fields
+            if (typeof val === 'number') found.push(val);
+            else if (typeof val === 'string' && /^\d+$/.test(val)) found.push(parseInt(val, 10));
+            else if (typeof val === 'object') found = found.concat(extractMarks(val));
+          });
+        }
+        return found;
+      };
+
+      lessons.forEach(l => {
+        // A valid lesson MUST have an ID and shouldn't be a container if possible
+        if (!l.id || processedIds.has(l.id)) return;
+        processedIds.add(l.id);
+
+        const sub = l.lessonNameAbbrev || l.subject || l.subjectAbbrev || l.name || 'Unknown';
+        const ms = extractMarks(l.marks);
+        if (ms.length > 0) {
+          if (!resMap[sub]) resMap[sub] = [];
+          resMap[sub].push(...ms);
+        }
+      });
+      return Object.entries(resMap).map(([subject, marks]) => ({ subject, marks }));
+    } catch(e) {
+      console.warn("Attempted JSON parse failed, falling back to XML", e);
+    }
+  }
+
+  // 2. Fallback or primary XML parsing
+  const xml = parseXml(rawText);
+  
+  // To avoid catching the ROOT <lessons> container, we look for tags that have an <id> child.
+  // We use a more specific selector strategy.
+  const allPotentialLessons = Array.from(xml.getElementsByTagNameNS('*', 'lessons'))
+                                   .concat(Array.from(xml.getElementsByTagName('lessons')))
+                                   .concat(Array.from(xml.getElementsByTagNameNS('*', 'item')))
+                                   .concat(Array.from(xml.getElementsByTagName('item')));
+  
+  const resultsMap = {};
+  const seenUnitNodes = new Set();
+
+  for (let i = 0; i < allPotentialLessons.length; i++) {
+    const node = allPotentialLessons[i];
+    if (seenUnitNodes.has(node)) continue;
+    
+    // A leaf lesson unit MUST have an <id> child that is a direct descendant.
+    // If it doesn't have an ID, or if the ID is deep, it's likely a container.
+    const directIdNode = Array.from(node.childNodes).find(child => 
+      child.nodeType === 1 && (child.localName === 'id' || child.nodeName === 'id')
+    );
+    
+    if (!directIdNode) continue;
+    seenUnitNodes.add(node);
+
+    const lessonId = directIdNode.textContent?.trim();
+    if (lessonId && processedIds.has(lessonId)) continue;
+    if (lessonId) processedIds.add(lessonId);
+
+    const subjectNode = node.getElementsByTagNameNS('*', 'lessonNameAbbrev')[0] || 
+                      node.getElementsByTagNameNS('*', 'subject')[0] ||
+                      node.getElementsByTagName('lessonNameAbbrev')[0] ||
+                      node.getElementsByTagName('subject')[0];
+                      
+    const subject = subjectNode?.textContent?.trim() || 'Unknown';
+    
+    // Find marks tags strictly within this node's immediate children to avoid aggregation
+    const marksNodes = Array.from(node.childNodes).filter(child => 
+      child.nodeType === 1 && (child.localName === 'marks' || child.nodeName === 'marks')
+    );
+    
+    const marksList = [];
+    
+    const collectLeafMarks = (mNode) => {
+      // If it's a leaf node with text content, it's a mark
+      if (mNode.children.length === 0) {
+        const text = mNode.textContent?.trim();
+        if (text && /^\d+$/.test(text) && text.length <= 2) {
+          const val = parseInt(text, 10);
+          if (!isNaN(val)) marksList.push(val);
+        }
+      } else {
+        // Recurse into nested <marks>
+        Array.from(mNode.childNodes).forEach(child => {
+          if (child.nodeType === 1 && (child.localName === 'marks' || child.nodeName === 'marks')) {
+            collectLeafMarks(child);
+          }
+        });
+      }
+    };
+
+    marksNodes.forEach(collectLeafMarks);
+    
+    if (marksList.length > 0) {
+      if (!resultsMap[subject]) resultsMap[subject] = [];
+      resultsMap[subject].push(...marksList);
+    }
+  }
+  
+  return Object.entries(resultsMap).map(([subject, marks]) => ({
+    subject,
+    marks
+  }));
+}
+
+/**
+ * Task 2: Fetch Faculties
+ */
+export async function getFaculties() {
+  const url = 'https://iis.bsuir.by/api/v1/faculties';
+  const xmlText = await fetchRaw(url);
+  const xml = parseXml(xmlText);
+  
+  const items = xml.getElementsByTagNameNS('*', 'item');
+  return Array.from(items).map(item => ({
+    id: item.getElementsByTagNameNS('*', 'id')[0]?.textContent,
+    name: item.getElementsByTagNameNS('*', 'name')[0]?.textContent,
+    abbrev: item.getElementsByTagNameNS('*', 'abbrev')[0]?.textContent,
+  }));
+}
+
+/**
+ * Task 2: Fetch Specialities
+ */
+export async function getSpecialities(facultyId) {
+  const url = `https://iis.bsuir.by/api/v1/specialities?facultyId=${facultyId}`;
+  const xmlText = await fetchRaw(url);
+  const xml = parseXml(xmlText);
+  
+  const items = xml.getElementsByTagNameNS('*', 'item');
+  return Array.from(items).map(item => ({
+    id: item.getElementsByTagNameNS('*', 'id')[0]?.textContent, // This IS the sdef
+    name: item.getElementsByTagNameNS('*', 'name')[0]?.textContent,
+    abbrev: item.getElementsByTagNameNS('*', 'abbrev')[0]?.textContent,
+  }));
+}
+
+/**
+ * Task 2: Fetch Courses
+ */
+export async function getCourses(facultyId, specialityId) {
+  const url = `https://iis.bsuir.by/api/v1/courses?facultyId=${facultyId}&specialityId=${specialityId}`;
+  const xmlText = await fetchRaw(url);
+  const xml = parseXml(xmlText);
+  
+  const items = xml.getElementsByTagNameNS('*', 'item');
+  // IIS returns <item>N</item> for courses
+  return Array.from(items).map(item => item.textContent).filter(Boolean);
+}
+
+/**
+ * Task 2: Fetch Rating (Leaderboard)
+ */
+export async function getRating(sdef, course) {
+  const url = `https://iis.bsuir.by/api/v1/rating?sdef=${sdef}&course=${course}`;
+  const xmlText = await fetchRaw(url);
+  const xml = parseXml(xmlText);
+  
+  const items = xml.getElementsByTagNameNS('*', 'item');
+  const students = Array.from(items).map(item => ({
+    fio: item.getElementsByTagNameNS('*', 'fio')[0]?.textContent,
+    average: parseFloat(item.getElementsByTagNameNS('*', 'average')[0]?.textContent || '0'),
+    studentCardNumber: item.getElementsByTagNameNS('*', 'studentCardNumber')[0]?.textContent,
+  }));
+  
+  // Sort by average descending
+  return students.sort((a, b) => b.average - a.average);
+}
+
+import SDEF_MAP from '../data/sdefMap.json';
+
+// Debug: check structure of SDEF_MAP
+console.log('SDEF_MAP loaded. Keys count:', Object.keys(SDEF_MAP).length);
+console.log('SDEF_MAP sample keys:', Object.keys(SDEF_MAP).slice(0, 5));
+
+/**
+ * Faculty digit (2nd digit of student card) → faculty name mapping.
+ */
+const FACULTY_DIGIT_MAP = {
+  '1': 'ФКП',
+  '2': 'ФИТУ',
+  '3': 'ВФ',
+  '4': 'ФРЭ',
+  '5': 'ФКСиС',
+  '6': 'ФИБ',
+  '7': 'ИЭФ',
+};
+
+/**
+ * Parse a 4-digit student card number into course, faculty, and specialty code.
+ */
+function parseStudentCard(cardNumber) {
+  if (!cardNumber) return null;
+  const clean = cardNumber.replace(/[^0-9]/g, '');
+  console.log('Parsing student card:', clean);
+  if (clean.length < 4) {
+    console.warn('Card number too short:', clean.length);
+    return null;
+  }
+
+  const admissionYearDigit = parseInt(clean[0], 10);
+  const facultyDigit = clean[1];
+  const specCode = clean.substring(2, 4);
+
+  const facultyName = FACULTY_DIGIT_MAP[facultyDigit];
+  if (!facultyName) {
+    console.warn('Unknown faculty digit:', facultyDigit);
+    return null;
+  }
+
+  const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getMonth();
+  let admissionYear = Math.floor(currentYear / 10) * 10 + admissionYearDigit;
+  if (admissionYear > currentYear) admissionYear -= 10;
+
+  let course = currentYear - admissionYear;
+  if (currentMonth >= 8) course += 1;
+  course = Math.max(1, Math.min(6, course));
+
+  const result = { course, facultyName, specCode, clean };
+  console.log('Parsed card info:', result);
+  return result;
+}
+
+/**
+ * Look up all matching sdefs and spec_name from SDEF_MAP.
+ * New SDEF_MAP structure: keys like "840", values have simple string fields:
+ *   { faculty_code: "6", faculty_name: "...", spec_code: "84", spec_name: "...", study_form: "0", sdefs: [...] }
+ */
+function lookupSdefs(facultyName, specCode) {
+  const allSdefs = new Set();
+  let specName = null;
+  let matchCount = 0;
+
+  console.log(`Starting SDEF_MAP lookup for faculty=${facultyName}, specCode=${specCode}`);
+
+  for (const [key, entry] of Object.entries(SDEF_MAP)) {
+    // Skip non-matching study forms
+    if (entry.study_form !== '0') continue;
+
+    // Match by spec_code (2-digit string from student card digits 3+4)
+    if (entry.spec_code !== specCode) continue;
+
+    matchCount++;
+    if (!specName) specName = entry.spec_name;
+    if (Array.isArray(entry.sdefs)) {
+      entry.sdefs.forEach(s => allSdefs.add(s));
+    }
+  }
+
+  const result = { sdefs: [...allSdefs], specName };
+  console.log(`Lookup finished. Matches: ${matchCount}, Unique sdefs: ${result.sdefs.length}, Spec: ${specName}`);
+  return result;
+}
+
+function findStudentInLeaderboard(leaderboard, cardClean) {
+  if (!leaderboard || leaderboard.length === 0) return null;
+  const idx = leaderboard.findIndex(s => {
+    const sCard = s.studentCardNumber?.replace(/[^0-9]/g, '');
+    return sCard === cardClean
+      || (sCard && cardClean.includes(sCard))
+      || (sCard && sCard.includes(cardClean));
+  });
+  if (idx === -1) return null;
+  return { rank: idx + 1, total: leaderboard.length, average: leaderboard[idx].average };
+}
+
+export async function fetchStudentRating(cardNumber) {
+  try {
+    const parsed = parseStudentCard(cardNumber);
+    if (!parsed) return null;
+    const { course, facultyName, specCode, clean } = parsed;
+
+    const { sdefs, specName } = lookupSdefs(facultyName, specCode);
+    if (sdefs.length === 0) {
+      console.warn('No sdefs found in SDEF_MAP for this student info.');
+      return null;
+    }
+
+    const cacheKey = `bsuir_rating_sdef_${clean}`;
+    const cachedSdef = localStorage.getItem(cacheKey);
+
+    if (cachedSdef && sdefs.includes(Number(cachedSdef))) {
+      console.log('Using cached sdef:', cachedSdef);
+      const leaderboard = await getRating(Number(cachedSdef), course);
+      const result = findStudentInLeaderboard(leaderboard, clean);
+      if (result) return { ...result, specName };
+      console.log('Student not found in cached sdef leaderboard, trying all sdefs...');
+      localStorage.removeItem(cacheKey);
+    }
+
+    console.log(`Fetching rating for ${sdefs.length} sdefs in parallel...`);
+    const results = await Promise.all(
+      sdefs.map(async (sdef) => {
+        try {
+          const lb = await getRating(sdef, course);
+          return { sdef, leaderboard: lb };
+        } catch (e) {
+          console.error(`getRating failed for sdef=${sdef}:`, e);
+          return { sdef, leaderboard: [] };
+        }
+      })
+    );
+
+    for (const { sdef, leaderboard } of results) {
+      const found = findStudentInLeaderboard(leaderboard, clean);
+      if (found) {
+        localStorage.setItem(cacheKey, String(sdef));
+        console.log('Student found! Saving sdef to cache.');
+        return { ...found, specName };
+      }
+    }
+
+    console.warn('Student not found in any of the fetched leaderboards.');
+    return null;
+  } catch (err) {
+    console.error('Fatal error in fetchStudentRating:', err);
+    return null;
+  }
+}
