@@ -29,7 +29,7 @@ _grades_cache = {}
 GRADES_CACHE_TTL = 600  # 10 minutes
 
 WEBHOOK_PATH = "/api/bot/webhook"
-WEBHOOK_URL = os.getenv("BACKEND_URL", "").rstrip("/") + WEBHOOK_PATH
+WEBHOOK_URL = os.getenv("BACKEND_URL", "") + WEBHOOK_PATH
 
 app.add_middleware(
     CORSMiddleware,
@@ -39,24 +39,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-from sqlalchemy import text
-
 @app.on_event("startup")
 async def startup_event():
     print("STARTUP: Starting application initialization...")
     # Инициализация таблиц
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-        
-        # Auto-migrate integer columns to BIGINT for PostgreSQL to prevent overflow
-        if "postgresql" in str(engine.url):
-            try:
-                print("STARTUP: Running PostgreSQL BIGINT migrations...")
-                await conn.execute(text("ALTER TABLE users ALTER COLUMN telegram_id TYPE BIGINT;"))
-                await conn.execute(text("ALTER TABLE tasks ALTER COLUMN created_at TYPE BIGINT;"))
-                print("STARTUP: PostgreSQL migrations completed successfully.")
-            except Exception as e:
-                print(f"STARTUP Warning: Migration failed (might be already applied or table doesn't exist): {e}")
     # Настройка кнопки меню (WebApp)
     await setup_menu_button()
     
@@ -69,15 +57,14 @@ async def startup_event():
     
     # Запуск сервиса уведомлений
     asyncio.create_task(notification_service.start())
-from aiogram.webhook.aiohttp_server import SimpleRequestHandler
+
 from aiogram.types import Update
-from fastapi import Request
 
 @app.post(WEBHOOK_PATH)
-async def bot_webhook(request: Request):
-    telegram_update = Update.model_validate(await request.json(), context={"bot": bot})
+async def bot_webhook(update: dict):
+    telegram_update = Update.model_validate(update, context={"bot": bot})
     await dp.feed_update(bot, telegram_update)
-    return Response(status_code=200)
+
 from typing import Optional
 
 # --- Schemas ---
@@ -423,5 +410,4 @@ async def bsuir_proxy(url: str):
         raise HTTPException(status_code=502, detail=f"Failed to fetch from BSUIR: {str(e)}")
 
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", 8000))
-    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

@@ -3,8 +3,7 @@ import axios from 'axios';
 import WebApp from '@twa-dev/sdk';
 
 // Use environment variable for production, fallback to relative for proxy in dev
-const rawBaseURL = import.meta.env.VITE_API_BASE_URL || '';
-axios.defaults.baseURL = rawBaseURL.endsWith('/') ? rawBaseURL.slice(0, -1) : rawBaseURL;
+axios.defaults.baseURL = import.meta.env.VITE_API_BASE_URL || '';
 
 const UserContext = createContext();
 
@@ -50,9 +49,9 @@ export const UserProvider = ({ children }) => {
         bsuir_subgroup: subgroup,
         bsuir_id: studentId || null
       });
-      setUserState(prev => ({ ...prev, group: res.data.bsuir_group, subgroup: res.data.bsuir_subgroup || 0, studentId: res.data.bsuir_id }));
+      setUserState(prev => ({ ...prev, group: res.data.bsuir_group, subgroup: res.data.bsuir_subgroup, studentId: res.data.bsuir_id }));
       if (res.data.bsuir_group) localStorage.setItem('bsuir_group', res.data.bsuir_group);
-      localStorage.setItem('bsuir_subgroup', (res.data.bsuir_subgroup || 0).toString());
+      localStorage.setItem('bsuir_subgroup', res.data.bsuir_subgroup.toString());
       if (res.data.bsuir_id) localStorage.setItem('bsuir_student_id', res.data.bsuir_id);
       return true;
     } catch (e) {
