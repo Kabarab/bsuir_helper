@@ -39,12 +39,24 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from sqlalchemy import text
+
 @app.on_event("startup")
 async def startup_event():
     print("STARTUP: Starting application initialization...")
     # Инициализация таблиц
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        
+        # Auto-migrate integer columns to BIGINT for PostgreSQL to prevent overflow
+        if "postgresql" in str(engine.url):
+            try:
+                print("STARTUP: Running PostgreSQL BIGINT migrations...")
+                await conn.execute(text("ALTER TABLE users ALTER COLUMN telegram_id TYPE BIGINT;"))
+                await conn.execute(text("ALTER TABLE tasks ALTER COLUMN created_at TYPE BIGINT;"))
+                print("STARTUP: PostgreSQL migrations completed successfully.")
+            except Exception as e:
+                print(f"STARTUP Warning: Migration failed (might be already applied or table doesn't exist): {e}")
     # Настройка кнопки меню (WebApp)
     await setup_menu_button()
     
