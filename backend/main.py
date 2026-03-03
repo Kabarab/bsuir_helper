@@ -20,6 +20,7 @@ from services.notifications import notification_service
 
 import uvicorn
 import time
+import os
 
 app = FastAPI(title="BSUIR Nexus API")
 
