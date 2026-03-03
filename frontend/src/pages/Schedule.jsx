@@ -418,6 +418,11 @@ export default function Schedule() {
                           {lesson.subjectFullName && lesson.subjectFullName !== lesson.subject && (
                             <p className="text-xs text-tg-hint mt-1 line-clamp-1">{lesson.subjectFullName}</p>
                           )}
+                          {lesson.employees && lesson.employees.length > 0 && (
+                            <p className="text-xs text-tg-hint mt-1 font-medium">
+                              {lesson.employees.map(e => e.fio).join(', ')}
+                            </p>
+                          )}
                         </div>
 
                         {/* Linked Tasks */}
@@ -444,12 +449,7 @@ export default function Schedule() {
                         {/* Metadata */}
                         {!lesson.isCustom && (
                           <div className="grid gap-2 text-[13px] pt-3 border-t border-[var(--tg-theme-hint-color)] border-opacity-10">
-                            {lesson.employees && lesson.employees.length > 0 && (
-                              <div className="flex items-start gap-2 text-tg-hint">
-                                <Users size={14} className="mt-0.5 shrink-0 opacity-70" />
-                                <span className="font-medium line-clamp-1">{lesson.employees.map(e => e.fio).join(', ')}</span>
-                              </div>
-                            )}
+
                             {lesson.auditories && lesson.auditories.length > 0 && (
                               <div className="flex items-start gap-2 justify-between w-full">
                                 <div className="flex items-center gap-2 text-tg-hint">
