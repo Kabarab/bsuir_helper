@@ -420,7 +420,7 @@ export default function Schedule() {
                           )}
                           {lesson.employees && lesson.employees.length > 0 && (
                             <p className="text-xs text-tg-hint mt-1 font-medium">
-                              {lesson.employees.map(e => e.fio).join(', ')}
+                              {lesson.employees.map(e => `${e.lastName} ${e.firstName?.[0] || ''}.${e.middleName ? ` ${e.middleName[0]}.` : ''}`).join(', ')}
                             </p>
                           )}
                         </div>
@@ -555,7 +555,7 @@ export default function Schedule() {
                           <h4 className="text-[11px] font-bold leading-tight text-tg-text line-clamp-2">{lesson.subject}</h4>
                         {lesson.employees && lesson.employees.length > 0 && (
                           <div className="text-[9px] mt-0.5 truncate text-tg-hint font-medium">
-                            {lesson.employees.map((e) => e.fio).join(', ')}
+                            {lesson.employees.map(e => `${e.lastName} ${e.firstName?.[0] || ''}.${e.middleName ? ` ${e.middleName[0]}.` : ''}`).join(', ')}
                           </div>
                         )}
                         
