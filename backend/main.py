@@ -24,6 +24,10 @@ import os
 
 app = FastAPI(title="BSUIR Nexus API")
 
+@app.get("/health")
+async def health():
+    return {"status": "ok", "port": os.getenv("PORT", "not set")}
+
 # --- In-memory grades cache ---
 _grades_cache = {}
 GRADES_CACHE_TTL = 600  # 10 minutes
@@ -41,7 +45,8 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def startup_event():
-    print("STARTUP: Starting application initialization...")
+    print(f"STARTUP: PORT env = {os.getenv('PORT', 'NOT SET')}", flush=True)
+    print("STARTUP: Starting application initialization...", flush=True)
     # Инициализация таблиц
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
