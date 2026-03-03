@@ -29,7 +29,7 @@ _grades_cache = {}
 GRADES_CACHE_TTL = 600  # 10 minutes
 
 WEBHOOK_PATH = "/api/bot/webhook"
-WEBHOOK_URL = os.getenv("BACKEND_URL", "") + WEBHOOK_PATH
+WEBHOOK_URL = os.getenv("BACKEND_URL", "").rstrip("/") + WEBHOOK_PATH
 
 app.add_middleware(
     CORSMiddleware,
@@ -69,14 +69,15 @@ async def startup_event():
     
     # Запуск сервиса уведомлений
     asyncio.create_task(notification_service.start())
-
+from aiogram.webhook.aiohttp_server import SimpleRequestHandler
 from aiogram.types import Update
+from fastapi import Request
 
 @app.post(WEBHOOK_PATH)
-async def bot_webhook(update: dict):
-    telegram_update = Update.model_validate(update, context={"bot": bot})
+async def bot_webhook(request: Request):
+    telegram_update = Update.model_validate(await request.json(), context={"bot": bot})
     await dp.feed_update(bot, telegram_update)
-
+    return Response(status_code=200)
 from typing import Optional
 
 # --- Schemas ---
