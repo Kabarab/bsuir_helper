@@ -17,7 +17,7 @@ const COLOR_PRESETS = {
 };
 
 export default function Schedule() {
-  const { group, subgroup, telegramId } = useUser();
+  const { group, subgroup, englishSubgroup, telegramId } = useUser();
   const navigate = useNavigate();
 
   const [schedule, setSchedule] = useState(() => {
@@ -239,7 +239,12 @@ export default function Schedule() {
     let lessons = [];
     if (schedule?.schedules && schedule.schedules[selectedDayName]) {
       lessons = schedule.schedules[selectedDayName].filter(lesson => {
-        if (subgroup !== 0 && lesson.numSubgroup !== 0 && lesson.numSubgroup !== subgroup) return false;
+        // Handle English/Foreign Language subgroup specifically
+        const isEnglish = lesson.subject?.toLowerCase().includes('иностранный') || lesson.subject?.toLowerCase().includes('английский');
+        const effectiveSubgroup = isEnglish && englishSubgroup !== 0 ? englishSubgroup : subgroup;
+
+        if (effectiveSubgroup !== 0 && lesson.numSubgroup !== 0 && lesson.numSubgroup !== effectiveSubgroup) return false;
+        
         if (lesson.weekNumber && lesson.weekNumber.length > 0) {
           if (!lesson.weekNumber.includes(selectedWeekNumber)) return false;
         }

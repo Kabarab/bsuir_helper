@@ -70,7 +70,14 @@ async def startup_event():
             print("Successfully backfilled recurring columns to custom_events.", flush=True)
         except Exception as e:
             # Table might already have them or it's a new DB where create_all handled it
-            print(f"Schema update notice: {e}", flush=True)
+            print(f"Schema update notice (custom_events): {e}", flush=True)
+            
+        try:
+            from sqlalchemy import text
+            await conn.execute(text("ALTER TABLE users ADD COLUMN bsuir_english_subgroup INTEGER DEFAULT 0;"))
+            print("Successfully backfilled bsuir_english_subgroup to users.", flush=True)
+        except Exception as e:
+            print(f"Schema update notice (users): {e}", flush=True)
             
     # Настройка кнопки меню (WebApp)
     await setup_menu_button()
@@ -134,6 +141,7 @@ class IpRequest(BaseModel):
 class UserUpdate(BaseModel):
     bsuir_group: Optional[str] = None
     bsuir_subgroup: Optional[int] = 0
+    bsuir_english_subgroup: Optional[int] = 0
     bsuir_id: Optional[str] = None
 
 class UserResponse(BaseModel):
@@ -141,6 +149,7 @@ class UserResponse(BaseModel):
     telegram_id: int
     bsuir_group: Optional[str] = None
     bsuir_subgroup: Optional[int] = 0
+    bsuir_english_subgroup: Optional[int] = 0
     bsuir_id: Optional[str] = None
 
 
@@ -246,6 +255,9 @@ async def update_user_preferences(telegram_id: int, user_update: UserUpdate, db:
     if user_update.bsuir_subgroup is not None:
         user.bsuir_subgroup = user_update.bsuir_subgroup
         
+    if user_update.bsuir_english_subgroup is not None:
+        user.bsuir_english_subgroup = user_update.bsuir_english_subgroup
+
     await db.commit()
     await db.refresh(user)
     return user

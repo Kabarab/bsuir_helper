@@ -4,24 +4,26 @@ import { Settings as SettingsIcon, Save, ChevronLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export default function Settings() {
-  const { group, subgroup, studentId, updatePreferences } = useUser();
+  const { group, subgroup, englishSubgroup, studentId, updatePreferences } = useUser();
   const navigate = useNavigate();
   
   const [inputGroup, setInputGroup] = useState(group || '');
   const [inputStudentId, setInputStudentId] = useState(studentId || '');
   const [inputSubgroup, setInputSubgroup] = useState(subgroup || 0);
+  const [inputEnglishSubgroup, setInputEnglishSubgroup] = useState(englishSubgroup || 0);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     setInputGroup(group || '');
     setInputSubgroup(subgroup || 0);
+    setInputEnglishSubgroup(englishSubgroup || 0);
     setInputStudentId(studentId || '');
-  }, [group, subgroup, studentId]);
+  }, [group, subgroup, englishSubgroup, studentId]);
 
   const handleSave = async () => {
     if (!inputGroup.trim()) return;
     setIsSaving(true);
-    await updatePreferences(inputGroup.trim(), Number(inputSubgroup), inputStudentId.trim());
+    await updatePreferences(inputGroup.trim(), Number(inputSubgroup), Number(inputEnglishSubgroup), inputStudentId.trim());
     setIsSaving(false);
     navigate(-1); // Go back to the previous screen
   };
@@ -91,12 +93,33 @@ export default function Settings() {
               ))}
             </div>
           </div>
+          
+          <div>
+             <label className="block text-xs font-semibold uppercase text-tg-hint mb-1.5 ml-1">
+              Подгруппа (Иностранный язык)
+            </label>
+            <div className="flex bg-[var(--tg-theme-bg-color)] p-1 rounded-2xl border border-tg-hint/10">
+              {[0, 1, 2].map(val => (
+                <button
+                  key={val}
+                  onClick={() => setInputEnglishSubgroup(val)}
+                  className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all ${
+                    inputEnglishSubgroup === val 
+                      ? 'bg-emerald-500 text-white shadow-md' 
+                      : 'text-tg-hint hover:bg-tg-hint/5'
+                  }`}
+                >
+                  {val === 0 ? 'Как основная' : `${val} подгруппа`}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 
       <button 
         onClick={handleSave}
-        disabled={isSaving || !inputGroup.trim() || (inputGroup === group && inputSubgroup === subgroup && inputStudentId === studentId)}
+        disabled={isSaving || !inputGroup.trim() || (inputGroup === group && inputSubgroup === subgroup && inputEnglishSubgroup === englishSubgroup && inputStudentId === studentId)}
         className="w-full py-4 bg-tg-button text-tg-buttonText font-bold rounded-2xl mt-auto active:scale-[0.98] transition-all shadow-lg shadow-tg-button/30 text-base flex justify-center items-center gap-2 disabled:opacity-50 disabled:shadow-none"
       >
         {isSaving ? (
