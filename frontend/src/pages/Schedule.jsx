@@ -149,6 +149,15 @@ export default function Schedule() {
     }
   }, [dateStrip]);
 
+  // Auto-scroll calendar grid to current time
+  useEffect(() => {
+    if (viewMode === 'calendar' && scrollContainerRef.current && isSameDay(selectedDate, now)) {
+      const nowMinutes = now.getHours() * 60 + now.getMinutes();
+      const scrollTo = Math.max(0, (nowMinutes / 60) * 80 - 200); // 200px above current time
+      scrollContainerRef.current.scrollTop = scrollTo;
+    }
+  }, [viewMode]);
+
   // Calculate BSUIR week number for selected date
   // BSUIR weeks go 1 -> 2 -> 3 -> 4 -> 1...
   const getWeekNumberForDate = (date) => {
@@ -526,12 +535,26 @@ export default function Schedule() {
               className="grid grid-cols-[50px_1fr] h-[600px] overflow-y-auto hide-scrollbar select-none"
             >
               {/* Time Column */}
-              <div className="bg-tg-bg/50 border-r border-[var(--tg-theme-hint-color)] border-opacity-10">
+              <div className="bg-tg-bg/50 border-r border-[var(--tg-theme-hint-color)] border-opacity-10 relative">
                 {Array.from({ length: 24 }).map((_, i) => (
                   <div key={i} className="h-20 text-[10px] text-tg-hint font-bold flex items-start justify-center pt-2 border-b border-[var(--tg-theme-hint-color)] border-opacity-5">
                     {i.toString().padStart(2, '0')}:00
                   </div>
                 ))}
+                {/* Current Time Label */}
+                {isSameDay(selectedDate, now) && (() => {
+                  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+                  const nowTop = (nowMinutes / 60) * 80;
+                  const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+                  return (
+                    <div 
+                      className="absolute left-0 right-0 z-30 flex items-center justify-center pointer-events-none"
+                      style={{ top: `${nowTop - 8}px` }}
+                    >
+                      <span className="text-[9px] font-black text-red-500 bg-red-500/10 px-1 py-0.5 rounded">{timeStr}</span>
+                    </div>
+                  );
+                })()}
               </div>
               
               {/* Events Grid */}
@@ -546,6 +569,24 @@ export default function Schedule() {
                 {Array.from({ length: 24 }).map((_, i) => (
                   <div key={i} className="h-20 border-b border-[var(--tg-theme-hint-color)] border-opacity-5 w-full"></div>
                 ))}
+
+                {/* Current Time Indicator */}
+                {isSameDay(selectedDate, now) && (() => {
+                  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+                  const nowTop = (nowMinutes / 60) * 80;
+                  const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+                  return (
+                    <div 
+                      className="absolute left-0 right-0 z-30 pointer-events-none flex items-center"
+                      style={{ top: `${nowTop}px` }}
+                    >
+                      {/* Red dot */}
+                      <div className="w-3 h-3 rounded-full bg-red-500 -ml-1.5 shadow-lg shadow-red-500/50 animate-pulse shrink-0" />
+                      {/* Red line */}
+                      <div className="flex-1 h-[2px] bg-red-500 shadow-sm shadow-red-500/30" />
+                    </div>
+                  );
+                })()}
 
                 {/* Ghost Selection */}
                 {dragState.isDragging && (
