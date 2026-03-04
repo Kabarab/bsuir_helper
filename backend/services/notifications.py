@@ -1,6 +1,9 @@
 import asyncio
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
+
+MINSK_TZ = ZoneInfo("Europe/Minsk")
 from sqlalchemy.future import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from database.core import SessionLocal
@@ -41,7 +44,7 @@ class NotificationService:
             await db.commit()
 
     async def process_user_tasks(self, db: AsyncSession, user: User):
-        now = datetime.now()
+        now = datetime.now(MINSK_TZ)
         threshold = now + timedelta(minutes=user.notification_offset)
         
         # Find tasks that are due soon, not completed, and haven't been notified yet
@@ -73,7 +76,7 @@ class NotificationService:
                 logger.error(f"Failed to send task notification to {user.telegram_id}: {e}")
 
     async def process_user_schedule(self, user: User, current_week: int):
-        now = datetime.now()
+        now = datetime.now(MINSK_TZ)
         weekday_map = {0: "Понедельник", 1: "Вторник", 2: "Среда", 3: "Четверг", 4: "Пятница", 5: "Суббота", 6: "Воскресенье"}
         today_name = weekday_map[now.weekday()]
         

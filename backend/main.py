@@ -59,6 +59,19 @@ async def startup_event():
     # Инициализация таблиц
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        
+        # Add columns dynamically for existing DBs
+        try:
+            from sqlalchemy import text
+            await conn.execute(text("ALTER TABLE custom_events ADD COLUMN is_recurring BOOLEAN DEFAULT 0;"))
+            await conn.execute(text("ALTER TABLE custom_events ADD COLUMN recurrence_type VARCHAR;"))
+            await conn.execute(text("ALTER TABLE custom_events ADD COLUMN recurrence_end_date VARCHAR;"))
+            await conn.execute(text("ALTER TABLE custom_events ADD COLUMN recurrence_interval INTEGER DEFAULT 1;"))
+            print("Successfully backfilled recurring columns to custom_events.", flush=True)
+        except Exception as e:
+            # Table might already have them or it's a new DB where create_all handled it
+            print(f"Schema update notice: {e}", flush=True)
+            
     # Настройка кнопки меню (WebApp)
     await setup_menu_button()
     
@@ -107,6 +120,10 @@ class CustomEventBase(BaseModel):
     type: str = "CUSTOM"
     color: str = "blue"
     date: Optional[str] = None
+    is_recurring: Optional[bool] = False
+    recurrence_type: Optional[str] = None
+    recurrence_end_date: Optional[str] = None
+    recurrence_interval: Optional[int] = 1
 
 class CustomEventCreate(CustomEventBase):
     pass
@@ -257,7 +274,11 @@ async def create_event(telegram_id: int, event: CustomEventCreate, db: AsyncSess
         endTime=event.endTime,
         type=event.type,
         color=event.color,
-        date=event.date
+        date=event.date,
+        is_recurring=event.is_recurring,
+        recurrence_type=event.recurrence_type,
+        recurrence_end_date=event.recurrence_end_date,
+        recurrence_interval=event.recurrence_interval
     )
     db.add(new_event)
     await db.commit()

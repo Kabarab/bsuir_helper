@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import axios from 'axios';
 import { CalendarDays, ChevronLeft, ChevronRight, Clock, MapPin, Users, Plus, X, List, Calendar as CalendarIcon, Trash2, Settings } from 'lucide-react';
-import { format, addDays, subDays, startOfWeek, isSameDay, getDay, differenceInCalendarWeeks, parse, addMinutes, startOfDay, endOfDay } from 'date-fns';
+import { format, addDays, subDays, startOfWeek, isSameDay, getDay, differenceInCalendarWeeks, parse, addMinutes, startOfDay, endOfDay, differenceInHours, differenceInMonths, differenceInYears } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
@@ -51,7 +51,7 @@ export default function Schedule() {
   });
 
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [newPlan, setNewPlan] = useState({ title: '', startTime: '09:00', endTime: '10:30', type: 'CUSTOM', color: 'blue', date: '' });
+  const [newPlan, setNewPlan] = useState({ title: '', startTime: '09:00', endTime: '10:30', type: 'CUSTOM', color: 'blue', date: '', is_recurring: false, recurrence_type: 'weekly', recurrence_end_date: '', recurrence_interval: 1 });
 
   // Planner tasks for linking
   const [plannerTasks, setPlannerTasks] = useState(() => {
@@ -209,18 +209,117 @@ export default function Schedule() {
     }
 
     // Add custom plans for the selected date
-    const plansForDay = customPlans.filter(plan => {
-      // If plan has a specific date, match it, otherwise assume it's weekly (for simplicity here we can use day name or just date)
-      // For now, let's just use date match if we want it specific, or day name match for repeating.
-      // Let's stick to date match for now as "plans"
-      return isSameDay(new Date(plan.date || selectedDate), selectedDate);
+    let expandedPlansForDay = [];
+    
+    customPlans.forEach(plan => {
+      const planDate = new Date(plan.date || selectedDate);
+      
+      if (!plan.is_recurring) {
+        if (isSameDay(planDate, selectedDate)) {
+          expandedPlansForDay.push({...plan, generatedStartTime: plan.startTime, generatedEndTime: plan.endTime});
+        }
+        return;
+      }
+      
+      // Handle recurring events
+      const selected = startOfDay(selectedDate);
+      const start = startOfDay(planDate);
+      
+      // Discard if selected date is before the plan starts
+      if (selected < start) return;
+      
+      // Discard if selected date is after recurrence ends
+      if (plan.recurrence_end_date) {
+        const end = startOfDay(new Date(plan.recurrence_end_date));
+        if (selected > end) return;
+      }
+      
+      const interval = Math.max(1, plan.recurrence_interval || 1);
+      
+      if (plan.recurrence_type === 'hourly') {
+        // Find if any instances fall on the selected date
+        // Since we specify start time, we need to calculate exact instances based on the original start time
+        // E.g., starts at 10:00, every 3 hours -> 10:00, 13:00, 16:00, 19:00
+        
+        let [sH, sM] = plan.startTime.split(':').map(Number);
+        let [eH, eM] = plan.endTime.split(':').map(Number);
+        const durationMins = (eH * 60 + eM) - (sH * 60 + sM);
+        
+        const originalDateTime = new Date(planDate);
+        originalDateTime.setHours(sH, sM, 0, 0);
+        
+        const selectedStartOfDay = new Date(selectedDate);
+        selectedStartOfDay.setHours(0, 0, 0, 0);
+        const selectedEndOfDay = new Date(selectedDate);
+        selectedEndOfDay.setHours(23, 59, 59, 999);
+        
+        // Let's generate instances until we hit the end of the selected day
+        let currentInstance = new Date(originalDateTime);
+        
+        while (currentInstance <= selectedEndOfDay) {
+          // If the instance is on the selected day, add it
+          if (currentInstance >= selectedStartOfDay && currentInstance <= selectedEndOfDay) {
+            const outStartH = currentInstance.getHours().toString().padStart(2, '0');
+            const outStartM = currentInstance.getMinutes().toString().padStart(2, '0');
+            
+            const endInstance = new Date(currentInstance.getTime() + durationMins * 60000);
+            const outEndH = endInstance.getHours().toString().padStart(2, '0');
+            const outEndM = endInstance.getMinutes().toString().padStart(2, '0');
+            
+            expandedPlansForDay.push({
+               ...plan,
+               generatedStartTime: `${outStartH}:${outStartM}`,
+               generatedEndTime: `${outEndH}:${outEndM}`,
+               pseudoId: `${plan.id}_${format(selectedDate, 'yyyy-MM-dd')}_${outStartH}${outStartM}`
+            });
+          }
+          currentInstance = new Date(currentInstance.getTime() + interval * 60 * 60 * 1000);
+        }
+        
+        return; // Done with hourly
+      }
+      
+      // Daily, Weekly, Biweekly
+      const diffMs = selected.getTime() - start.getTime();
+      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      
+      let matchesDate = false;
+      
+      if (plan.recurrence_type === 'daily') {
+        matchesDate = diffDays % interval === 0;
+      } else if (plan.recurrence_type === 'weekly') {
+        matchesDate = diffDays % (interval * 7) === 0;
+      } else if (plan.recurrence_type === 'biweekly') {
+        // Backwards compatibility
+        matchesDate = diffDays % 14 === 0; 
+      } else if (plan.recurrence_type === 'monthly') {
+        const dMonths = differenceInMonths(selected, start);
+        // Also check if days of month align (naive check: same day of month)
+        // If start date was Jan 31, and selected is Feb 28, differenceInMonths handles it best effort, 
+        // but let's just do a simple day of month check
+        matchesDate = (dMonths % interval === 0) && (selected.getDate() === start.getDate());
+      } else if (plan.recurrence_type === 'yearly') {
+        const dYears = differenceInYears(selected, start);
+        matchesDate = (dYears % interval === 0) && (selected.getDate() === start.getDate()) && (selected.getMonth() === start.getMonth());
+      }
+      
+      if (matchesDate) {
+        expandedPlansForDay.push({
+           ...plan,
+           generatedStartTime: plan.startTime,
+           generatedEndTime: plan.endTime
+        });
+      }
     });
 
-    const formattedPlans = plansForDay.map(p => ({
+    const formattedPlans = expandedPlansForDay.map(p => ({
       ...p,
       lessonTypeAbbrev: p.type || 'CUSTOM',
-      startLessonTime: p.startTime,
-      endLessonTime: p.endTime,
+      // Ensure we don't accidentally duplicate same event IDs if they repeat, 
+      // though map index usually handles keying in rendering. Add a pseudo-id for keying if necessary.
+      pseudoId: p.pseudoId || `${p.id}_${format(selectedDate, 'yyyy-MM-dd')}`,
+      startLessonTime: p.generatedStartTime,
+      endLessonTime: p.generatedEndTime,
       subject: p.title,
       isCustom: true
     }));
@@ -231,12 +330,17 @@ export default function Schedule() {
   const handleAddPlan = () => {
     if (!newPlan.title) return;
     const eventDate = newPlan.date || format(selectedDate, 'yyyy-MM-dd');
-    const eventToCreate = { ...newPlan, date: eventDate };
+    const eventToCreate = { ...newPlan, date: eventDate, recurrence_interval: parseInt(newPlan.recurrence_interval, 10) || 1 };
+    
+    // Cleanup empty strings for API
+    if (!eventToCreate.recurrence_end_date) {
+      eventToCreate.recurrence_end_date = null;
+    }
     
     axios.post(`/api/events/${telegramId}`, eventToCreate)
       .then(res => {
         setCustomPlans([...customPlans, res.data]);
-        setNewPlan({ title: '', startTime: '09:00', endTime: '10:30', type: 'CUSTOM', color: 'blue', date: '' });
+        setNewPlan({ title: '', startTime: '09:00', endTime: '10:30', type: 'CUSTOM', color: 'blue', date: format(selectedDate, 'yyyy-MM-dd'), is_recurring: false, recurrence_type: 'weekly', recurrence_end_date: '', recurrence_interval: 1 });
         setIsModalOpen(false);
       })
       .catch(console.error);
@@ -380,7 +484,7 @@ export default function Schedule() {
           <div className="flex items-center gap-3">
             <button 
               onClick={() => {
-                setNewPlan({ title: '', startTime: '09:00', endTime: '10:30', type: 'CUSTOM', color: 'blue', date: format(selectedDate, 'yyyy-MM-dd') });
+                setNewPlan({ title: '', startTime: '09:00', endTime: '10:30', type: 'CUSTOM', color: 'blue', date: format(selectedDate, 'yyyy-MM-dd'), is_recurring: false, recurrence_type: 'weekly', recurrence_end_date: '', recurrence_interval: 1 });
                 setIsModalOpen(true);
               }}
               className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-tg-button hover:bg-tg-button hover:text-tg-buttonText px-2 py-1 rounded-lg transition-all border border-tg-button"
@@ -408,7 +512,7 @@ export default function Schedule() {
                 const isActive = progress > 0 && progress < 1;
                 const progressPct = (typeof progress === 'number' && progress > 0 && progress < 1) ? Math.round(progress * 100) : 0;
                 return (
-                  <div key={idx} className={`relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active transition-opacity duration-300 ${isPast ? 'opacity-50' : ''}`}>
+                  <div key={lesson.pseudoId || idx} className={`relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active transition-opacity duration-300 ${isPast ? 'opacity-50' : ''}`}>
                     {/* Timeline dot */}
                     <div className={`flex items-center justify-center w-10 h-10 rounded-full border-4 border-tg-bg shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10 transition-transform group-hover:scale-110 ${isActive ? 'bg-tg-button border-tg-button scale-110' : 'bg-[var(--tg-theme-bg-color)] group-hover:border-tg-button'}`}>
                       <span className={`text-xs font-black ${isActive ? 'text-tg-buttonText' : colors.text}`}>{isPast ? '✓' : idx + 1}</span>
@@ -624,7 +728,7 @@ export default function Schedule() {
                   
                   return (
                     <div 
-                      key={idx}
+                      key={lesson.pseudoId || idx}
                       style={{ top: `${top}px`, height: `${height}px` }}
                       className={`absolute left-2 right-2 rounded-xl p-2 border-l-4 shadow-sm flex flex-col justify-between overflow-hidden transition-all hover:scale-[1.02] hover:z-20 ${colors.light} ${colors.border} ${isPast ? 'opacity-50' : ''} ${isActive ? 'ring-1 ring-tg-button/40 shadow-md z-10' : ''}`}
                     >
@@ -755,6 +859,68 @@ export default function Schedule() {
                     </button>
                   ))}
                 </div>
+              </div>
+              
+              <div className="bg-tg-bg/50 p-4 rounded-2xl border border-[var(--tg-theme-hint-color)] border-opacity-10 space-y-4">
+                <label className="flex items-center gap-3 cursor-pointer select-none">
+                  <div className="relative flex items-center justify-center w-6 h-6 rounded bg-tg-bg border-2 border-tg-hint/30 transition-all overflow-hidden shrink-0">
+                    <input 
+                      type="checkbox"
+                      checked={newPlan.is_recurring}
+                      onChange={(e) => setNewPlan({...newPlan, is_recurring: e.target.checked})}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer peer"
+                    />
+                    <div className="absolute inset-0 bg-tg-button opacity-0 peer-checked:opacity-100 transition-opacity" />
+                    <svg className="w-4 h-4 text-white opacity-0 peer-checked:opacity-100 transition-opacity z-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <span className="text-sm font-bold text-tg-text">Повторять событие</span>
+                </label>
+
+                {newPlan.is_recurring && (
+                  <div className="grid gap-4 mt-2 pt-4 border-t border-[var(--tg-theme-hint-color)] border-opacity-10 animate-fade-in">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-semibold uppercase text-tg-hint mb-1.5 ml-1">Интервал</label>
+                        <input 
+                          type="number"
+                          min="1"
+                          max="99"
+                          value={newPlan.recurrence_interval || 1}
+                          onChange={(e) => setNewPlan({...newPlan, recurrence_interval: e.target.value})}
+                          className="w-full px-4 h-[52px] rounded-2xl bg-tg-bg text-tg-text focus:outline-none ring-2 ring-transparent focus:ring-tg-button/30 border-none transition-all font-medium appearance-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold uppercase text-tg-hint mb-1.5 ml-1">Как часто?</label>
+                        <select 
+                          value={newPlan.recurrence_type}
+                          onChange={(e) => setNewPlan({...newPlan, recurrence_type: e.target.value})}
+                          className="w-full px-4 h-[52px] rounded-2xl bg-tg-bg text-tg-text focus:outline-none ring-2 ring-transparent focus:ring-tg-button/30 border-none transition-all font-medium appearance-none"
+                        >
+                          <option value="hourly">Часов</option>
+                          <option value="daily">Дней</option>
+                          <option value="weekly">Недель</option>
+                          <option value="monthly">Месяцев</option>
+                          <option value="yearly">Лет</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold uppercase text-tg-hint mb-1.5 ml-1">
+                        Повторять до (необязательно)
+                      </label>
+                      <input 
+                        type="date"
+                        value={newPlan.recurrence_end_date || ''}
+                        onChange={(e) => setNewPlan({...newPlan, recurrence_end_date: e.target.value})}
+                        className="w-full px-4 h-[52px] rounded-2xl bg-tg-bg text-tg-text focus:outline-none ring-2 ring-transparent focus:ring-tg-button/30 border-none transition-all font-medium appearance-none"
+                        min={newPlan.date || format(selectedDate, 'yyyy-MM-dd')}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div>

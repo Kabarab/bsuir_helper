@@ -43,5 +43,9 @@ class CustomEvent(Base):
     type = Column(String, default="CUSTOM")
     color = Column(String, default="blue")
     date = Column(String, nullable=True) # ISO Date
+    is_recurring = Column(Boolean, default=False)
+    recurrence_type = Column(String, nullable=True)
+    recurrence_end_date = Column(String, nullable=True)
+    recurrence_interval = Column(Integer, default=1)
 
     owner = relationship("User", back_populates="custom_events")
