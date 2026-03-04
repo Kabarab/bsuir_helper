@@ -703,7 +703,7 @@ export default function Schedule() {
                   value={newPlan.title}
                   onChange={(e) => setNewPlan({...newPlan, title: e.target.value})}
                   placeholder="Напр. Подготовка к лабам"
-                  className="w-full px-4 py-3.5 rounded-2xl bg-tg-bg text-tg-text focus:outline-none ring-2 ring-transparent focus:ring-tg-button/30 border-none transition-all font-medium"
+                  className="w-full px-4 h-[52px] rounded-2xl bg-tg-bg text-tg-text focus:outline-none ring-2 ring-transparent focus:ring-tg-button/30 border-none transition-all font-medium appearance-none"
                 />
               </div>
 
@@ -713,7 +713,7 @@ export default function Schedule() {
                   type="date"
                   value={newPlan.date || format(selectedDate, 'yyyy-MM-dd')}
                   onChange={(e) => setNewPlan({...newPlan, date: e.target.value})}
-                  className="w-full px-4 py-3.5 rounded-2xl bg-tg-bg text-tg-text focus:outline-none ring-2 ring-transparent focus:ring-tg-button/30 border-none transition-all font-medium"
+                  className="w-full px-4 h-[52px] rounded-2xl bg-tg-bg text-tg-text focus:outline-none ring-2 ring-transparent focus:ring-tg-button/30 border-none transition-all font-medium appearance-none"
                 />
               </div>
 
@@ -724,7 +724,7 @@ export default function Schedule() {
                     type="time"
                     value={newPlan.startTime}
                     onChange={(e) => setNewPlan({...newPlan, startTime: e.target.value})}
-                    className="w-full px-4 py-3.5 rounded-2xl bg-tg-bg text-tg-text focus:outline-none ring-2 ring-transparent focus:ring-tg-button/30 border-none transition-all font-medium"
+                    className="w-full px-4 h-[52px] rounded-2xl bg-tg-bg text-tg-text focus:outline-none ring-2 ring-transparent focus:ring-tg-button/30 border-none transition-all font-medium appearance-none"
                   />
                 </div>
                 <div>
@@ -733,7 +733,7 @@ export default function Schedule() {
                     type="time"
                     value={newPlan.endTime}
                     onChange={(e) => setNewPlan({...newPlan, endTime: e.target.value})}
-                    className="w-full px-4 py-3.5 rounded-2xl bg-tg-bg text-tg-text focus:outline-none ring-2 ring-transparent focus:ring-tg-button/30 border-none transition-all font-medium"
+                    className="w-full px-4 h-[52px] rounded-2xl bg-tg-bg text-tg-text focus:outline-none ring-2 ring-transparent focus:ring-tg-button/30 border-none transition-all font-medium appearance-none"
                   />
                 </div>
               </div>

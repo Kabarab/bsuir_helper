@@ -255,7 +255,7 @@ export default function Planner() {
                    value={currentTask.title}
                    onChange={(e) => setCurrentTask({...currentTask, title: e.target.value})}
                    placeholder="Что нужно сделать?"
-                   className="w-full px-4 py-3 rounded-xl bg-tg-bg text-tg-text focus:outline-none focus:ring-2 focus:ring-tg-button border border-transparent shadow-inner font-medium"
+                   className="w-full px-4 h-[48px] rounded-xl bg-tg-bg text-tg-text focus:outline-none focus:ring-2 focus:ring-tg-button border border-transparent shadow-inner font-medium appearance-none"
                    autoFocus
                  />
               </div>
