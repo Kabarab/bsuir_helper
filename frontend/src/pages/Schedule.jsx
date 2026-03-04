@@ -59,6 +59,9 @@ export default function Schedule() {
     return saved ? JSON.parse(saved) : [];
   });
 
+  // Expandable lesson state
+  const [expandedLessonId, setExpandedLessonId] = useState(null);
+
   // Drag-to-create state
   const [dragState, setDragState] = useState({ isDragging: false, startY: 0, currentY: 0 });
   const gridRef = useRef(null);
@@ -112,6 +115,42 @@ export default function Schedule() {
          console.error(err);
          setLoading(false);
       });
+  };
+  
+  // Helpers to find next/prev occurrence in schedule
+  const findOccurrence = (direction, subjectTitle, typeAbbrev, fromDate) => {
+    if (!schedule?.schedules) return null;
+    
+    // We'll search up to 30 days in the specified direction
+    let currentDate = direction === 'next' ? addDays(fromDate, 1) : subDays(fromDate, 1);
+    const maxSearchDays = 30;
+    
+    for (let i = 0; i < maxSearchDays; i++) {
+       const dayIndex = getDay(currentDate);
+       const dayName = ["Воскресенье", "Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота"][dayIndex];
+       const weekNum = getWeekNumberForDate(currentDate);
+       
+       if (schedule.schedules[dayName]) {
+         const foundLesson = schedule.schedules[dayName].find(l => {
+            // Check subgroup match if necessary
+            if (subgroup !== 0 && l.numSubgroup !== 0 && l.numSubgroup !== subgroup) return false;
+            // Check week match
+            if (l.weekNumber && l.weekNumber.length > 0 && !l.weekNumber.includes(weekNum)) return false;
+            
+            return l.subject === subjectTitle && l.lessonTypeAbbrev === typeAbbrev;
+         });
+         
+         if (foundLesson) {
+           return {
+             date: currentDate,
+             lesson: foundLesson
+           };
+         }
+       }
+       
+       currentDate = direction === 'next' ? addDays(currentDate, 1) : subDays(currentDate, 1);
+    }
+    return null;
   };
 
   useEffect(() => {
@@ -519,7 +558,10 @@ export default function Schedule() {
                     </div>
                     
                     {/* Card */}
-                    <div className={`w-[calc(100%-3rem)] md:w-[calc(50%-2.5rem)] bg-tg-secondaryBg rounded-2xl p-4 shadow-sm border border-opacity-10 relative overflow-hidden transition-all hover:shadow-md hover:-translate-y-1 ${isActive ? 'border-tg-button ring-1 ring-tg-button/30 shadow-md' : 'border-[var(--tg-theme-hint-color)]'}`}>
+                    <div 
+                      onClick={() => setExpandedLessonId(expandedLessonId === (lesson.pseudoId || idx) ? null : (lesson.pseudoId || idx))}
+                      className={`w-[calc(100%-3rem)] md:w-[calc(50%-2.5rem)] bg-tg-secondaryBg rounded-2xl p-4 shadow-sm border border-opacity-10 relative overflow-hidden transition-all cursor-pointer hover:shadow-md hover:-translate-y-1 ${isActive ? 'border-tg-button ring-1 ring-tg-button/30 shadow-md' : 'border-[var(--tg-theme-hint-color)]'}`}
+                    >
                       {/* Progress fill overlay */}
                       {isActive && (
                         <div 
@@ -614,6 +656,71 @@ export default function Schedule() {
                             )}
                           </div>
                         )}
+                        {/* Expanded details */}
+                        <div className={`grid transition-all duration-300 ease-in-out ${expandedLessonId === (lesson.pseudoId || idx) ? 'grid-rows-[1fr] opacity-100 mt-4' : 'grid-rows-[0fr] opacity-0 mt-0 pointer-events-none'}`}>
+                          <div className="overflow-hidden">
+                            {!lesson.isCustom && (
+                              <div className="flex flex-col gap-3 pt-3 border-t border-[var(--tg-theme-hint-color)] border-opacity-10">
+                                {/* Teachers Info */}
+                                {lesson.employees && lesson.employees.length > 0 && (
+                                  <div className="flex flex-col gap-2">
+                                    <span className="text-[10px] font-black uppercase text-tg-hint tracking-wider">Преподаватели</span>
+                                    <div className="flex flex-col gap-2">
+                                      {lesson.employees.map((emp, i) => (
+                                        <div key={i} className="flex items-center gap-2.5 bg-tg-bg/50 p-2 rounded-xl border border-[var(--tg-theme-hint-color)] border-opacity-5">
+                                          {emp.photoLink ? (
+                                            <img src={emp.photoLink} alt="Avatar" className="w-8 h-8 rounded-full object-cover shrink-0" onError={(e) => { e.target.onerror = null; e.target.src = 'https://ui-avatars.com/api/?name=' + emp.lastName + '&background=random'; }} />
+                                          ) : (
+                                            <div className="w-8 h-8 rounded-full bg-tg-button/20 text-tg-button flex items-center justify-center font-bold text-xs shrink-0">
+                                              {emp.lastName?.[0] || '?'}
+                                            </div>
+                                          )}
+                                          <div className="flex flex-col">
+                                            <span className="text-xs font-bold text-tg-text">{emp.lastName} {emp.firstName} {emp.middleName}</span>
+                                            {emp.degree && <span className="text-[10px] text-tg-hint leading-tight">{emp.degree}</span>}
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                                
+                                {/* Prev / Next occurrences */}
+                                {(() => {
+                                  const renderOccurrence = (occ, label) => {
+                                    if (!occ) return (
+                                      <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-tg-bg/30 border border-tg-hint/10 flex-1">
+                                         <span className="text-[9px] uppercase font-black text-tg-hint/70 mb-0.5">{label}</span>
+                                         <span className="text-xs font-medium text-tg-hint">Нет данных</span>
+                                      </div>
+                                    );
+                                    return (
+                                      <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-tg-bg/50 border border-tg-hint/10 flex-1 cursor-pointer hover:bg-tg-bg transition-colors"
+                                           onClick={(e) => { e.stopPropagation(); setSelectedDate(occ.date); }}>
+                                         <span className="text-[9px] uppercase font-black text-tg-hint mb-0.5">{label}</span>
+                                         <span className="text-xs font-bold text-tg-text">{format(occ.date, 'd MMM', { locale: ru })}</span>
+                                         <span className="text-[10px] font-medium text-tg-hint">{occ.lesson.startLessonTime}</span>
+                                      </div>
+                                    );
+                                  };
+                                  
+                                  const isExpanded = expandedLessonId === (lesson.pseudoId || idx);
+                                  // Compute only when expanded
+                                  const prevOcc = isExpanded ? findOccurrence('prev', lesson.subject, lesson.lessonTypeAbbrev, selectedDate) : null;
+                                  const nextOcc = isExpanded ? findOccurrence('next', lesson.subject, lesson.lessonTypeAbbrev, selectedDate) : null;
+                                  
+                                  return (
+                                    <div className="flex items-stretch gap-2 mt-1">
+                                       {renderOccurrence(prevOcc, "Прошлая")}
+                                       {renderOccurrence(nextOcc, "Следующая")}
+                                    </div>
+                                  );
+                                })()}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
                       </div>
                     </div>
                   </div>
