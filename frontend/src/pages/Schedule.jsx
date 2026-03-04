@@ -687,12 +687,13 @@ export default function Schedule() {
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-end justify-center">
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setIsModalOpen(false)} />
-          <div className="relative bg-tg-secondaryBg w-full max-w-md rounded-t-3xl shadow-2xl p-6 pb-10 transition-transform animate-slide-up">
-            <div className="flex items-center justify-between mb-6">
+          <div className="relative bg-tg-secondaryBg w-full max-w-md rounded-t-3xl shadow-2xl transition-transform animate-slide-up max-h-[92vh] flex flex-col">
+            <div className="flex items-center justify-between p-6 pb-2">
               <h2 className="text-xl font-bold text-tg-text">Новый план</h2>
               <button onClick={() => setIsModalOpen(false)} className="text-tg-hint bg-tg-bg p-2 rounded-full"><X size={20} /></button>
             </div>
             
+            <form onSubmit={(e) => { e.preventDefault(); handleAddPlan(); }} className="overflow-y-auto px-6 pb-10 flex-1">
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold uppercase text-tg-hint mb-1.5 ml-1">Название</label>
@@ -773,12 +774,13 @@ export default function Schedule() {
               </div>
 
               <button 
-                onClick={handleAddPlan}
+                type="submit"
                 className="w-full py-4 bg-tg-button text-tg-buttonText font-bold rounded-2xl mt-4 active:scale-[0.98] transition-all shadow-lg shadow-tg-button/30 text-base"
               >
                 Сохранить в расписание
               </button>
             </div>
+            </form>
           </div>
         </div>
       )}

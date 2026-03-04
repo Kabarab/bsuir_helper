@@ -239,12 +239,13 @@ export default function Planner() {
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-0">
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity" onClick={handleCloseModal} />
-          <div className="relative bg-tg-secondaryBg w-full sm:w-[400px] sm:rounded-2xl rounded-t-2xl shadow-2xl transition-transform max-h-[90vh] overflow-y-auto transform translate-y-0 pb-6 p-5">
-            <div className="flex items-center justify-between mb-5">
+          <div className="relative bg-tg-secondaryBg w-full sm:w-[400px] sm:rounded-2xl rounded-t-2xl shadow-2xl transition-transform max-h-[92vh] flex flex-col transform translate-y-0">
+            <div className="flex items-center justify-between p-5 pb-2">
               <h2 className="text-xl font-bold text-tg-text">{currentTask.id ? 'Редактировать' : 'Новая Задача'}</h2>
               <button onClick={handleCloseModal} className="text-tg-hint hover:text-tg-text bg-tg-bg p-1.5 rounded-full"><X size={20} /></button>
             </div>
             
+            <form onSubmit={(e) => { e.preventDefault(); handleSaveTask(); }} className="overflow-y-auto px-5 pb-6 flex-1">
             <div className="space-y-4">
               <div>
                  <label className="block text-xs font-semibold uppercase text-tg-hint mb-1">Название</label>
@@ -313,12 +314,13 @@ export default function Planner() {
               </div>
 
               <button 
-                onClick={handleSaveTask}
+                type="submit"
                 className="w-full py-3.5 bg-tg-button text-tg-buttonText font-bold rounded-xl mt-4 active:scale-[0.98] transition-transform shadow-lg shadow-tg-button/20"
               >
                 {currentTask.id ? 'Сохранить изменения' : 'Добавить задачу'}
               </button>
             </div>
+            </form>
           </div>
         </div>
       )}
