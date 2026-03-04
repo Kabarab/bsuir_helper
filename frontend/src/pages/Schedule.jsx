@@ -238,12 +238,40 @@ export default function Schedule() {
   const activeLessons = useMemo(() => {
     let lessons = [];
     if (schedule?.schedules && schedule.schedules[selectedDayName]) {
-      lessons = schedule.schedules[selectedDayName].filter(lesson => {
-        // Handle English/Foreign Language subgroup specifically
-        const isEnglish = lesson.subject?.toLowerCase().includes('иностранный') || lesson.subject?.toLowerCase().includes('английский');
-        const effectiveSubgroup = isEnglish && englishSubgroup !== 0 ? englishSubgroup : subgroup;
+      
+      // Pre-calculate english teachers mapping if needed
+      let englishTeachersList = [];
+      if (englishSubgroup !== 0) {
+         const uniqueTeachers = new Set();
+         Object.values(schedule.schedules).flat().forEach(l => {
+            const isL = l.subject?.toLowerCase().includes('иностранный') || l.subject?.toLowerCase().includes('английский');
+            if (isL && l.employees && l.employees.length > 0) {
+               const emp = l.employees[0];
+               uniqueTeachers.add(`${emp.lastName} ${emp.firstName?.[0] || ''}.${emp.middleName ? ` ${emp.middleName[0]}.` : ''}`);
+            }
+         });
+         englishTeachersList = Array.from(uniqueTeachers).sort();
+      }
 
-        if (effectiveSubgroup !== 0 && lesson.numSubgroup !== 0 && lesson.numSubgroup !== effectiveSubgroup) return false;
+      lessons = schedule.schedules[selectedDayName].filter(lesson => {
+        const isEnglish = lesson.subject?.toLowerCase().includes('иностранный') || lesson.subject?.toLowerCase().includes('английский');
+        
+        if (isEnglish && englishSubgroup !== 0) {
+           // We have a specific english teacher/subgroup selected.
+           // BSUIR often sets numSubgroup to 0 for English, so we filter by sorted teacher index.
+           if (lesson.employees && lesson.employees.length > 0) {
+              const emp = lesson.employees[0];
+              const teacherName = `${emp.lastName} ${emp.firstName?.[0] || ''}.${emp.middleName ? ` ${emp.middleName[0]}.` : ''}`;
+              const teacherIndex = englishTeachersList.indexOf(teacherName) + 1;
+              if (teacherIndex && teacherIndex !== englishSubgroup) return false;
+           } else if (lesson.numSubgroup !== 0 && lesson.numSubgroup !== englishSubgroup) {
+              return false; // Fallback if no teachers are assigned but subgroups are
+           }
+        } else if (!isEnglish && subgroup !== 0 && lesson.numSubgroup !== 0 && lesson.numSubgroup !== subgroup) {
+           return false;
+        } else if (isEnglish && englishSubgroup === 0 && subgroup !== 0 && lesson.numSubgroup !== 0 && lesson.numSubgroup !== subgroup) {
+           return false; // English, set to "Как основная", use global subgroup if it's strictly assigned
+        }
         
         if (lesson.weekNumber && lesson.weekNumber.length > 0) {
           if (!lesson.weekNumber.includes(selectedWeekNumber)) return false;
