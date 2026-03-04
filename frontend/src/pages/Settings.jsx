@@ -4,50 +4,24 @@ import { Settings as SettingsIcon, Save, ChevronLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export default function Settings() {
-  const { group, subgroup, englishSubgroup, studentId, updatePreferences } = useUser();
+  const { group, subgroup, studentId, updatePreferences } = useUser();
   const navigate = useNavigate();
   
   const [inputGroup, setInputGroup] = useState(group || '');
   const [inputStudentId, setInputStudentId] = useState(studentId || '');
   const [inputSubgroup, setInputSubgroup] = useState(subgroup || 0);
-  const [inputEnglishSubgroup, setInputEnglishSubgroup] = useState(englishSubgroup || 0);
   const [isSaving, setIsSaving] = useState(false);
-  const [englishTeachersMap, setEnglishTeachersMap] = useState({});
-
-  useEffect(() => {
-    if (group) {
-       try {
-         const cached = localStorage.getItem(`schedule_${group}`);
-         if (cached) {
-            const sched = JSON.parse(cached);
-            const map = {};
-            if (sched.schedules) {
-               Object.values(sched.schedules).flat().forEach(lesson => {
-                  const isEnglish = lesson.subject?.toLowerCase().includes('иностранный') || lesson.subject?.toLowerCase().includes('английский');
-                  if (isEnglish && lesson.numSubgroup !== 0 && lesson.employees && lesson.employees.length > 0) {
-                     const emp = lesson.employees[0];
-                     const name = `${emp.lastName} ${emp.firstName?.[0] || ''}.${emp.middleName ? ` ${emp.middleName[0]}.` : ''}`;
-                     map[lesson.numSubgroup] = name;
-                  }
-               });
-            }
-            setEnglishTeachersMap(map);
-         }
-       } catch (e) {}
-    }
-  }, [group]);
 
   useEffect(() => {
     setInputGroup(group || '');
     setInputSubgroup(subgroup || 0);
-    setInputEnglishSubgroup(englishSubgroup || 0);
     setInputStudentId(studentId || '');
-  }, [group, subgroup, englishSubgroup, studentId]);
+  }, [group, subgroup, studentId]);
 
   const handleSave = async () => {
     if (!inputGroup.trim()) return;
     setIsSaving(true);
-    await updatePreferences(inputGroup.trim(), Number(inputSubgroup), Number(inputEnglishSubgroup), inputStudentId.trim());
+    await updatePreferences(inputGroup.trim(), Number(inputSubgroup), inputStudentId.trim());
     setIsSaving(false);
     navigate(-1); // Go back to the previous screen
   };
@@ -117,49 +91,12 @@ export default function Settings() {
               ))}
             </div>
           </div>
-          
-          <div>
-             <label className="block text-xs font-semibold uppercase text-tg-hint mb-1.5 ml-1">
-              Подгруппа (Иностранный язык)
-            </label>
-            <div className="flex bg-[var(--tg-theme-bg-color)] p-1 rounded-2xl border border-tg-hint/10">
-              <button
-                key={0}
-                onClick={() => setInputEnglishSubgroup(0)}
-                className={`flex-1 py-2 px-1 rounded-xl text-sm font-bold transition-all ${
-                  inputEnglishSubgroup === 0 
-                    ? 'bg-emerald-500 text-white shadow-md' 
-                    : 'text-tg-hint hover:bg-tg-hint/5'
-                }`}
-              >
-                Как основная
-              </button>
-              {[1, 2].map(val => (
-                <button
-                  key={val}
-                  onClick={() => setInputEnglishSubgroup(val)}
-                  className={`flex-1 py-2 px-1 rounded-xl text-sm font-bold transition-all flex flex-col items-center justify-center ${
-                    inputEnglishSubgroup === val 
-                      ? 'bg-emerald-500 text-white shadow-md' 
-                      : 'text-tg-hint hover:bg-tg-hint/5'
-                  }`}
-                >
-                  <span>{val} подгруппа</span>
-                  {englishTeachersMap[val] && (
-                    <span className={`text-[10px] mt-0.5 leading-tight text-center px-1 ${inputEnglishSubgroup === val ? 'text-white/90' : 'text-tg-hint/70'}`}>
-                      {englishTeachersMap[val]}
-                    </span>
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
       </div>
 
       <button 
         onClick={handleSave}
-        disabled={isSaving || !inputGroup.trim() || (inputGroup === group && inputSubgroup === subgroup && inputEnglishSubgroup === englishSubgroup && inputStudentId === studentId)}
+        disabled={isSaving || !inputGroup.trim() || (inputGroup === group && inputSubgroup === subgroup && inputStudentId === studentId)}
         className="w-full py-4 bg-tg-button text-tg-buttonText font-bold rounded-2xl mt-auto active:scale-[0.98] transition-all shadow-lg shadow-tg-button/30 text-base flex justify-center items-center gap-2 disabled:opacity-50 disabled:shadow-none"
       >
         {isSaving ? (

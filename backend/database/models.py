@@ -9,7 +9,6 @@ class User(Base):
     telegram_id = Column(Integer, unique=True, index=True, nullable=False)
     bsuir_group = Column(String, nullable=True)
     bsuir_subgroup = Column(Integer, default=0)
-    bsuir_english_subgroup = Column(Integer, default=0)
     bsuir_id = Column(String, nullable=True)
     notification_offset = Column(Integer, default=10) # minutes before
 

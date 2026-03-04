@@ -11,7 +11,6 @@ export const UserProvider = ({ children }) => {
   const [userState, setUserState] = useState({
     group: localStorage.getItem('bsuir_group') || null,
     subgroup: parseInt(localStorage.getItem('bsuir_subgroup') || '0', 10),
-    englishSubgroup: parseInt(localStorage.getItem('bsuir_english_subgroup') || '0', 10),
     studentId: localStorage.getItem('bsuir_student_id') || null,
     isInitializing: true,
   });
@@ -27,13 +26,11 @@ export const UserProvider = ({ children }) => {
             ...prev, 
             group: res.data.bsuir_group, 
             subgroup: res.data.bsuir_subgroup || 0, 
-            englishSubgroup: res.data.bsuir_english_subgroup || 0,
             studentId: res.data.bsuir_id,
             isInitializing: false 
           }));
           if (res.data.bsuir_group) localStorage.setItem('bsuir_group', res.data.bsuir_group);
           localStorage.setItem('bsuir_subgroup', (res.data.bsuir_subgroup || 0).toString());
-          localStorage.setItem('bsuir_english_subgroup', (res.data.bsuir_english_subgroup || 0).toString());
           if (res.data.bsuir_id) localStorage.setItem('bsuir_student_id', res.data.bsuir_id);
         } else {
           setUserState(prev => ({ ...prev, isInitializing: false }));
@@ -45,18 +42,16 @@ export const UserProvider = ({ children }) => {
       });
   }, [telegramId]);
 
-  const updatePreferences = async (group, subgroup, englishSubgroup, studentId = null) => {
+  const updatePreferences = async (group, subgroup, studentId = null) => {
     try {
       const res = await axios.put(`/api/users/${telegramId}/preferences`, {
         bsuir_group: group || null,
         bsuir_subgroup: subgroup,
-        bsuir_english_subgroup: englishSubgroup,
         bsuir_id: studentId || null
       });
-      setUserState(prev => ({ ...prev, group: res.data.bsuir_group, subgroup: res.data.bsuir_subgroup, englishSubgroup: res.data.bsuir_english_subgroup, studentId: res.data.bsuir_id }));
+      setUserState(prev => ({ ...prev, group: res.data.bsuir_group, subgroup: res.data.bsuir_subgroup, studentId: res.data.bsuir_id }));
       if (res.data.bsuir_group) localStorage.setItem('bsuir_group', res.data.bsuir_group);
       localStorage.setItem('bsuir_subgroup', res.data.bsuir_subgroup.toString());
-      localStorage.setItem('bsuir_english_subgroup', res.data.bsuir_english_subgroup.toString());
       if (res.data.bsuir_id) localStorage.setItem('bsuir_student_id', res.data.bsuir_id);
       return true;
     } catch (e) {
