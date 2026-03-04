@@ -246,7 +246,7 @@ export default function Planner() {
             </div>
             
             <form onSubmit={(e) => { e.preventDefault(); handleSaveTask(); }} className="flex flex-col flex-1 overflow-hidden">
-            <div className="overflow-y-auto px-5 flex-1">
+            <div className="overflow-y-auto overflow-x-hidden px-5 flex-1">
             <div className="space-y-4">
               <div>
                  <label className="block text-xs font-semibold uppercase text-tg-hint mb-1">Название</label>

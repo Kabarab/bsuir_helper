@@ -694,7 +694,7 @@ export default function Schedule() {
             </div>
             
             <form onSubmit={(e) => { e.preventDefault(); handleAddPlan(); }} className="flex flex-col flex-1 overflow-hidden">
-            <div className="overflow-y-auto px-6 flex-1">
+            <div className="overflow-y-auto overflow-x-hidden px-6 flex-1">
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold uppercase text-tg-hint mb-1.5 ml-1">Название</label>
