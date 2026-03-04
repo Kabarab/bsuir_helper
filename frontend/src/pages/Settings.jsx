@@ -12,6 +12,30 @@ export default function Settings() {
   const [inputSubgroup, setInputSubgroup] = useState(subgroup || 0);
   const [inputEnglishSubgroup, setInputEnglishSubgroup] = useState(englishSubgroup || 0);
   const [isSaving, setIsSaving] = useState(false);
+  const [englishTeachersMap, setEnglishTeachersMap] = useState({});
+
+  useEffect(() => {
+    if (group) {
+       try {
+         const cached = localStorage.getItem(`schedule_${group}`);
+         if (cached) {
+            const sched = JSON.parse(cached);
+            const map = {};
+            if (sched.schedules) {
+               Object.values(sched.schedules).flat().forEach(lesson => {
+                  const isEnglish = lesson.subject?.toLowerCase().includes('иностранный') || lesson.subject?.toLowerCase().includes('английский');
+                  if (isEnglish && lesson.numSubgroup !== 0 && lesson.employees && lesson.employees.length > 0) {
+                     const emp = lesson.employees[0];
+                     const name = `${emp.lastName} ${emp.firstName?.[0] || ''}.${emp.middleName ? ` ${emp.middleName[0]}.` : ''}`;
+                     map[lesson.numSubgroup] = name;
+                  }
+               });
+            }
+            setEnglishTeachersMap(map);
+         }
+       } catch (e) {}
+    }
+  }, [group]);
 
   useEffect(() => {
     setInputGroup(group || '');
@@ -99,17 +123,33 @@ export default function Settings() {
               Подгруппа (Иностранный язык)
             </label>
             <div className="flex bg-[var(--tg-theme-bg-color)] p-1 rounded-2xl border border-tg-hint/10">
-              {[0, 1, 2].map(val => (
+              <button
+                key={0}
+                onClick={() => setInputEnglishSubgroup(0)}
+                className={`flex-1 py-2 px-1 rounded-xl text-sm font-bold transition-all ${
+                  inputEnglishSubgroup === 0 
+                    ? 'bg-emerald-500 text-white shadow-md' 
+                    : 'text-tg-hint hover:bg-tg-hint/5'
+                }`}
+              >
+                Как основная
+              </button>
+              {[1, 2].map(val => (
                 <button
                   key={val}
                   onClick={() => setInputEnglishSubgroup(val)}
-                  className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all ${
+                  className={`flex-1 py-2 px-1 rounded-xl text-sm font-bold transition-all flex flex-col items-center justify-center ${
                     inputEnglishSubgroup === val 
                       ? 'bg-emerald-500 text-white shadow-md' 
                       : 'text-tg-hint hover:bg-tg-hint/5'
                   }`}
                 >
-                  {val === 0 ? 'Как основная' : `${val} подгруппа`}
+                  <span>{val} подгруппа</span>
+                  {englishTeachersMap[val] && (
+                    <span className={`text-[10px] mt-0.5 leading-tight text-center px-1 ${inputEnglishSubgroup === val ? 'text-white/90' : 'text-tg-hint/70'}`}>
+                      {englishTeachersMap[val]}
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
