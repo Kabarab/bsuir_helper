@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Circle, CheckCircle2, Calendar, Edit2, Trash2, PlusCircle, X, Check } from 'lucide-react';
 import { useUser } from '../contexts/UserContext';
+import { getMinskNow } from '../utils/minskTime';
 
 export default function Planner() {
   const { group, telegramId } = useUser();
@@ -58,7 +59,7 @@ export default function Planner() {
       })
       .catch(console.error);
 
-    fetchEventsForDate(new Date().toISOString().split('T')[0]);
+    fetchEventsForDate(getMinskNow().toISOString().split('T')[0]);
   }, [telegramId, group]);
 
   useEffect(() => {
@@ -300,7 +301,7 @@ export default function Planner() {
                 >
                   <option value="">Не привязано</option>
                   {scheduleEvents.map((event, i) => {
-                    const datePart = currentTask.dueDate || new Date().toISOString().split('T')[0];
+                    const datePart = currentTask.dueDate || getMinskNow().toISOString().split('T')[0];
                     const id = `${datePart}_${event.startLessonTime}_${event.subject}`;
                     return (
                       <option key={i} value={id}>

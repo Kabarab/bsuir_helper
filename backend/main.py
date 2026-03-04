@@ -21,12 +21,21 @@ from services.notifications import notification_service
 import uvicorn
 import time
 import os
+from datetime import datetime as dt_datetime
+from zoneinfo import ZoneInfo
+
+MINSK_TZ = ZoneInfo("Europe/Minsk")
 
 app = FastAPI(title="BSUIR Nexus API")
 
 @app.get("/health")
 async def health():
     return {"status": "ok", "port": os.getenv("PORT", "not set")}
+
+@app.get("/api/time")
+async def server_time():
+    now = dt_datetime.now(MINSK_TZ)
+    return {"iso": now.isoformat(), "timestamp": now.timestamp()}
 
 # --- In-memory grades cache ---
 _grades_cache = {}

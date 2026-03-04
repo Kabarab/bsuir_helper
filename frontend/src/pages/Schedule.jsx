@@ -5,6 +5,7 @@ import { format, addDays, subDays, startOfWeek, isSameDay, getDay, differenceInC
 import { ru } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
+import { getMinskNow } from '../utils/minskTime';
 
 const COLOR_PRESETS = {
   blue: { bg: 'bg-blue-500', text: 'text-blue-500', border: 'border-blue-500/30', light: 'bg-blue-500/10' },
@@ -29,7 +30,14 @@ export default function Schedule() {
   const [currentWeekNum, setCurrentWeekNum] = useState(null);
   const [loading, setLoading] = useState(!schedule);
 
-  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState(getMinskNow());
+
+  // Live Minsk time, updated every 60s for progress tracking
+  const [now, setNow] = useState(getMinskNow());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(getMinskNow()), 60000);
+    return () => clearInterval(timer);
+  }, []);
   const [viewMode, setViewMode] = useState('list'); // 'list' or 'calendar'
 
   const [customPlans, setCustomPlans] = useState(() => {
@@ -126,7 +134,7 @@ export default function Schedule() {
   // Generate an array of dates (-1 week to +3 weeks from today)
   const dateStrip = useMemo(() => {
     const dates = [];
-    const today = new Date();
+    const today = getMinskNow();
     for (let i = -7; i <= 21; i++) {
        dates.push(addDays(today, i));
     }
@@ -145,16 +153,30 @@ export default function Schedule() {
   // BSUIR weeks go 1 -> 2 -> 3 -> 4 -> 1...
   const getWeekNumberForDate = (date) => {
     if (!currentWeekNum) return 1; // Fallback
-    const today = new Date();
+    const today = getMinskNow();
     
-    // differenceInCalendarWeeks(dateLeft, dateRight) calculates how many full weeks dateLeft is ahead of dateRight
-    // Setting `weekStartsOn: 1` means weeks start on Monday
     const diffWeeks = differenceInCalendarWeeks(date, today, { weekStartsOn: 1 });
     
     let targetWeek = ((currentWeekNum - 1 + diffWeeks) % 4) + 1;
-    if (targetWeek <= 0) targetWeek += 4; // handle negative modulo
+    if (targetWeek <= 0) targetWeek += 4;
     
     return targetWeek;
+  };
+
+  // Helper: compute lesson progress (0..1) for today only
+  const getLessonProgress = (lesson) => {
+    const isToday = isSameDay(selectedDate, now);
+    if (!isToday) return lesson.startLessonTime <= format(now, 'HH:mm') ? -1 : null; // -1 = past day lessons irrelevant
+    
+    const [sH, sM] = lesson.startLessonTime.split(':').map(Number);
+    const [eH, eM] = lesson.endLessonTime.split(':').map(Number);
+    const startMin = sH * 60 + sM;
+    const endMin = eH * 60 + eM;
+    const nowMin = now.getHours() * 60 + now.getMinutes();
+    
+    if (nowMin < startMin) return 0;   // future
+    if (nowMin >= endMin) return 1;     // past
+    return (nowMin - startMin) / (endMin - startMin); // in progress
   };
 
   const selectedWeekNumber = getWeekNumberForDate(selectedDate);
@@ -314,7 +336,7 @@ export default function Schedule() {
         >
           {dateStrip.map((date, i) => {
             const isSelected = isSameDay(date, selectedDate);
-            const isToday = isSameDay(date, new Date());
+            const isToday = isSameDay(date, now);
             
             return (
               <button
@@ -372,15 +394,29 @@ export default function Schedule() {
             <div className="space-y-3 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-[var(--tg-theme-hint-color)] before:to-transparent before:opacity-20">
               {activeLessons.map((lesson, idx) => {
                 const colors = getLessonColor(lesson);
+                const progress = getLessonProgress(lesson);
+                const isPast = progress === 1;
+                const isActive = progress > 0 && progress < 1;
+                const progressPct = (typeof progress === 'number' && progress > 0 && progress < 1) ? Math.round(progress * 100) : 0;
                 return (
-                  <div key={idx} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+                  <div key={idx} className={`relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active transition-opacity duration-300 ${isPast ? 'opacity-50' : ''}`}>
                     {/* Timeline dot */}
-                    <div className={`flex items-center justify-center w-10 h-10 rounded-full border-4 border-tg-bg bg-[var(--tg-theme-bg-color)] shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10 transition-transform group-hover:scale-110 group-hover:border-tg-button`}>
-                      <span className={`text-xs font-black ${colors.text}`}>{idx + 1}</span>
+                    <div className={`flex items-center justify-center w-10 h-10 rounded-full border-4 border-tg-bg shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10 transition-transform group-hover:scale-110 ${isActive ? 'bg-tg-button border-tg-button scale-110' : 'bg-[var(--tg-theme-bg-color)] group-hover:border-tg-button'}`}>
+                      <span className={`text-xs font-black ${isActive ? 'text-tg-buttonText' : colors.text}`}>{isPast ? '✓' : idx + 1}</span>
                     </div>
                     
                     {/* Card */}
-                    <div className="w-[calc(100%-3rem)] md:w-[calc(50%-2.5rem)] bg-tg-secondaryBg rounded-2xl p-4 shadow-sm border border-[var(--tg-theme-hint-color)] border-opacity-10 relative overflow-hidden transition-all hover:shadow-md hover:-translate-y-1">
+                    <div className={`w-[calc(100%-3rem)] md:w-[calc(50%-2.5rem)] bg-tg-secondaryBg rounded-2xl p-4 shadow-sm border border-opacity-10 relative overflow-hidden transition-all hover:shadow-md hover:-translate-y-1 ${isActive ? 'border-tg-button ring-1 ring-tg-button/30 shadow-md' : 'border-[var(--tg-theme-hint-color)]'}`}>
+                      {/* Progress fill overlay */}
+                      {isActive && (
+                        <div 
+                          className={`absolute bottom-0 left-0 right-0 ${colors.bg} opacity-[0.08] transition-all duration-1000 ease-linear`}
+                          style={{ height: `${progressPct}%` }}
+                        />
+                      )}
+                      {isPast && (
+                        <div className="absolute inset-0 bg-[var(--tg-theme-hint-color)] opacity-[0.04]" />
+                      )}
                       {/* Lesson Type Banner */}
                       <div className={`absolute top-0 right-0 px-3 py-1 rounded-bl-xl font-black text-[10px] tracking-widest uppercase ${colors.bg} text-tg-buttonText shadow-sm z-10`}>
                         {lesson.lessonTypeAbbrev}
@@ -540,13 +576,27 @@ export default function Schedule() {
                   const duration = (endH * 60 + endM) - (startH * 60 + startM);
                   const height = (duration / 60 * 80);
                   const colors = getLessonColor(lesson);
+                  const progress = getLessonProgress(lesson);
+                  const isPast = progress === 1;
+                  const isActive = progress > 0 && progress < 1;
+                  const progressPct = (typeof progress === 'number' && progress > 0 && progress < 1) ? Math.round(progress * 100) : 0;
                   
                   return (
                     <div 
                       key={idx}
                       style={{ top: `${top}px`, height: `${height}px` }}
-                      className={`absolute left-2 right-2 rounded-xl p-2 border-l-4 shadow-sm flex flex-col justify-between overflow-hidden transition-all hover:scale-[1.02] hover:z-20 ${colors.light} ${colors.border}`}
+                      className={`absolute left-2 right-2 rounded-xl p-2 border-l-4 shadow-sm flex flex-col justify-between overflow-hidden transition-all hover:scale-[1.02] hover:z-20 ${colors.light} ${colors.border} ${isPast ? 'opacity-50' : ''} ${isActive ? 'ring-1 ring-tg-button/40 shadow-md z-10' : ''}`}
                     >
+                      {/* Progress fill overlay for calendar view */}
+                      {isActive && (
+                        <div 
+                          className={`absolute bottom-0 left-0 right-0 ${colors.bg} opacity-[0.12] transition-all duration-1000 ease-linear`}
+                          style={{ height: `${progressPct}%` }}
+                        />
+                      )}
+                      {isPast && (
+                        <div className="absolute inset-0 bg-[var(--tg-theme-hint-color)] opacity-[0.06]" />
+                      )}
                       <div>
                         <div className="flex items-center justify-between mb-0.5">
                           <span className={`text-[9px] font-black uppercase ${colors.text}`}>{lesson.lessonTypeAbbrev}</span>
