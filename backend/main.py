@@ -60,24 +60,30 @@ async def startup_event():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
         
-        # Add columns dynamically for existing DBs
-        try:
-            from sqlalchemy import text
-            await conn.execute(text("ALTER TABLE custom_events ADD COLUMN is_recurring BOOLEAN DEFAULT 0;"))
-            await conn.execute(text("ALTER TABLE custom_events ADD COLUMN recurrence_type VARCHAR;"))
-            await conn.execute(text("ALTER TABLE custom_events ADD COLUMN recurrence_end_date VARCHAR;"))
-            await conn.execute(text("ALTER TABLE custom_events ADD COLUMN recurrence_interval INTEGER DEFAULT 1;"))
-            print("Successfully backfilled recurring columns to custom_events.", flush=True)
-        except Exception as e:
-            # Table might already have them or it's a new DB where create_all handled it
-            print(f"Schema update notice: {e}", flush=True)
+        # Add columns dynamically for existing DBs (compatible with both SQLite and PostgreSQL)
+        from sqlalchemy import text, inspect as sa_inspect
         
-        try:
-            from sqlalchemy import text as sa_text
-            await conn.execute(sa_text("ALTER TABLE tasks ADD COLUMN reminders VARCHAR;"))
-            print("Successfully added reminders column to tasks.", flush=True)
-        except Exception as e:
-            print(f"Schema update notice (reminders): {e}", flush=True)
+        # Helper to safely add a column if it doesn't exist
+        async def safe_add_column(table, column, col_type, default=None):
+            try:
+                def check_column(sync_conn):
+                    insp = sa_inspect(sync_conn)
+                    columns = [c['name'] for c in insp.get_columns(table)]
+                    return column in columns
+                
+                exists = await conn.run_sync(check_column)
+                if not exists:
+                    default_clause = f" DEFAULT {default}" if default is not None else ""
+                    await conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}{default_clause};"))
+                    print(f"Added column {table}.{column}", flush=True)
+            except Exception as e:
+                print(f"Schema update notice ({table}.{column}): {e}", flush=True)
+        
+        await safe_add_column("custom_events", "is_recurring", "BOOLEAN", "false")
+        await safe_add_column("custom_events", "recurrence_type", "VARCHAR", None)
+        await safe_add_column("custom_events", "recurrence_end_date", "VARCHAR", None)
+        await safe_add_column("custom_events", "recurrence_interval", "INTEGER", "1")
+        await safe_add_column("tasks", "reminders", "VARCHAR", None)
             
     # Настройка кнопки меню (WebApp)
     await setup_menu_button()
