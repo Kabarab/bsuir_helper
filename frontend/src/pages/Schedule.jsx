@@ -491,7 +491,7 @@ export default function Schedule() {
       priority: newTask.priority,
       linkedEventId: newTask.linkedEventId,
       created_at: Date.now(),
-      reminders: newTask.reminders.length > 0 ? JSON.stringify(newTask.reminders) : null
+      reminders: (newTask.reminders || []).length > 0 ? JSON.stringify(newTask.reminders) : null
     };
     axios.post(`/api/tasks/${telegramId}`, taskToCreate)
       .then(res => {
@@ -1477,7 +1477,7 @@ export default function Schedule() {
                         { value: 120, label: '2 часа' },
                         { value: 1440, label: '1 день' },
                       ].map(r => {
-                        const isActive = newTask.reminders.includes(r.value);
+                        const isActive = (newTask.reminders || []).includes(r.value);
                         return (
                           <button
                             key={r.value}
@@ -1486,8 +1486,8 @@ export default function Schedule() {
                               setNewTask(prev => ({
                                 ...prev,
                                 reminders: isActive
-                                  ? prev.reminders.filter(v => v !== r.value)
-                                  : [...prev.reminders, r.value].sort((a, b) => a - b)
+                                  ? (prev.reminders || []).filter(v => v !== r.value)
+                                  : [...(prev.reminders || []), r.value].sort((a, b) => a - b)
                               }));
                             }}
                             className={`px-3 py-2 rounded-xl text-[11px] font-bold transition-all border-2 ${
@@ -1501,9 +1501,9 @@ export default function Schedule() {
                         );
                       })}
                     </div>
-                    {newTask.reminders.length > 0 && (
+                    {(newTask.reminders || []).length > 0 && (
                       <div className="mt-2 text-[10px] text-tg-hint font-medium ml-1">
-                        Выбрано: {newTask.reminders.map(r => {
+                        Выбрано: {(newTask.reminders || []).map(r => {
                           if (r >= 1440) return `${r / 1440} д`;
                           if (r >= 60) return `${r / 60} ч`;
                           return `${r} мин`;
