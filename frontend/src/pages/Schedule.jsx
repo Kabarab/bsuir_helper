@@ -449,7 +449,9 @@ export default function Schedule() {
     let touchY = lastClientY.current - rect.top;
     
     // Allow dragging a bit below the visible area to trigger the scroll, but cap for visual
-    const visualTouchY = Math.max(0, Math.min(touchY, rect.height));
+    // Use logical grid height (24 hours * 80px) as bounds
+    const logicalHeight = 24 * 80; // 1920px
+    const visualTouchY = Math.max(0, Math.min(touchY, logicalHeight));
 
     setDragState(prev => ({ ...prev, currentY: visualTouchY }));
     
@@ -476,11 +478,14 @@ export default function Schedule() {
         scrollContainerRef.current.scrollTop += autoScrollDir.current;
         
         const rect = gridRef.current.getBoundingClientRect();
+        // Recalculate the touch coordinate against the grid's top
         let touchY = lastClientY.current - rect.top;
         
-        // This visual bounding must match handleTouchMove so the box keeps growing 
-        // as the scroll pushes the top edge further away.
-        const visualTouchY = Math.max(0, Math.min(touchY, rect.height));
+        // Ensure touchY doesn't exceed the logical height of the grid 
+        // (1440px for 24h * 60m), and not just the visually compressed rect.height 
+        // which might break on mobile.
+        const logicalHeight = Array.from({ length: 24 }).length * 80; // 1920px (24 hours * 80px)
+        const visualTouchY = Math.max(0, Math.min(touchY, logicalHeight));
         
         setDragState(prev => ({ ...prev, currentY: visualTouchY }));
       }
