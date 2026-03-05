@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Search, Users, Building, GraduationCap, MapPin, Trophy, ChevronRight, X, Info } from 'lucide-react';
+import { Search, Users, Building, GraduationCap, MapPin, Trophy, ChevronRight, X, Info, Pin } from 'lucide-react';
 import { getFaculties, getSpecialities, getCourses, getRating, getStudentGrades } from '../utils/bsuirApi';
 
 export default function University() {
@@ -24,6 +24,29 @@ export default function University() {
   const [visibleGroupsCount, setVisibleGroupsCount] = useState(50);
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [groupSchedule, setGroupSchedule] = useState(null);
+
+  const [pinnedGroups, setPinnedGroups] = useState(() => {
+    try {
+      const saved = localStorage.getItem('pinnedGroups');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('pinnedGroups', JSON.stringify(pinnedGroups));
+  }, [pinnedGroups]);
+
+  const togglePinGroup = (e, groupName) => {
+    e.stopPropagation();
+    setPinnedGroups(prev => {
+      if (prev.includes(groupName)) {
+        return prev.filter(name => name !== groupName);
+      }
+      return [...prev, groupName];
+    });
+  };
 
   const loadGroupSchedule = (groupName) => {
     setLoading(true);
@@ -152,7 +175,13 @@ export default function University() {
 
   const filteredGroups = groups.filter(g => 
     g.name?.includes(groupSearch)
-  ).slice(0, visibleGroupsCount);
+  ).sort((a, b) => {
+    const aPinned = pinnedGroups.includes(a.name);
+    const bPinned = pinnedGroups.includes(b.name);
+    if (aPinned && !bPinned) return -1;
+    if (!aPinned && bPinned) return 1;
+    return 0;
+  }).slice(0, visibleGroupsCount);
 
   const handleScroll = (e) => {
     const { scrollTop, clientHeight, scrollHeight } = e.target;
@@ -397,8 +426,14 @@ export default function University() {
                           setSelectedGroup(g);
                           loadGroupSchedule(g.name);
                         }}
-                        className="bg-tg-secondaryBg p-3 rounded-xl flex flex-col items-center justify-center text-center cursor-pointer hover:bg-opacity-80 transition"
+                        className={`bg-tg-secondaryBg p-3 rounded-xl flex flex-col items-center justify-center text-center cursor-pointer transition relative ${pinnedGroups.includes(g.name) ? 'ring-2 ring-tg-button ring-opacity-50' : 'hover:bg-opacity-80'}`}
                       >
+                        <button 
+                          onClick={(e) => togglePinGroup(e, g.name)}
+                          className={`absolute top-2 right-2 p-1.5 rounded-full transition-colors ${pinnedGroups.includes(g.name) ? 'text-tg-button bg-tg-button/10' : 'text-tg-hint opacity-50 hover:opacity-100 hover:bg-tg-bg'}`}
+                        >
+                          <Pin size={14} fill={pinnedGroups.includes(g.name) ? "currentColor" : "none"} />
+                        </button>
                         <div className="font-bold text-lg text-tg-text">{g.name}</div>
                         <div className="text-xs text-tg-hint mt-1">{g.facultyAbbrev} • Курс {g.course}</div>
                       </div>
