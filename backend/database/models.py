@@ -29,6 +29,7 @@ class Task(Base):
     linkedEventId = Column(String, nullable=True)
     created_at = Column(Integer, nullable=True) # Date.now() timestamp
     last_reminded_at = Column(DateTime, nullable=True)
+    reminders = Column(String, nullable=True)  # JSON array of reminder offsets in minutes
 
     owner = relationship("User", back_populates="tasks")
 

@@ -71,6 +71,13 @@ async def startup_event():
         except Exception as e:
             # Table might already have them or it's a new DB where create_all handled it
             print(f"Schema update notice: {e}", flush=True)
+        
+        try:
+            from sqlalchemy import text as sa_text
+            await conn.execute(sa_text("ALTER TABLE tasks ADD COLUMN reminders VARCHAR;"))
+            print("Successfully added reminders column to tasks.", flush=True)
+        except Exception as e:
+            print(f"Schema update notice (reminders): {e}", flush=True)
             
     # Настройка кнопки меню (WebApp)
     await setup_menu_button()
@@ -103,6 +110,7 @@ class TaskCreate(BaseModel):
     subject: Optional[str] = None
     linkedEventId: Optional[str] = None
     created_at: Optional[int] = None
+    reminders: Optional[str] = None  # JSON array of reminder offsets in minutes
 
 class TaskUpdate(BaseModel):
     title: Optional[str] = None
@@ -112,6 +120,7 @@ class TaskUpdate(BaseModel):
     due_date: Optional[str] = None
     subject: Optional[str] = None
     linkedEventId: Optional[str] = None
+    reminders: Optional[str] = None
 
 class CustomEventBase(BaseModel):
     title: str
@@ -186,7 +195,8 @@ async def create_task(telegram_id: int, task: TaskCreate, db: AsyncSession = Dep
         due_date=task.due_date,
         subject=task.subject,
         linkedEventId=task.linkedEventId,
-        created_at=task.created_at
+        created_at=task.created_at,
+        reminders=task.reminders
     )
     db.add(new_task)
     await db.commit()

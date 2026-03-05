@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import axios from 'axios';
-import { CalendarDays, ChevronLeft, ChevronRight, Clock, MapPin, Users, Plus, X, List, Calendar as CalendarIcon, Trash2, Settings, Edit2, ClipboardList, MoreVertical } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, Clock, MapPin, Users, Plus, X, List, Calendar as CalendarIcon, Trash2, Settings, Edit2, ClipboardList, MoreVertical, CheckCircle2, Bell } from 'lucide-react';
 import { format, addDays, subDays, startOfWeek, isSameDay, getDay, differenceInCalendarWeeks, parse, addMinutes, startOfDay, endOfDay, differenceInHours, differenceInMonths, differenceInYears } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
@@ -68,7 +68,7 @@ export default function Schedule() {
 
   // Task modal for adding plans linked to events
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
-  const [newTask, setNewTask] = useState({ title: '', description: '', priority: 'medium', linkedEventId: null, linkedEventLabel: '' });
+  const [newTask, setNewTask] = useState({ title: '', description: '', priority: 'medium', linkedEventId: null, linkedEventLabel: '', reminders: [] });
 
   // Expandable lesson state
   const [expandedLessonId, setExpandedLessonId] = useState(null);
@@ -490,7 +490,8 @@ export default function Schedule() {
       description: newTask.description,
       priority: newTask.priority,
       linkedEventId: newTask.linkedEventId,
-      created_at: Date.now()
+      created_at: Date.now(),
+      reminders: newTask.reminders.length > 0 ? JSON.stringify(newTask.reminders) : null
     };
     axios.post(`/api/tasks/${telegramId}`, taskToCreate)
       .then(res => {
@@ -499,7 +500,7 @@ export default function Schedule() {
         const updated = [res.data, ...plannerTasks];
         localStorage.setItem('bsuir_tasks', JSON.stringify(updated));
         setIsTaskModalOpen(false);
-        setNewTask({ title: '', description: '', priority: 'medium', linkedEventId: null, linkedEventLabel: '' });
+        setNewTask({ title: '', description: '', priority: 'medium', linkedEventId: null, linkedEventLabel: '', reminders: [] });
       })
       .catch(console.error);
   };
@@ -1406,7 +1407,7 @@ export default function Schedule() {
       {isTaskModalOpen && (
         <div className="fixed inset-0 z-[55] flex items-end justify-center">
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setIsTaskModalOpen(false)} />
-          <div className="relative bg-tg-secondaryBg w-full max-w-md rounded-t-3xl shadow-2xl transition-transform animate-slide-up max-h-[85vh] flex flex-col mb-[70px]">
+          <div className="relative bg-tg-secondaryBg w-full max-w-md rounded-t-3xl shadow-2xl transition-transform animate-slide-up max-h-[85vh] flex flex-col">
             <div className="flex items-center justify-between p-6 pb-2">
               <h2 className="text-xl font-bold text-tg-text">Новая задача</h2>
               <button type="button" onClick={() => setIsTaskModalOpen(false)} className="text-tg-hint bg-tg-bg p-2 rounded-full"><X size={20} /></button>
@@ -1461,6 +1462,54 @@ export default function Schedule() {
                         </button>
                       ))}
                     </div>
+                  </div>
+                  {/* Reminders */}
+                  <div>
+                    <label className="text-xs font-semibold uppercase text-tg-hint mb-1.5 ml-1 flex items-center gap-1.5">
+                      <Bell size={12} /> Напомнить за
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        { value: 5, label: '5 мин' },
+                        { value: 15, label: '15 мин' },
+                        { value: 30, label: '30 мин' },
+                        { value: 60, label: '1 час' },
+                        { value: 120, label: '2 часа' },
+                        { value: 1440, label: '1 день' },
+                      ].map(r => {
+                        const isActive = newTask.reminders.includes(r.value);
+                        return (
+                          <button
+                            key={r.value}
+                            type="button"
+                            onClick={() => {
+                              setNewTask(prev => ({
+                                ...prev,
+                                reminders: isActive
+                                  ? prev.reminders.filter(v => v !== r.value)
+                                  : [...prev.reminders, r.value].sort((a, b) => a - b)
+                              }));
+                            }}
+                            className={`px-3 py-2 rounded-xl text-[11px] font-bold transition-all border-2 ${
+                              isActive
+                                ? 'bg-tg-button text-tg-buttonText border-tg-button shadow-md'
+                                : 'bg-tg-bg text-tg-hint border-transparent'
+                            }`}
+                          >
+                            {r.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {newTask.reminders.length > 0 && (
+                      <div className="mt-2 text-[10px] text-tg-hint font-medium ml-1">
+                        Выбрано: {newTask.reminders.map(r => {
+                          if (r >= 1440) return `${r / 1440} д`;
+                          if (r >= 60) return `${r / 60} ч`;
+                          return `${r} мин`;
+                        }).join(', ')}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
