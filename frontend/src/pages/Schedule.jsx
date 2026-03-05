@@ -184,10 +184,13 @@ export default function Schedule() {
 
   // Scroll active date into view on mount
   useEffect(() => {
-    if (daysRef.current) {
-       const activeEl = daysRef.current.querySelector('.active-date');
-       if (activeEl) activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-    }
+    const timer = setTimeout(() => {
+      if (daysRef.current) {
+         const activeEl = daysRef.current.querySelector('.active-date');
+         if (activeEl) activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      }
+    }, 100);
+    return () => clearTimeout(timer);
   }, [dateStrip]);
 
   // Auto-scroll calendar grid to current time
