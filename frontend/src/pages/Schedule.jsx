@@ -1237,7 +1237,16 @@ export default function Schedule() {
                   <input 
                     type="time"
                     value={newPlan.startTime}
-                    onChange={(e) => setNewPlan({...newPlan, startTime: e.target.value})}
+                    onChange={(e) => {
+                      const newStart = e.target.value;
+                      const updates = { startTime: newStart };
+                      if (newStart >= newPlan.endTime) {
+                        const [h, m] = newStart.split(':').map(Number);
+                        const endMin = h * 60 + m + 30;
+                        updates.endTime = `${Math.floor(endMin / 60).toString().padStart(2, '0')}:${(endMin % 60).toString().padStart(2, '0')}`;
+                      }
+                      setNewPlan({...newPlan, ...updates});
+                    }}
                     className="w-full px-4 h-[52px] rounded-2xl bg-tg-bg text-tg-text focus:outline-none ring-2 ring-transparent focus:ring-tg-button/30 border-none transition-all font-medium appearance-none"
                   />
                 </div>
@@ -1246,7 +1255,11 @@ export default function Schedule() {
                   <input 
                     type="time"
                     value={newPlan.endTime}
-                    onChange={(e) => setNewPlan({...newPlan, endTime: e.target.value})}
+                    min={newPlan.startTime}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val > newPlan.startTime) setNewPlan({...newPlan, endTime: val});
+                    }}
                     className="w-full px-4 h-[52px] rounded-2xl bg-tg-bg text-tg-text focus:outline-none ring-2 ring-transparent focus:ring-tg-button/30 border-none transition-all font-medium appearance-none"
                   />
                 </div>
