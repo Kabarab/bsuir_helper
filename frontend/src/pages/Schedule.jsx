@@ -477,9 +477,12 @@ export default function Schedule() {
         
         const rect = gridRef.current.getBoundingClientRect();
         let touchY = lastClientY.current - rect.top;
-        touchY = Math.max(0, Math.min(touchY, rect.height));
         
-        setDragState(prev => ({ ...prev, currentY: touchY }));
+        // This visual bounding must match handleTouchMove so the box keeps growing 
+        // as the scroll pushes the top edge further away.
+        const visualTouchY = Math.max(0, Math.min(touchY, rect.height));
+        
+        setDragState(prev => ({ ...prev, currentY: visualTouchY }));
       }
       autoScrollRaf.current = requestAnimationFrame(handleAutoScroll);
     };
