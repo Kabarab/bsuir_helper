@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Search, Users, Building, GraduationCap, MapPin, Trophy, ChevronRight, X } from 'lucide-react';
+import { Search, Users, Building, GraduationCap, MapPin, Trophy, ChevronRight, X, Info } from 'lucide-react';
 import { getFaculties, getSpecialities, getCourses, getRating, getStudentGrades } from '../utils/bsuirApi';
 
 export default function University() {
@@ -22,6 +22,16 @@ export default function University() {
   const [groups, setGroups] = useState([]);
   const [groupSearch, setGroupSearch] = useState('');
   const [visibleGroupsCount, setVisibleGroupsCount] = useState(50);
+  const [selectedGroup, setSelectedGroup] = useState(null);
+  const [groupSchedule, setGroupSchedule] = useState(null);
+
+  const loadGroupSchedule = (groupName) => {
+    setLoading(true);
+    axios.get(`/api/bsuir/schedule/${groupName}`)
+      .then(res => setGroupSchedule(res.data))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  };
 
   useEffect(() => {
     setVisibleTeachersCount(30);
@@ -366,25 +376,103 @@ export default function University() {
           {/* GROUPS TAB */}
           {activeTab === 'groups' && (
             <div className="space-y-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-tg-hint" size={18} />
-                <input 
-                  type="text" 
-                  placeholder="Поиск группы..." 
-                  value={groupSearch}
-                  onChange={e => setGroupSearch(e.target.value)}
-                  className="w-full bg-tg-secondaryBg text-tg-text pl-10 pr-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-tg-button"
-                />
-              </div>
-              
-              <div className="grid grid-cols-2 gap-3">
-                {filteredGroups.map(g => (
-                  <div key={g.id} className="bg-tg-secondaryBg p-3 rounded-xl flex flex-col items-center justify-center text-center">
-                    <div className="font-bold text-lg text-tg-text">{g.name}</div>
-                    <div className="text-xs text-tg-hint mt-1">{g.facultyAbbrev} • Курс {g.course}</div>
+              {!selectedGroup ? (
+                <>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-tg-hint" size={18} />
+                    <input 
+                      type="text" 
+                      placeholder="Поиск группы..." 
+                      value={groupSearch}
+                      onChange={e => setGroupSearch(e.target.value)}
+                      className="w-full bg-tg-secondaryBg text-tg-text pl-10 pr-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-tg-button"
+                    />
                   </div>
-                ))}
-              </div>
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    {filteredGroups.map(g => (
+                      <div 
+                        key={g.id} 
+                        onClick={() => {
+                          setSelectedGroup(g);
+                          loadGroupSchedule(g.name);
+                        }}
+                        className="bg-tg-secondaryBg p-3 rounded-xl flex flex-col items-center justify-center text-center cursor-pointer hover:bg-opacity-80 transition"
+                      >
+                        <div className="font-bold text-lg text-tg-text">{g.name}</div>
+                        <div className="text-xs text-tg-hint mt-1">{g.facultyAbbrev} • Курс {g.course}</div>
+                      </div>
+                    ))}
+                    {filteredGroups.length === 0 && groupSearch && (
+                      <div className="col-span-2 text-center text-tg-hint py-8">Ничего не найдено</div>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div className="space-y-4">
+                  <button 
+                    onClick={() => { setSelectedGroup(null); setGroupSchedule(null); }}
+                    className="text-tg-button text-sm font-medium flex items-center gap-1"
+                  >
+                    ← Назад к списку
+                  </button>
+                  
+                  <div className="bg-tg-secondaryBg p-4 rounded-xl">
+                    <div className="font-bold text-tg-text text-xl mb-1">Группа {selectedGroup.name}</div>
+                    <div className="text-sm text-tg-hint">
+                      {selectedGroup.facultyAbbrev} • Специальность {selectedGroup.specialityName || `Код: ${selectedGroup.specialityDepartmentEducationFormId}`} • Курс {selectedGroup.course}
+                    </div>
+                  </div>
+
+                  {loading ? (
+                    <div className="flex justify-center p-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-tg-button"></div></div>
+                  ) : groupSchedule?.schedules ? (
+                    <div className="space-y-4">
+                      <h3 className="font-bold text-lg text-tg-text">Расписание</h3>
+                      {Object.keys(groupSchedule.schedules).length > 0 ? (
+                         Object.entries(groupSchedule.schedules).map(([day, lessons]) => (
+                          <div key={day} className="bg-tg-secondaryBg rounded-xl overflow-hidden">
+                            <div className="bg-[var(--tg-theme-bg-color)] px-4 py-2 font-bold text-sm text-tg-hint uppercase tracking-wider">{day}</div>
+                            <div className="divide-y divide-[var(--tg-theme-hint-color)] divide-opacity-10">
+                              {lessons.map((l, i) => (
+                                <div key={i} className="p-3 pl-4 border-l-4 border-tg-button relative">
+                                  {l.numSubgroup !== 0 && (
+                                    <div className="absolute top-0 right-0 px-2 py-1 rounded-bl-lg font-black text-[9px] uppercase bg-orange-500 text-white z-10">
+                                      {l.numSubgroup} ПОДГР
+                                    </div>
+                                  )}
+                                  <div className="flex justify-between items-center mb-1">
+                                    <span className="font-bold text-sm">{l.startLessonTime} - {l.endLessonTime}</span>
+                                    <span className="text-[10px] uppercase font-bold bg-[var(--tg-theme-bg-color)] px-2 py-0.5 rounded text-tg-hint">{l.lessonTypeAbbrev}</span>
+                                  </div>
+                                  <div className="text-sm font-medium pr-10">{l.subjectFullName || l.subject}</div>
+                                  <div className="flex flex-col mt-2">
+                                    {l.employees && l.employees.length > 0 && (
+                                      <div className="text-xs text-tg-hint mb-1">
+                                        {l.employees.map(e => `${e.lastName} ${e.firstName?.[0] || ''}.${e.middleName ? ` ${e.middleName[0]}.` : ''}`).join(', ')}
+                                      </div>
+                                    )}
+                                    <div className="flex justify-between items-center text-xs text-tg-hint">
+                                      <div>{l.note ? <span className="bg-[var(--tg-theme-bg-color)] px-1.5 py-0.5 rounded">{l.note}</span> : ''}</div>
+                                      <div className="flex items-center gap-1">
+                                        {l.auditories?.length > 0 && <><MapPin size={12}/> {l.auditories?.join(', ')}</>}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-center text-tg-hint py-4">Нет пар на этой неделе</div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-center text-tg-hint py-8">Не удалось загрузить расписание</div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
