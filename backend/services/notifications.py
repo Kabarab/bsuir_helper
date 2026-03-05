@@ -81,7 +81,7 @@ class NotificationService:
         today_name = weekday_map[now.weekday()]
         
         schedule_data = await fetch_schedule(user.bsuir_group)
-        if "error" in schedule_data or "schedules" not in schedule_data:
+        if not schedule_data or "error" in schedule_data or "schedules" not in schedule_data:
             return
 
         today_schedule = schedule_data["schedules"].get(today_name, [])
