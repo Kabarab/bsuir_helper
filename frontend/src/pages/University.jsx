@@ -556,14 +556,20 @@ export default function University() {
                   
                   <div className="bg-tg-secondaryBg p-4 rounded-xl">
                     <div className="font-bold text-tg-text text-xl mb-1">Группа {selectedGroup.name}</div>
-                    <div className="text-sm text-tg-hint">
+                    <div className="text-sm text-tg-hint mb-3">
                       {selectedGroup.facultyAbbrev} • Специальность {selectedGroup.specialityName || `Код: ${selectedGroup.specialityDepartmentEducationFormId}`} • Курс {selectedGroup.course}
+                    </div>
+                    
+                    <div className="flex bg-[var(--tg-theme-bg-color)] p-1 rounded-xl w-fit text-xs font-medium border border-[var(--tg-theme-hint-color)] border-opacity-10">
+                      <button onClick={() => setSelectedSubgroup(0)} className={`px-3 py-1.5 rounded-lg transition-colors ${selectedSubgroup === 0 ? 'bg-tg-button text-tg-buttonText shadow-sm' : 'text-tg-hint hover:text-tg-text'}`}>Все подгруппы</button>
+                      <button onClick={() => setSelectedSubgroup(1)} className={`px-3 py-1.5 rounded-lg transition-colors ${selectedSubgroup === 1 ? 'bg-tg-button text-tg-buttonText shadow-sm' : 'text-tg-hint hover:text-tg-text'}`}>1 подгр</button>
+                      <button onClick={() => setSelectedSubgroup(2)} className={`px-3 py-1.5 rounded-lg transition-colors ${selectedSubgroup === 2 ? 'bg-tg-button text-tg-buttonText shadow-sm' : 'text-tg-hint hover:text-tg-text'}`}>2 подгр</button>
                     </div>
                   </div>
 
                   {loading ? (
                     <div className="flex justify-center p-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-tg-button"></div></div>
-                  ) : teacherSchedule?.schedules ? (
+                  ) : groupSchedule?.schedules ? (
                     <div className="space-y-4">
                       {/* DATE STRIP */}
                       <div className="-mx-4 px-4 mb-4">
@@ -608,8 +614,9 @@ export default function University() {
                         const selectedDayName = bsuirDayNames[getDay(selectedDate)];
                         
                         let activeLessons = [];
-                        if (teacherSchedule.schedules[selectedDayName]) {
-                          activeLessons = teacherSchedule.schedules[selectedDayName].filter(lesson => {
+                        if (groupSchedule.schedules[selectedDayName]) {
+                          activeLessons = groupSchedule.schedules[selectedDayName].filter(lesson => {
+                            if (selectedSubgroup !== 0 && lesson.numSubgroup !== 0 && lesson.numSubgroup !== selectedSubgroup) return false;
                             if (lesson.weekNumber && lesson.weekNumber.length > 0) {
                               if (!lesson.weekNumber.includes(selectedWeekNumber)) return false;
                             }
@@ -651,6 +658,13 @@ export default function University() {
                                         {lesson.lessonTypeAbbrev}
                                       </div>
 
+                                      {/* Subgroup Badge */}
+                                      {lesson.numSubgroup !== 0 && (
+                                        <div className="absolute top-0 right-[4.5rem] px-2 py-1 rounded-bl-xl font-black text-[10px] uppercase bg-orange-500 text-white z-10">
+                                          {lesson.numSubgroup} ПОДГР
+                                        </div>
+                                      )}
+
                                       <div className="flex flex-col gap-3">
                                         {/* Time */}
                                         <div className={`flex items-center gap-1.5 font-bold text-sm ${colors.text} ${colors.light} w-max px-2 py-1 rounded-lg`}>
@@ -666,9 +680,9 @@ export default function University() {
                                           {lesson.subjectFullName && lesson.subjectFullName !== lesson.subject && (
                                             <p className="text-xs text-tg-hint mt-1 line-clamp-1">{lesson.subjectFullName}</p>
                                           )}
-                                          {lesson.studentGroups && lesson.studentGroups.length > 0 && (
+                                          {lesson.employees && lesson.employees.length > 0 && (
                                             <p className="text-xs text-tg-hint mt-1 font-medium">
-                                              {lesson.studentGroups.map(g => g.name).join(', ')}
+                                              {lesson.employees.map(e => `${e.lastName} ${e.firstName?.[0] || ''}.${e.middleName ? ` ${e.middleName[0]}.` : ''}`).join(', ')}
                                             </p>
                                           )}
                                         </div>
@@ -705,7 +719,7 @@ export default function University() {
                             </div>
                             <h3 className="text-lg font-bold text-tg-text mb-1">Выходной!</h3>
                             <p className="text-sm font-medium opacity-80 text-center max-w-[200px]">
-                              Пар у преподавателя нет.
+                              Пар у группы нет.
                             </p>
                           </div>
                         );
