@@ -15,7 +15,7 @@ const COLOR_PRESETS = {
 
 import axios from 'axios';
 import { Search, Users, Building, GraduationCap, MapPin, Trophy, ChevronRight, X, Info, Pin } from 'lucide-react';
-import { getFaculties, getSpecialities, getCourses, getRating, getStudentGrades } from '../utils/bsuirApi';
+import { getFaculties, getSpecialities, getActiveSpecialities, getCourses, getRating, getStudentGrades } from '../utils/bsuirApi';
 
 export default function University() {
   const [activeTab, setActiveTab] = useState('teachers'); // teachers, faculties, groups, rating
@@ -223,7 +223,7 @@ export default function University() {
     setLeaderboard([]);
     if (id) {
       setLoading(true);
-      getSpecialities(id).then(setSpecsXml).finally(() => setLoading(false));
+      getActiveSpecialities(id).then(setSpecsXml).finally(() => setLoading(false));
     }
   };
 
@@ -891,7 +891,11 @@ export default function University() {
                     className="w-full bg-tg-bg text-tg-text p-2.5 rounded-xl border border-tg-hint border-opacity-10 focus:outline-none focus:ring-2 focus:ring-tg-button appearance-none text-sm"
                   >
                     <option value="">Выберите специальность...</option>
-                    {specsXml.filter(s => String(s.facultyId) === String(selFaculty)).map(s => <option key={s.id} value={s.id}>{s.name || s.abbrev}</option>)}
+                    {specsXml.map(s => (
+                      <option key={s.id} value={s.id}>
+                        {s.name} ({s.abbrev}) — {s.educationForm?.name || 'дневная'}
+                      </option>
+                    ))}
                   </select>
                 </div>
 

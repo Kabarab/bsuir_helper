@@ -201,20 +201,50 @@ export async function getSpecialities(facultyId) {
     name: item.getElementsByTagNameNS('*', 'name')[0]?.textContent,
     abbrev: item.getElementsByTagNameNS('*', 'abbrev')[0]?.textContent,
     facultyId: item.getElementsByTagNameNS('*', 'facultyId')[0]?.textContent,
+    educationForm: {
+      id: item.getElementsByTagNameNS('*', 'educationForm')[0]?.getElementsByTagNameNS('*', 'id')[0]?.textContent,
+      name: item.getElementsByTagNameNS('*', 'educationForm')[0]?.getElementsByTagNameNS('*', 'name')[0]?.textContent,
+    }
   }));
 }
 
 /**
- * Task 2: Fetch Courses
+ * Task 2: Fetch Active Specialities by cross-referencing with groups
+ */
+export async function getActiveSpecialities(facultyId) {
+  // 1. Fetch active groups to get active sdefs
+  const groupsResponse = await axios.get('/api/bsuir/groups');
+  const activeGroups = groupsResponse.data || [];
+  const activeSdefs = new Set(
+    activeGroups
+      .filter(g => String(g.facultyId) === String(facultyId))
+      .map(g => g.specialityDepartmentEducationFormId)
+  );
+
+  // 2. Fetch all specialties for this faculty
+  const allSpecs = await getSpecialities(facultyId);
+
+  // 3. Filter and enrich
+  return allSpecs.filter(s => activeSdefs.has(Number(s.id)));
+}
+
+/**
+ * Task 2: Fetch Courses - Derived from active groups
  */
 export async function getCourses(facultyId, specialityId) {
-  const url = `https://iis.bsuir.by/api/v1/courses?facultyId=${facultyId}&specialityId=${specialityId}`;
-  const xmlText = await fetchRaw(url);
-  const xml = parseXml(xmlText);
+  // Instead of the broken IIS courses API, use the groups list
+  const groupsResponse = await axios.get('/api/bsuir/groups');
+  const activeGroups = groupsResponse.data || [];
   
-  const items = xml.getElementsByTagNameNS('*', 'item');
-  // IIS returns <item>N</item> for courses
-  return Array.from(items).map(item => item.textContent).filter(Boolean);
+  const courses = activeGroups
+    .filter(g => 
+      String(g.facultyId) === String(facultyId) && 
+      Number(g.specialityDepartmentEducationFormId) === Number(specialityId)
+    )
+    .map(g => g.course);
+
+  // Return unique sorted course numbers
+  return [...new Set(courses)].sort((a, b) => a - b);
 }
 
 /**
