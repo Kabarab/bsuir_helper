@@ -12,14 +12,14 @@ export default function Study() {
   // Helper to get cache keys bound to a specific studentId
   const getCacheKey = (base, id) => id ? `${base}_${id}` : base;
 
-  // Load cached data from sessionStorage on mount (keyed by current studentId)
+  // Load cached data from localStorage on mount (keyed by current studentId)
   const [grades, setGrades] = useState(() => {
-    try { return JSON.parse(sessionStorage.getItem('study_grades')); } catch { return null; }
+    try { return JSON.parse(localStorage.getItem('study_grades')); } catch { return null; }
   });
   const [xmlMarks, setXmlMarks] = useState(() => {
     try {
       const key = studentId ? `study_xmlMarks_${studentId}` : 'study_xmlMarks';
-      return JSON.parse(sessionStorage.getItem(key)) || [];
+      return JSON.parse(localStorage.getItem(key)) || [];
     } catch { return []; }
   });
   const [loadingXml, setLoadingXml] = useState(false);
@@ -28,7 +28,7 @@ export default function Study() {
   const [ratingData, setRatingData] = useState(() => {
     try {
       const key = studentId ? `study_ratingData_${studentId}` : 'study_ratingData';
-      return JSON.parse(sessionStorage.getItem(key));
+      return JSON.parse(localStorage.getItem(key));
     } catch { return null; }
   });
   const [loadingRating, setLoadingRating] = useState(false);
@@ -38,7 +38,7 @@ export default function Study() {
     axios.get(`/api/bsuir/grades/${telegramId}`)
       .then(res => {
         setGrades(res.data);
-        sessionStorage.setItem('study_grades', JSON.stringify(res.data));
+        localStorage.setItem('study_grades', JSON.stringify(res.data));
       })
       .catch(err => console.error(err));
   }, [telegramId]);
@@ -51,8 +51,8 @@ export default function Study() {
       // Try to load cached data for this specific studentId
       const marksKey = `study_xmlMarks_${studentId}`;
       const ratingKey = `study_ratingData_${studentId}`;
-      const cachedMarks = sessionStorage.getItem(marksKey);
-      const cachedRating = sessionStorage.getItem(ratingKey);
+      const cachedMarks = localStorage.getItem(marksKey);
+      const cachedRating = localStorage.getItem(ratingKey);
 
       if (cachedMarks) {
         // Cache hit — show cached data immediately, refresh in background
@@ -83,8 +83,8 @@ export default function Study() {
       ]);
       setXmlMarks(gradesData);
       setRatingData(ratingInfo);
-      sessionStorage.setItem(`study_xmlMarks_${cardNum}`, JSON.stringify(gradesData));
-      sessionStorage.setItem(`study_ratingData_${cardNum}`, JSON.stringify(ratingInfo));
+      localStorage.setItem(`study_xmlMarks_${cardNum}`, JSON.stringify(gradesData));
+      localStorage.setItem(`study_ratingData_${cardNum}`, JSON.stringify(ratingInfo));
     } catch (err) {
       console.error("Background refresh error:", err);
     }
@@ -111,8 +111,8 @@ export default function Study() {
       setXmlMarks(gradesData);
       setRatingData(ratingInfo);
       // Save to studentId-keyed cache
-      sessionStorage.setItem(`study_xmlMarks_${cardNum}`, JSON.stringify(gradesData));
-      sessionStorage.setItem(`study_ratingData_${cardNum}`, JSON.stringify(ratingInfo));
+      localStorage.setItem(`study_xmlMarks_${cardNum}`, JSON.stringify(gradesData));
+      localStorage.setItem(`study_ratingData_${cardNum}`, JSON.stringify(ratingInfo));
     } catch (err) {
       console.error("Error fetching XML marks or rating", err);
       setErrorXml("Не удалось загрузить данные. Проверьте номер зачетки.");
