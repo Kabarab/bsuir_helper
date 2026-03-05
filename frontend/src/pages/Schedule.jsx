@@ -458,12 +458,12 @@ export default function Schedule() {
       const containerRect = scrollContainerRef.current.getBoundingClientRect();
       
       // Top edge scroll
-      if (lastClientY.current - containerRect.top < 60) {
-        autoScrollDir.current = -7;
+      if (lastClientY.current - containerRect.top < 40 || lastClientY.current < 120) {
+        autoScrollDir.current = -5;
       } 
-      // Bottom edge scroll - check against both container bottom and bottom navbar area
-      else if (window.innerHeight - lastClientY.current < 130 || containerRect.bottom - lastClientY.current < 60) {
-        autoScrollDir.current = 7;
+      // Bottom edge scroll - check ONLY near the bottom menu level (approx 100px from window bottom)
+      else if (window.innerHeight - lastClientY.current < 100) {
+        autoScrollDir.current = 5;
       } else {
         autoScrollDir.current = 0;
       }
