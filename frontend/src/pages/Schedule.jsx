@@ -405,17 +405,26 @@ export default function Schedule() {
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
   };
 
-  const handleTouchStart = (e) => {
+  const getClientPos = (e) => {
+    if (e.touches && e.touches.length > 0) {
+      return { clientX: e.touches[0].clientX, clientY: e.touches[0].clientY };
+    }
+    return { clientX: e.clientX, clientY: e.clientY };
+  };
+
+  const handlePointerStart = (e) => {
     if (viewMode !== 'calendar' || dragState.isDragging) return;
+    if (e.type === 'mousedown' && e.button !== 0) return; // Only left click for mouse
     
+    const { clientX, clientY } = getClientPos(e);
     const rect = gridRef.current.getBoundingClientRect();
-    const touchY = e.touches[0].clientY - rect.top;
+    const startY = clientY - rect.top;
     
-    touchStartPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    touchStartPos.current = { x: clientX, y: clientY };
     
     longPressTimer.current = setTimeout(() => {
       longPressTimer.current = null;
-      setDragState({ isDragging: true, startY: touchY, currentY: touchY });
+      setDragState({ isDragging: true, startY: startY, currentY: startY });
       if (window.navigator?.vibrate) {
         window.navigator.vibrate(50);
       }
@@ -426,11 +435,13 @@ export default function Schedule() {
   const lastClientY = useRef(0);
   const autoScrollRaf = useRef(null);
 
-  const handleTouchMove = (e) => {
+  const handlePointerMove = (e) => {
+    const { clientX, clientY } = getClientPos(e);
+
     if (!dragState.isDragging) {
       if (longPressTimer.current) {
-        const dx = e.touches[0].clientX - touchStartPos.current.x;
-        const dy = e.touches[0].clientY - touchStartPos.current.y;
+        const dx = clientX - touchStartPos.current.x;
+        const dy = clientY - touchStartPos.current.y;
         if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
           clearTimeout(longPressTimer.current);
           longPressTimer.current = null;
@@ -440,20 +451,20 @@ export default function Schedule() {
     }
     
     // Prevent native scrolling for Telegram WebApp environment
-    if (e.cancelable) e.preventDefault();
+    if (e.cancelable && e.type.startsWith('touch')) e.preventDefault();
 
-    lastClientY.current = e.touches[0].clientY;
+    lastClientY.current = clientY;
     const rect = gridRef.current.getBoundingClientRect();
     
     // Convert screen Y to relative Y in grid
-    let touchY = lastClientY.current - rect.top;
+    let pointerY = lastClientY.current - rect.top;
     
     // Allow dragging a bit below the visible area to trigger the scroll, but cap for visual
     // Use logical grid height (24 hours * 80px) as bounds
     const logicalHeight = 24 * 80; // 1920px
-    const visualTouchY = Math.max(0, Math.min(touchY, logicalHeight));
+    const visualPointerY = Math.max(0, Math.min(pointerY, logicalHeight));
 
-    setDragState(prev => ({ ...prev, currentY: visualTouchY }));
+    setDragState(prev => ({ ...prev, currentY: visualPointerY }));
     
     // Auto-scroll logic threshold detection
     if (scrollContainerRef.current) {
@@ -504,7 +515,7 @@ export default function Schedule() {
     };
   }, [dragState.isDragging]);
 
-  const handleTouchEnd = () => {
+  const handlePointerEnd = () => {
     if (longPressTimer.current) {
       clearTimeout(longPressTimer.current);
       longPressTimer.current = null;
@@ -863,11 +874,15 @@ export default function Schedule() {
               {/* Events Grid */}
               <div 
                 ref={gridRef}
-                className={`relative ${dragState.isDragging ? 'touch-none' : ''}`}
-                onTouchStart={handleTouchStart}
-                onTouchMove={handleTouchMove}
-                onTouchEnd={handleTouchEnd}
-                onTouchCancel={handleTouchEnd}
+                className={`relative ${dragState.isDragging ? 'touch-none select-none' : ''}`}
+                onTouchStart={handlePointerStart}
+                onTouchMove={handlePointerMove}
+                onTouchEnd={handlePointerEnd}
+                onTouchCancel={handlePointerEnd}
+                onMouseDown={handlePointerStart}
+                onMouseMove={handlePointerMove}
+                onMouseUp={handlePointerEnd}
+                onMouseLeave={handlePointerEnd}
               >
                 {/* Hour Lines */}
                 {Array.from({ length: 24 }).map((_, i) => (

@@ -419,31 +419,162 @@ export default function University() {
                     <div className="flex justify-center p-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-tg-button"></div></div>
                   ) : teacherSchedule?.schedules ? (
                     <div className="space-y-4">
-                      <h3 className="font-bold text-lg text-tg-text">Расписание</h3>
-                      {Object.keys(teacherSchedule.schedules).length > 0 ? (
-                         Object.entries(teacherSchedule.schedules).map(([day, lessons]) => (
-                          <div key={day} className="bg-tg-secondaryBg rounded-xl overflow-hidden">
-                            <div className="bg-[var(--tg-theme-bg-color)] px-4 py-2 font-bold text-sm text-tg-hint uppercase tracking-wider">{day}</div>
-                            <div className="divide-y divide-[var(--tg-theme-hint-color)] divide-opacity-10">
-                              {lessons.map((l, i) => (
-                                <div key={i} className="p-3 pl-4 border-l-4 border-tg-button">
-                                  <div className="flex justify-between items-center mb-1">
-                                    <span className="font-bold text-sm">{l.startLessonTime} - {l.endLessonTime}</span>
-                                    <span className="text-[10px] uppercase font-bold bg-[var(--tg-theme-bg-color)] px-2 py-0.5 rounded text-tg-hint">{l.lessonTypeAbbrev}</span>
+                      {/* DATE STRIP */}
+                      <div className="-mx-4 px-4 mb-4">
+                        <div 
+                          ref={daysRef}
+                          className="flex overflow-x-auto gap-2 pb-2 hide-scrollbar snap-x snap-mandatory px-4 md:px-0"
+                        >
+                          {dateStrip.map((date, i) => {
+                            const isSelected = isSameDay(date, selectedDate);
+                            const isToday = isSameDay(date, now);
+                            
+                            return (
+                              <button
+                                key={i}
+                                onClick={() => setSelectedDate(date)}
+                                className={`flex flex-col items-center min-w-[50px] p-2 rounded-2xl snap-center transition-all duration-200 border ${
+                                  isSelected 
+                                    ? 'bg-tg-button text-tg-buttonText border-tg-button shadow-md active-date scale-105' 
+                                    : isToday 
+                                      ? 'bg-[var(--tg-theme-bg-color)] border-tg-button text-tg-text' 
+                                      : 'bg-tg-secondaryBg border-transparent text-tg-text hover:bg-[var(--tg-theme-bg-color)]'
+                                }`}
+                              >
+                                <span className={`text-[10px] font-bold uppercase mb-1 ${isSelected ? 'text-tg-buttonText opacity-90' : 'text-tg-hint'}`}>
+                                  {format(date, 'eee', { locale: ru })}
+                                </span>
+                                <span className={`text-lg font-black ${isSelected ? 'text-tg-buttonText' : ''}`}>
+                                  {format(date, 'd')}
+                                </span>
+                                {isToday && !isSelected && <div className="w-1 h-1 rounded-full bg-tg-button mt-1"></div>}
+                                {isSelected && <div className="w-1 h-1 rounded-full bg-white mt-1 opacity-80"></div>}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Active Lessons for Selected Day */}
+                      {(() => {
+                        const selectedWeekNumber = getWeekNumberForDate(selectedDate);
+                        const bsuirDayNames = ["Воскресенье", "Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота"];
+                        const selectedDayName = bsuirDayNames[getDay(selectedDate)];
+                        
+                        let activeLessons = [];
+                        if (teacherSchedule.schedules[selectedDayName]) {
+                          activeLessons = teacherSchedule.schedules[selectedDayName].filter(lesson => {
+                            if (lesson.weekNumber && lesson.weekNumber.length > 0) {
+                              if (!lesson.weekNumber.includes(selectedWeekNumber)) return false;
+                            }
+                            return true;
+                          }).sort((a,b) => a.startLessonTime.localeCompare(b.startLessonTime));
+                        }
+
+                        return activeLessons.length > 0 ? (
+                            <div className="space-y-3 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-[var(--tg-theme-hint-color)] before:to-transparent before:opacity-20">
+                              {activeLessons.map((lesson, idx) => {
+                                const colors = getLessonColor(lesson);
+                                const progress = getLessonProgress(lesson);
+                                const isPast = progress === 1;
+                                const isActive = progress > 0 && progress < 1;
+                                const progressPct = (typeof progress === 'number' && progress > 0 && progress < 1) ? Math.round(progress * 100) : 0;
+                                return (
+                                  <div key={idx} className={`relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group transition-opacity duration-300 ${isPast ? 'opacity-50' : ''}`}>
+                                    {/* Timeline dot */}
+                                    <div className={`flex items-center justify-center w-10 h-10 rounded-full border-4 border-tg-bg shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10 transition-transform group-hover:scale-110 ${isActive ? 'bg-tg-button border-tg-button scale-110' : 'bg-[var(--tg-theme-bg-color)] group-hover:border-tg-button'}`}>
+                                      <span className={`text-xs font-black ${isActive ? 'text-tg-buttonText' : colors.text}`}>{isPast ? '✓' : idx + 1}</span>
+                                    </div>
+                                    
+                                    {/* Card */}
+                                    <div 
+                                      className={`w-[calc(100%-3rem)] md:w-[calc(50%-2.5rem)] bg-tg-secondaryBg rounded-2xl p-4 shadow-sm border border-opacity-10 relative overflow-hidden transition-all hover:shadow-md hover:-translate-y-1 ${isActive ? 'border-tg-button ring-1 ring-tg-button/30 shadow-md' : 'border-[var(--tg-theme-hint-color)]'}`}
+                                    >
+                                      {/* Progress fill overlay */}
+                                      {isActive && (
+                                        <div 
+                                          className={`absolute bottom-0 left-0 right-0 ${colors.bg} opacity-[0.08] transition-all duration-1000 ease-linear`}
+                                          style={{ height: `${progressPct}%` }}
+                                        />
+                                      )}
+                                      {isPast && (
+                                        <div className="absolute inset-0 bg-[var(--tg-theme-hint-color)] opacity-[0.04]" />
+                                      )}
+                                      {/* Lesson Type Banner */}
+                                      <div className={`absolute top-0 right-0 px-3 py-1 rounded-bl-xl font-black text-[10px] tracking-widest uppercase ${colors.bg} text-tg-buttonText shadow-sm z-10`}>
+                                        {lesson.lessonTypeAbbrev}
+                                      </div>
+
+                                      {/* Subgroup Badge */}
+                                      {lesson.numSubgroup !== 0 && (
+                                        <div className="absolute top-0 right-[4.5rem] px-2 py-1 rounded-bl-xl font-black text-[10px] uppercase bg-orange-500 text-white z-10">
+                                          {lesson.numSubgroup} ПОДГР
+                                        </div>
+                                      )}
+
+                                      <div className="flex flex-col gap-3">
+                                        {/* Time */}
+                                        <div className={`flex items-center gap-1.5 font-bold text-sm ${colors.text} ${colors.light} w-max px-2 py-1 rounded-lg`}>
+                                          <Clock size={14} />
+                                          {lesson.startLessonTime} <span className="opacity-50 mx-0.5">-</span> {lesson.endLessonTime}
+                                        </div>
+
+                                        {/* Subject */}
+                                        <div className="pr-4">
+                                          <h3 className="font-bold text-[15px] leading-tight text-tg-text">
+                                            {lesson.subject}
+                                          </h3>
+                                          {lesson.subjectFullName && lesson.subjectFullName !== lesson.subject && (
+                                            <p className="text-xs text-tg-hint mt-1 line-clamp-1">{lesson.subjectFullName}</p>
+                                          )}
+                                          {lesson.studentGroups && lesson.studentGroups.length > 0 ? (
+                                            <p className="text-xs text-tg-hint mt-1 font-medium">
+                                              {lesson.studentGroups.map(g => g.name).join(', ')}
+                                            </p>
+                                          ) : lesson.employees && lesson.employees.length > 0 ? (
+                                            <p className="text-xs text-tg-hint mt-1 font-medium">
+                                              {lesson.employees.map(e => `${e.lastName} ${e.firstName?.[0] || ''}.${e.middleName ? ` ${e.middleName[0]}.` : ''}`).join(', ')}
+                                            </p>
+                                          ) : null}
+                                        </div>
+
+                                        {/* Metadata */}
+                                        <div className="grid gap-2 text-[13px] pt-3 border-t border-[var(--tg-theme-hint-color)] border-opacity-10">
+                                          {(lesson.auditories && lesson.auditories.length > 0) || lesson.note ? (
+                                            <div className="flex items-start gap-2 justify-between w-full">
+                                              {lesson.auditories && lesson.auditories.length > 0 && (
+                                                <div className="flex items-center gap-2 text-tg-hint">
+                                                  <MapPin size={14} className="shrink-0 opacity-70" />
+                                                  <span className="font-medium">{lesson.auditories.join(', ')}</span>
+                                                </div>
+                                              )}
+                                              {lesson.note && (
+                                                <span className="text-[10px] bg-[var(--tg-theme-bg-color)] px-1.5 py-0.5 rounded text-tg-hint truncate max-w-[120px]">
+                                                  {lesson.note}
+                                                </span>
+                                              )}
+                                            </div>
+                                          ) : null}
+                                        </div>
+
+                                      </div>
+                                    </div>
                                   </div>
-                                  <div className="text-sm font-medium pr-10">{l.subjectFullName || l.subject}</div>
-                                  <div className="flex justify-between items-center mt-2 text-xs text-tg-hint">
-                                    <div>{l.studentGroups?.map(g => g.name).join(', ')}</div>
-                                    <div className="flex items-center gap-1"><MapPin size={12}/> {l.auditories?.join(', ')}</div>
-                                  </div>
-                                </div>
-                              ))}
+                                );
+                              })}
                             </div>
+                        ) : (
+                          <div className="flex flex-col items-center justify-center py-16 text-tg-hint bg-tg-secondaryBg rounded-3xl border border-dashed border-[var(--tg-theme-hint-color)] border-opacity-30">
+                            <div className="w-16 h-16 bg-[var(--tg-theme-bg-color)] rounded-full flex items-center justify-center mb-4 shadow-inner">
+                              <span className="text-2xl opacity-60">🏖️</span>
+                            </div>
+                            <h3 className="text-lg font-bold text-tg-text mb-1">Выходной!</h3>
+                            <p className="text-sm font-medium opacity-80 text-center max-w-[200px]">
+                              Пар у преподавателя нет.
+                            </p>
                           </div>
-                        ))
-                      ) : (
-                        <div className="text-center text-tg-hint py-4">Нет пар на этой неделе</div>
-                      )}
+                        );
+                      })()}
                     </div>
                   ) : (
                     <div className="text-center text-tg-hint py-8">Не удалось загрузить расписание</div>
