@@ -68,7 +68,9 @@ export default function Schedule() {
   const scrollContainerRef = useRef(null);
   const touchStartPos = useRef({ x: 0, y: 0 });
   const longPressTimer = useRef(null);
-  const isDraggingRef = useRef(false); // Ref for immediate access in listeners
+  const isDraggingRef = useRef(false);
+  const dragStartYRef = useRef(0);
+  const dragCurrentYRef = useRef(0);
 
   const daysRef = useRef(null);
 
@@ -423,6 +425,8 @@ export default function Schedule() {
     
     touchStartPos.current = { x: clientX, y: clientY };
     lastClientY.current = clientY;
+    dragStartYRef.current = startY;
+    dragCurrentYRef.current = startY;
     
     longPressTimer.current = setTimeout(() => {
       longPressTimer.current = null;
@@ -496,6 +500,7 @@ export default function Schedule() {
     const logicalHeight = 24 * 80; // 1920px
     const visualPointerY = Math.max(0, Math.min(pointerY, logicalHeight));
 
+    dragCurrentYRef.current = visualPointerY;
     setDragState(prev => ({ ...prev, currentY: visualPointerY }));
     
     // Auto-scroll logic threshold detection
@@ -553,22 +558,26 @@ export default function Schedule() {
       longPressTimer.current = null;
     }
 
-    if (!dragState.isDragging) return;
+    if (!isDraggingRef.current) return;
     isDraggingRef.current = false;
     
-    const y1 = Math.min(dragState.startY, dragState.currentY);
-    const y2 = Math.max(dragState.startY, dragState.currentY);
+    const y1 = Math.min(dragStartYRef.current, dragCurrentYRef.current);
+    const y2 = Math.max(dragStartYRef.current, dragCurrentYRef.current);
     
-    // Minimum 15 mins drag to trigger
+    // Minimum 15 mins drag to trigger (20px)
     if (y2 - y1 > 20) {
-      setNewPlan({
-        ...newPlan,
-        startTime: getTimeFromY(y1),
-        endTime: getTimeFromY(y2),
-        type: 'CUSTOM',
-        date: format(selectedDate, 'yyyy-MM-dd')
-      });
-      setIsModalOpen(true);
+      // Use set timeout to ensure the modal state actually triggers 
+      // even if the drag state cleanup happens simultaneously
+      setTimeout(() => {
+        setNewPlan(prev => ({
+          ...prev,
+          startTime: getTimeFromY(y1),
+          endTime: getTimeFromY(y2),
+          type: 'CUSTOM',
+          date: format(selectedDate, 'yyyy-MM-dd')
+        }));
+        setIsModalOpen(true);
+      }, 50);
     }
     
     setDragState({ isDragging: false, startY: 0, currentY: 0 });
