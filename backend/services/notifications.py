@@ -44,7 +44,7 @@ class NotificationService:
             await db.commit()
 
     async def process_user_tasks(self, db: AsyncSession, user: User):
-        now = datetime.now(MINSK_TZ)
+        now = datetime.now(MINSK_TZ).replace(tzinfo=None)
         threshold = now + timedelta(minutes=user.notification_offset)
         
         # Find tasks that are due soon, not completed, and haven't been notified yet
@@ -76,7 +76,7 @@ class NotificationService:
                 logger.error(f"Failed to send task notification to {user.telegram_id}: {e}")
 
     async def process_user_schedule(self, user: User, current_week: int):
-        now = datetime.now(MINSK_TZ)
+        now = datetime.now(MINSK_TZ).replace(tzinfo=None)
         weekday_map = {0: "Понедельник", 1: "Вторник", 2: "Среда", 3: "Четверг", 4: "Пятница", 5: "Суббота", 6: "Воскресенье"}
         today_name = weekday_map[now.weekday()]
         

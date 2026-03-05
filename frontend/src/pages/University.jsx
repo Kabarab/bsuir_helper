@@ -11,14 +11,25 @@ export default function University() {
   const [teacherSearch, setTeacherSearch] = useState('');
   const [selectedTeacher, setSelectedTeacher] = useState(null);
   const [teacherSchedule, setTeacherSchedule] = useState(null);
+  const [visibleTeachersCount, setVisibleTeachersCount] = useState(30);
   
   // Faculties / Specialities (JSON API)
   const [faculties, setFaculties] = useState([]);
   const [specialities, setSpecialities] = useState([]);
+  const [selectedFaculty, setSelectedFaculty] = useState(null);
   
   // Groups (JSON API)
   const [groups, setGroups] = useState([]);
   const [groupSearch, setGroupSearch] = useState('');
+  const [visibleGroupsCount, setVisibleGroupsCount] = useState(50);
+
+  useEffect(() => {
+    setVisibleTeachersCount(30);
+  }, [teacherSearch]);
+
+  useEffect(() => {
+    setVisibleGroupsCount(50);
+  }, [groupSearch]);
 
   // Rating (XML API)
   const [facultiesXml, setFacultiesXml] = useState([]);
@@ -127,11 +138,23 @@ export default function University() {
   const filteredTeachers = teachers.filter(t => 
     t.fio?.toLowerCase().includes(teacherSearch.toLowerCase()) || 
     t.lastName?.toLowerCase().includes(teacherSearch.toLowerCase())
-  ).slice(0, 20); // Show max 20
+  ).slice(0, visibleTeachersCount);
 
   const filteredGroups = groups.filter(g => 
     g.name?.includes(groupSearch)
-  ).slice(0, 50);
+  ).slice(0, visibleGroupsCount);
+
+  const handleScroll = (e) => {
+    const { scrollTop, clientHeight, scrollHeight } = e.target;
+    // 100px threshold from the bottom
+    if (scrollHeight - scrollTop <= clientHeight + 100) {
+      if (activeTab === 'teachers') {
+        setVisibleTeachersCount(prev => Math.min(prev + 20, teachers.length));
+      } else if (activeTab === 'groups') {
+        setVisibleGroupsCount(prev => Math.min(prev + 50, groups.length));
+      }
+    }
+  };
 
   return (
     <div className="p-4 relative min-h-[calc(100vh-4rem)] flex flex-col">
@@ -173,7 +196,7 @@ export default function University() {
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-tg-button"></div>
         </div>
       ) : (
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto" onScroll={handleScroll}>
           {/* TEACHERS TAB */}
           {activeTab === 'teachers' && (
             <div className="space-y-4">
@@ -289,30 +312,54 @@ export default function University() {
           {/* FACULTIES TAB */}
           {activeTab === 'faculties' && (
             <div className="space-y-6">
-              <div className="grid gap-3">
-                <h3 className="font-bold text-tg-hint uppercase text-xs tracking-wider mb-1">Факультеты ({faculties.length})</h3>
-                {faculties.map(f => (
-                  <div key={f.id} className="bg-tg-secondaryBg p-3 rounded-xl flex items-center justify-between">
-                    <div>
-                      <div className="font-bold text-tg-text">{f.abbrev}</div>
-                      <div className="text-xs text-tg-hint">{f.name}</div>
+              {!selectedFaculty ? (
+                <div className="grid gap-3">
+                  <h3 className="font-bold text-tg-hint uppercase text-xs tracking-wider mb-1">Факультеты ({faculties.length})</h3>
+                  {faculties.map(f => (
+                    <div 
+                      key={f.id} 
+                      onClick={() => setSelectedFaculty(f)}
+                      className="bg-tg-secondaryBg p-3 rounded-xl flex items-center justify-between cursor-pointer hover:bg-opacity-80 transition"
+                    >
+                      <div>
+                        <div className="font-bold text-tg-text">{f.abbrev}</div>
+                        <div className="text-xs text-tg-hint">{f.name}</div>
+                      </div>
+                      <ChevronRight size={18} className="text-tg-hint opacity-50" />
                     </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <button 
+                    onClick={() => setSelectedFaculty(null)}
+                    className="text-tg-button text-sm font-medium flex items-center gap-1"
+                  >
+                    ← Назад к факультетам
+                  </button>
+                  
+                  <div className="bg-tg-secondaryBg p-4 rounded-xl mb-4">
+                    <div className="font-bold text-tg-text text-lg">{selectedFaculty.abbrev}</div>
+                    <div className="text-sm text-tg-hint">{selectedFaculty.name}</div>
                   </div>
-                ))}
-              </div>
-              
-              <div className="grid gap-3">
-                <h3 className="font-bold text-tg-hint uppercase text-xs tracking-wider mb-1 mt-4">Специальности</h3>
-                {specialities.slice(0, 30).map(s => (
-                  <div key={s.id} className="bg-tg-secondaryBg p-3 rounded-xl">
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="font-bold text-tg-text">{s.abbrev}</div>
-                      <div className="text-xs font-mono bg-[var(--tg-theme-bg-color)] px-1.5 py-0.5 rounded text-tg-hint">{s.code}</div>
-                    </div>
-                    <div className="text-xs text-tg-hint line-clamp-2">{s.name}</div>
+
+                  <div className="grid gap-3">
+                    <h3 className="font-bold text-tg-hint uppercase text-xs tracking-wider mb-1">Специальности</h3>
+                    {specialities.filter(s => s.facultyId === selectedFaculty.id).map(s => (
+                      <div key={s.id} className="bg-tg-secondaryBg p-3 rounded-xl">
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="font-bold text-tg-text">{s.abbrev}</div>
+                          <div className="text-xs font-mono bg-[var(--tg-theme-bg-color)] px-1.5 py-0.5 rounded text-tg-hint">{s.code}</div>
+                        </div>
+                        <div className="text-xs text-tg-hint line-clamp-2">{s.name}</div>
+                      </div>
+                    ))}
+                    {specialities.filter(s => s.facultyId === selectedFaculty.id).length === 0 && (
+                      <div className="text-center text-tg-hint py-4 text-sm">Нет специальностей</div>
+                    )}
                   </div>
-                ))}
-              </div>
+                </div>
+              )}
             </div>
           )}
 

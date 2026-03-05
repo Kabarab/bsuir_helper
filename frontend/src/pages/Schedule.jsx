@@ -66,6 +66,8 @@ export default function Schedule() {
   const [dragState, setDragState] = useState({ isDragging: false, startY: 0, currentY: 0 });
   const gridRef = useRef(null);
   const scrollContainerRef = useRef(null);
+  const touchStartPos = useRef({ x: 0, y: 0 });
+  const longPressTimer = useRef(null);
 
   const daysRef = useRef(null);
 
@@ -402,22 +404,47 @@ export default function Schedule() {
 
   const handleTouchStart = (e) => {
     if (viewMode !== 'calendar' || dragState.isDragging) return;
+    
     const rect = gridRef.current.getBoundingClientRect();
     const touchY = e.touches[0].clientY - rect.top;
-    setDragState({ isDragging: true, startY: touchY, currentY: touchY });
+    
+    touchStartPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    
+    longPressTimer.current = setTimeout(() => {
+      longPressTimer.current = null;
+      setDragState({ isDragging: true, startY: touchY, currentY: touchY });
+      if (window.navigator?.vibrate) {
+        window.navigator.vibrate(50);
+      }
+    }, 300);
   };
 
   const handleTouchMove = (e) => {
-    if (!dragState.isDragging) return;
+    if (!dragState.isDragging) {
+      if (longPressTimer.current) {
+        const dx = e.touches[0].clientX - touchStartPos.current.x;
+        const dy = e.touches[0].clientY - touchStartPos.current.y;
+        if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+          clearTimeout(longPressTimer.current);
+          longPressTimer.current = null;
+        }
+      }
+      return;
+    }
     const rect = gridRef.current.getBoundingClientRect();
     const touchY = e.touches[0].clientY - rect.top;
     setDragState(prev => ({ ...prev, currentY: touchY }));
     
-    // Prevent scrolling and bubbling while dragging
+    // Prevent scrolling and Telegram Web App swiping while dragging
     if (e.cancelable) e.preventDefault();
   };
 
   const handleTouchEnd = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+
     if (!dragState.isDragging) return;
     
     const y1 = Math.min(dragState.startY, dragState.currentY);
@@ -771,10 +798,11 @@ export default function Schedule() {
               {/* Events Grid */}
               <div 
                 ref={gridRef}
-                className="relative touch-none"
+                className={`relative ${dragState.isDragging ? 'touch-none' : ''}`}
                 onTouchStart={handleTouchStart}
                 onTouchMove={handleTouchMove}
                 onTouchEnd={handleTouchEnd}
+                onTouchCancel={handleTouchEnd}
               >
                 {/* Hour Lines */}
                 {Array.from({ length: 24 }).map((_, i) => (

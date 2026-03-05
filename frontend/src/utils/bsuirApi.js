@@ -270,11 +270,7 @@ function parseStudentCard(cardNumber) {
   const facultyDigit = clean[1];
   const specCode = clean.substring(2, 4);
 
-  const facultyName = FACULTY_DIGIT_MAP[facultyDigit];
-  if (!facultyName) {
-    console.warn('Unknown faculty digit:', facultyDigit);
-    return null;
-  }
+  const facultyName = FACULTY_DIGIT_MAP[facultyDigit] || `Unknown (${facultyDigit})`;
 
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth();
@@ -285,7 +281,7 @@ function parseStudentCard(cardNumber) {
   if (currentMonth >= 8) course += 1;
   course = Math.max(1, Math.min(6, course));
 
-  const result = { course, facultyName, specCode, clean };
+  const result = { course, facultyName, facultyDigit, specCode, clean };
   console.log('Parsed card info:', result);
   return result;
 }
@@ -295,16 +291,19 @@ function parseStudentCard(cardNumber) {
  * New SDEF_MAP structure: keys like "840", values have simple string fields:
  *   { faculty_code: "6", faculty_name: "...", spec_code: "84", spec_name: "...", study_form: "0", sdefs: [...] }
  */
-function lookupSdefs(facultyName, specCode) {
+function lookupSdefs(facultyDigit, specCode) {
   const allSdefs = new Set();
   let specName = null;
   let matchCount = 0;
 
-  console.log(`Starting SDEF_MAP lookup for faculty=${facultyName}, specCode=${specCode}`);
+  console.log(`Starting SDEF_MAP lookup for facultyDigit=${facultyDigit}, specCode=${specCode}`);
 
   for (const [key, entry] of Object.entries(SDEF_MAP)) {
     // Skip non-matching study forms
     if (entry.study_form !== '0') continue;
+
+    // Strict faculty check
+    if (entry.faculty_code && entry.faculty_code !== facultyDigit) continue;
 
     // Match by spec_code (2-digit string from student card digits 3+4)
     if (entry.spec_code !== specCode) continue;
@@ -313,6 +312,21 @@ function lookupSdefs(facultyName, specCode) {
     if (!specName) specName = entry.spec_name;
     if (Array.isArray(entry.sdefs)) {
       entry.sdefs.forEach(s => allSdefs.add(s));
+    }
+  }
+
+  // Fallback: If no matches with strict faculty matching, try just specCode
+  if (matchCount === 0) {
+    console.log(`No matches with strict faculty check, trying just specCode=${specCode}...`);
+    for (const [key, entry] of Object.entries(SDEF_MAP)) {
+      if (entry.study_form !== '0') continue;
+      if (entry.spec_code !== specCode) continue;
+      
+      matchCount++;
+      if (!specName) specName = entry.spec_name;
+      if (Array.isArray(entry.sdefs)) {
+        entry.sdefs.forEach(s => allSdefs.add(s));
+      }
     }
   }
 
@@ -337,9 +351,9 @@ export async function fetchStudentRating(cardNumber) {
   try {
     const parsed = parseStudentCard(cardNumber);
     if (!parsed) return null;
-    const { course, facultyName, specCode, clean } = parsed;
+    const { course, facultyName, facultyDigit, specCode, clean } = parsed;
 
-    const { sdefs, specName } = lookupSdefs(facultyName, specCode);
+    const { sdefs, specName } = lookupSdefs(facultyDigit, specCode);
     if (sdefs.length === 0) {
       console.warn('No sdefs found in SDEF_MAP for this student info.');
       return null;
