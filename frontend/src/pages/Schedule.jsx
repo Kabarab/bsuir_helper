@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import axios from 'axios';
-import { CalendarDays, ChevronLeft, ChevronRight, Clock, MapPin, Users, Plus, X, List, Calendar as CalendarIcon, Trash2, Settings } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, Clock, MapPin, Users, Plus, X, List, Calendar as CalendarIcon, Trash2, Settings, Edit2, ClipboardList, MoreVertical } from 'lucide-react';
 import { format, addDays, subDays, startOfWeek, isSameDay, getDay, differenceInCalendarWeeks, parse, addMinutes, startOfDay, endOfDay, differenceInHours, differenceInMonths, differenceInYears } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
@@ -52,6 +52,13 @@ export default function Schedule() {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newPlan, setNewPlan] = useState({ title: '', startTime: '09:00', endTime: '10:30', type: 'CUSTOM', color: 'blue', date: '', is_recurring: false, recurrence_type: 'weekly', recurrence_end_date: '', recurrence_interval: 1 });
+
+  // Context menu state
+  const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, lesson: null });
+  const [isEditing, setIsEditing] = useState(false);
+  const [editEventId, setEditEventId] = useState(null);
+  const eventLongPressTimer = useRef(null);
+  const eventTouchStart = useRef({ x: 0, y: 0 });
 
   // Planner tasks for linking
   const [plannerTasks, setPlannerTasks] = useState(() => {
@@ -401,6 +408,122 @@ export default function Schedule() {
       .catch(console.error);
   };
 
+  // --- Context Menu Handlers ---
+  const showContextMenu = (e, lesson) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Get position, clamped to viewport
+    const x = Math.min(e.clientX || e.pageX, window.innerWidth - 200);
+    const y = Math.min(e.clientY || e.pageY, window.innerHeight - 180);
+    setContextMenu({ visible: true, x, y, lesson });
+  };
+
+  const handleEventTouchStart = (e, lesson) => {
+    const touch = e.touches[0];
+    eventTouchStart.current = { x: touch.clientX, y: touch.clientY };
+    eventLongPressTimer.current = setTimeout(() => {
+      eventLongPressTimer.current = null;
+      if (window.navigator?.vibrate) window.navigator.vibrate(30);
+      const x = Math.min(touch.clientX, window.innerWidth - 200);
+      const y = Math.min(touch.clientY, window.innerHeight - 180);
+      setContextMenu({ visible: true, x, y, lesson });
+    }, 400);
+  };
+
+  const handleEventTouchMove = (e) => {
+    if (eventLongPressTimer.current) {
+      const touch = e.touches[0];
+      const dx = touch.clientX - eventTouchStart.current.x;
+      const dy = touch.clientY - eventTouchStart.current.y;
+      if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+        clearTimeout(eventLongPressTimer.current);
+        eventLongPressTimer.current = null;
+      }
+    }
+  };
+
+  const handleEventTouchEnd = () => {
+    if (eventLongPressTimer.current) {
+      clearTimeout(eventLongPressTimer.current);
+      eventLongPressTimer.current = null;
+    }
+  };
+
+  const dismissContextMenu = () => {
+    setContextMenu({ visible: false, x: 0, y: 0, lesson: null });
+  };
+
+  // Close context menu on click anywhere
+  useEffect(() => {
+    if (!contextMenu.visible) return;
+    const handler = () => dismissContextMenu();
+    window.addEventListener('click', handler);
+    window.addEventListener('scroll', handler, true);
+    return () => {
+      window.removeEventListener('click', handler);
+      window.removeEventListener('scroll', handler, true);
+    };
+  }, [contextMenu.visible]);
+
+  const handleAddPlanForEvent = (lesson) => {
+    dismissContextMenu();
+    setIsEditing(false);
+    setEditEventId(null);
+    setNewPlan({
+      title: '',
+      startTime: lesson.startLessonTime,
+      endTime: lesson.endLessonTime,
+      type: 'CUSTOM',
+      color: 'blue',
+      date: format(selectedDate, 'yyyy-MM-dd'),
+      is_recurring: false,
+      recurrence_type: 'weekly',
+      recurrence_end_date: '',
+      recurrence_interval: 1
+    });
+    setIsModalOpen(true);
+  };
+
+  const handleEditEvent = (lesson) => {
+    dismissContextMenu();
+    setIsEditing(true);
+    setEditEventId(lesson.id);
+    setNewPlan({
+      title: lesson.subject || lesson.title || '',
+      startTime: lesson.startLessonTime || lesson.startTime,
+      endTime: lesson.endLessonTime || lesson.endTime,
+      type: lesson.lessonTypeAbbrev || lesson.type || 'CUSTOM',
+      color: lesson.color || 'blue',
+      date: lesson.date || format(selectedDate, 'yyyy-MM-dd'),
+      is_recurring: lesson.is_recurring || false,
+      recurrence_type: lesson.recurrence_type || 'weekly',
+      recurrence_end_date: lesson.recurrence_end_date || '',
+      recurrence_interval: lesson.recurrence_interval || 1
+    });
+    setIsModalOpen(true);
+  };
+
+  const handleDeleteFromMenu = (lesson) => {
+    dismissContextMenu();
+    deletePlan(lesson.id);
+  };
+
+  const handleUpdatePlan = () => {
+    if (!newPlan.title || !editEventId) return;
+    const eventData = { ...newPlan, recurrence_interval: parseInt(newPlan.recurrence_interval, 10) || 1 };
+    if (!eventData.recurrence_end_date) eventData.recurrence_end_date = null;
+
+    axios.put(`/api/events/${editEventId}`, eventData)
+      .then(res => {
+        setCustomPlans(customPlans.map(p => p.id === editEventId ? res.data : p));
+        setIsEditing(false);
+        setEditEventId(null);
+        setNewPlan({ title: '', startTime: '09:00', endTime: '10:30', type: 'CUSTOM', color: 'blue', date: format(selectedDate, 'yyyy-MM-dd'), is_recurring: false, recurrence_type: 'weekly', recurrence_end_date: '', recurrence_interval: 1 });
+        setIsModalOpen(false);
+      })
+      .catch(console.error);
+  };
+
   const getTimeFromY = (y) => {
     const totalMinutes = Math.floor((y / 80) * 60);
     const hours = Math.floor(totalMinutes / 60);
@@ -704,6 +827,10 @@ export default function Schedule() {
                     {/* Card */}
                     <div 
                       onClick={() => setExpandedLessonId(expandedLessonId === (lesson.pseudoId || idx) ? null : (lesson.pseudoId || idx))}
+                      onContextMenu={(e) => showContextMenu(e, lesson)}
+                      onTouchStart={(e) => handleEventTouchStart(e, lesson)}
+                      onTouchMove={handleEventTouchMove}
+                      onTouchEnd={handleEventTouchEnd}
                       className={`w-[calc(100%-3rem)] md:w-[calc(50%-2.5rem)] bg-tg-secondaryBg rounded-2xl p-4 shadow-sm border border-opacity-10 relative overflow-hidden transition-all cursor-pointer hover:shadow-md hover:-translate-y-1 ${isActive ? 'border-tg-button ring-1 ring-tg-button/30 shadow-md' : 'border-[var(--tg-theme-hint-color)]'}`}
                     >
                       {/* Progress fill overlay */}
@@ -720,16 +847,6 @@ export default function Schedule() {
                       <div className={`absolute top-0 right-0 px-3 py-1 rounded-bl-xl font-black text-[10px] tracking-widest uppercase ${colors.bg} text-tg-buttonText shadow-sm z-10`}>
                         {lesson.lessonTypeAbbrev}
                       </div>
-
-                      {/* Delete Button for Custom Plans */}
-                      {lesson.isCustom && (
-                        <button 
-                          onClick={() => deletePlan(lesson.id)}
-                          className="absolute bottom-3 right-3 p-1.5 text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      )}
 
                       {/* Subgroup Badge */}
                       {lesson.numSubgroup !== 0 && (
@@ -978,60 +1095,61 @@ export default function Schedule() {
                   const isPast = progress === 1;
                   const isActive = progress > 0 && progress < 1;
                   const progressPct = (typeof progress === 'number' && progress > 0 && progress < 1) ? Math.round(progress * 100) : 0;
-                  
-                  return (
-                    <div 
-                      key={lesson.pseudoId || idx}
-                      style={{ top: `${top}px`, height: `${height}px` }}
-                      className={`absolute left-2 right-2 rounded-xl p-2 border-l-4 shadow-sm flex flex-col justify-between overflow-hidden transition-all hover:scale-[1.02] hover:z-20 ${colors.light} ${colors.border} ${isPast ? 'opacity-50' : ''} ${isActive ? 'ring-1 ring-tg-button/40 shadow-md z-10' : ''}`}
-                    >
-                      {/* Progress fill overlay for calendar view */}
-                      {isActive && (
-                        <div 
-                          className={`absolute bottom-0 left-0 right-0 ${colors.bg} opacity-[0.12] transition-all duration-1000 ease-linear`}
-                          style={{ height: `${progressPct}%` }}
-                        />
-                      )}
-                      {isPast && (
-                        <div className="absolute inset-0 bg-[var(--tg-theme-hint-color)] opacity-[0.06]" />
-                      )}
-                      <div>
-                        <div className="flex items-center justify-between mb-0.5">
-                          <span className={`text-[9px] font-black uppercase ${colors.text}`}>{lesson.lessonTypeAbbrev}</span>
-                          <span className="text-[9px] font-bold text-tg-hint">{lesson.startLessonTime}</span>
-                        </div>
-                          <h4 className="text-[11px] font-bold leading-tight text-tg-text line-clamp-2">{lesson.subject}</h4>
-                        {lesson.employees && lesson.employees.length > 0 && (
-                          <div className="text-[9px] mt-0.5 truncate text-tg-hint font-medium">
-                            {lesson.employees.map(e => `${e.lastName} ${e.firstName?.[0] || ''}.${e.middleName ? ` ${e.middleName[0]}.` : ''}`).join(', ')}
+                                    return (
+                      <div 
+                        key={lesson.pseudoId || idx}
+                        style={{ top: `${top}px`, height: `${height}px` }}
+                        onContextMenu={(e) => showContextMenu(e, lesson)}
+                        onTouchStart={(e) => { if (!isDraggingRef.current) handleEventTouchStart(e, lesson); }}
+                        onTouchMove={(e) => { if (!isDraggingRef.current) handleEventTouchMove(e); }}
+                        onTouchEnd={(e) => { if (!isDraggingRef.current) handleEventTouchEnd(); }}
+                        className={`absolute left-2 right-2 rounded-xl p-2 border-l-4 shadow-sm flex flex-col justify-between overflow-hidden transition-all hover:scale-[1.02] hover:z-20 ${colors.light} ${colors.border} ${isPast ? 'opacity-50' : ''} ${isActive ? 'ring-1 ring-tg-button/40 shadow-md z-10' : ''}`}
+                      >
+                        {/* Progress fill overlay for calendar view */}
+                        {isActive && (
+                          <div 
+                            className={`absolute bottom-0 left-0 right-0 ${colors.bg} opacity-[0.12] transition-all duration-1000 ease-linear`}
+                            style={{ height: `${progressPct}%` }}
+                          />
+                        )}
+                        {isPast && (
+                          <div className="absolute inset-0 bg-[var(--tg-theme-hint-color)] opacity-[0.06]" />
+                        )}
+                        <div>
+                          <div className="flex items-center justify-between mb-0.5">
+                            <span className={`text-[9px] font-black uppercase ${colors.text}`}>{lesson.lessonTypeAbbrev}</span>
+                            <span className="text-[9px] font-bold text-tg-hint">{lesson.startLessonTime}</span>
                           </div>
-                        )}
-                        
-                        {/* Task Count Badge for Grid */}
-                        {(() => {
-                           const dateKey = format(selectedDate, 'yyyy-MM-dd');
-                           const eventId = `${dateKey}_${lesson.startLessonTime}_${lesson.subject}`;
-                           const count = plannerTasks.filter(t => t.linkedEventId === eventId && !t.is_completed).length;
-                           if (count === 0) return null;
-                           return (
-                             <div className="mt-1 flex items-center gap-1 text-[9px] font-black p-1 rounded-md bg-white/20 text-white backdrop-blur-sm w-fit">
-                               <CheckCircle2 size={10} /> {count}
-                             </div>
-                           );
-                        })()}
+                            <h4 className="text-[11px] font-bold leading-tight text-tg-text line-clamp-2">{lesson.subject}</h4>
+                          {lesson.employees && lesson.employees.length > 0 && (
+                            <div className="text-[9px] mt-0.5 truncate text-tg-hint font-medium">
+                              {lesson.employees.map(e => `${e.lastName} ${e.firstName?.[0] || ''}.${e.middleName ? ` ${e.middleName[0]}.` : ''}`).join(', ')}
+                            </div>
+                          )}
+                          
+                          {/* Task Count Badge for Grid */}
+                          {(() => {
+                             const dateKey = format(selectedDate, 'yyyy-MM-dd');
+                             const eventId = `${dateKey}_${lesson.startLessonTime}_${lesson.subject}`;
+                             const count = plannerTasks.filter(t => t.linkedEventId === eventId && !t.is_completed).length;
+                             if (count === 0) return null;
+                             return (
+                               <div className="mt-1 flex items-center gap-1 text-[9px] font-black p-1 rounded-md bg-white/20 text-white backdrop-blur-sm w-fit">
+                                 <CheckCircle2 size={10} /> {count}
+                               </div>
+                             );
+                          })()}
 
+                          </div>
+                          <div className="flex items-center justify-between mt-auto">
+                          <span className="text-[9px] font-medium text-tg-hint truncate">
+                            {lesson.auditories?.[0] || lesson.note || ''}
+                          </span>
+                          {lesson.isCustom && (
+                            <span className="text-[9px] font-black text-tg-hint opacity-40 uppercase">Своё</span>
+                          )}
                         </div>
-                        <div className="flex items-center justify-between mt-auto">
-                        <span className="text-[9px] font-medium text-tg-hint truncate">
-                          {lesson.auditories?.[0] || lesson.note || ''}
-                        </span>
-                        {lesson.isCustom && (
-                          <button onClick={() => deletePlan(lesson.id)} className="text-red-500 scale-75">
-                            <Trash2 size={12} />
-                          </button>
-                        )}
                       </div>
-                    </div>
                   );
                 })}
               </div>
@@ -1040,17 +1158,56 @@ export default function Schedule() {
         )}
       </div>
 
-      {/* PLAN ADD MODAL */}
+      {/* CONTEXT MENU */}
+      {contextMenu.visible && (
+        <div 
+          className="fixed z-[60] animate-fade-in"
+          style={{ left: `${contextMenu.x}px`, top: `${contextMenu.y}px` }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="bg-tg-secondaryBg rounded-2xl shadow-2xl border border-[var(--tg-theme-hint-color)] border-opacity-20 overflow-hidden min-w-[200px] backdrop-blur-xl">
+            <button
+              onClick={() => handleAddPlanForEvent(contextMenu.lesson)}
+              className="flex items-center gap-3 w-full px-4 py-3 text-left text-sm font-semibold text-tg-text hover:bg-tg-bg transition-colors"
+            >
+              <ClipboardList size={16} className="text-tg-button" />
+              Добавить план
+            </button>
+            {contextMenu.lesson?.isCustom && (
+              <>
+                <div className="h-px bg-[var(--tg-theme-hint-color)] opacity-10 mx-3" />
+                <button
+                  onClick={() => handleEditEvent(contextMenu.lesson)}
+                  className="flex items-center gap-3 w-full px-4 py-3 text-left text-sm font-semibold text-tg-text hover:bg-tg-bg transition-colors"
+                >
+                  <Edit2 size={16} className="text-amber-500" />
+                  Редактировать
+                </button>
+                <div className="h-px bg-[var(--tg-theme-hint-color)] opacity-10 mx-3" />
+                <button
+                  onClick={() => handleDeleteFromMenu(contextMenu.lesson)}
+                  className="flex items-center gap-3 w-full px-4 py-3 text-left text-sm font-semibold text-red-500 hover:bg-red-500/10 transition-colors"
+                >
+                  <Trash2 size={16} />
+                  Удалить
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* PLAN ADD / EDIT MODAL */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-end justify-center">
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setIsModalOpen(false)} />
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={() => { setIsModalOpen(false); setIsEditing(false); setEditEventId(null); }} />
           <div className="relative bg-tg-secondaryBg w-full max-w-md rounded-t-3xl shadow-2xl transition-transform animate-slide-up max-h-[85vh] flex flex-col mb-[70px]">
             <div className="flex items-center justify-between p-6 pb-2">
-              <h2 className="text-xl font-bold text-tg-text">Новый план</h2>
-              <button type="button" onClick={() => setIsModalOpen(false)} className="text-tg-hint bg-tg-bg p-2 rounded-full"><X size={20} /></button>
+              <h2 className="text-xl font-bold text-tg-text">{isEditing ? 'Редактировать' : 'Новый план'}</h2>
+              <button type="button" onClick={() => { setIsModalOpen(false); setIsEditing(false); setEditEventId(null); }} className="text-tg-hint bg-tg-bg p-2 rounded-full"><X size={20} /></button>
             </div>
             
-            <form onSubmit={(e) => { e.preventDefault(); handleAddPlan(); }} className="flex flex-col flex-1 overflow-hidden">
+            <form onSubmit={(e) => { e.preventDefault(); isEditing ? handleUpdatePlan() : handleAddPlan(); }} className="flex flex-col flex-1 overflow-hidden">
             <div className="overflow-y-auto overflow-x-hidden px-6 flex-1">
             <div className="space-y-4">
               <div>
@@ -1197,9 +1354,9 @@ export default function Schedule() {
             <div className="px-6 py-4 border-t border-[var(--tg-theme-hint-color)] border-opacity-10">
               <button 
                 type="submit"
-                className="w-full py-4 bg-tg-button text-tg-buttonText font-bold rounded-2xl active:scale-[0.98] transition-all shadow-lg shadow-tg-button/30 text-base"
+                className={`w-full py-4 font-bold rounded-2xl active:scale-[0.98] transition-all shadow-lg text-base ${isEditing ? 'bg-amber-500 text-white shadow-amber-500/30' : 'bg-tg-button text-tg-buttonText shadow-tg-button/30'}`}
               >
-                Сохранить в расписание
+                {isEditing ? 'Сохранить изменения' : 'Сохранить в расписание'}
               </button>
             </div>
             </form>

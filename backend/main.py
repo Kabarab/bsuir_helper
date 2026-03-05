@@ -128,6 +128,18 @@ class CustomEventBase(BaseModel):
 class CustomEventCreate(CustomEventBase):
     pass
 
+class CustomEventUpdate(BaseModel):
+    title: Optional[str] = None
+    startTime: Optional[str] = None
+    endTime: Optional[str] = None
+    type: Optional[str] = None
+    color: Optional[str] = None
+    date: Optional[str] = None
+    is_recurring: Optional[bool] = None
+    recurrence_type: Optional[str] = None
+    recurrence_end_date: Optional[str] = None
+    recurrence_interval: Optional[int] = None
+
 class IpRequest(BaseModel):
     ip: str
 
@@ -284,6 +296,21 @@ async def create_event(telegram_id: int, event: CustomEventCreate, db: AsyncSess
     await db.commit()
     await db.refresh(new_event)
     return new_event
+
+@app.put("/api/events/{event_id}")
+async def update_event(event_id: int, event_update: CustomEventUpdate, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(CustomEvent).where(CustomEvent.id == event_id))
+    event = result.scalars().first()
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    
+    update_data = event_update.dict(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(event, key, value)
+    
+    await db.commit()
+    await db.refresh(event)
+    return event
 
 @app.delete("/api/events/{event_id}")
 async def delete_event(event_id: int, db: AsyncSession = Depends(get_db)):
