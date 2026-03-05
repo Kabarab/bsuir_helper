@@ -180,6 +180,7 @@ export default function University() {
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [studentMarks, setStudentMarks] = useState([]);
   const [loadingRating, setLoadingRating] = useState(false);
+  const [refreshingRating, setRefreshingRating] = useState(false);
 
   const [loading, setLoading] = useState(false);
 
@@ -227,9 +228,11 @@ export default function University() {
         try {
           const cached = JSON.parse(localStorage.getItem('rating_cache') || 'null');
           if (cached?.faculty && cached?.spec && cached?.course) {
+            setRefreshingRating(true);
             getRating(cached.spec, cached.course)
               .then(fresh => { setLeaderboard(fresh); saveRatingCache({ leaderboard: fresh }); })
-              .catch(console.error);
+              .catch(console.error)
+              .finally(() => setRefreshingRating(false));
           }
         } catch(e) {}
       }).catch(console.error).finally(() => setLoading(false));
@@ -962,6 +965,12 @@ export default function University() {
                 <div className="space-y-3">
                   <h3 className="font-bold text-sm flex items-center gap-2 mb-2 px-1">
                     <Trophy size={16} className="text-yellow-500" /> Таблица лидеров
+                    {refreshingRating && (
+                      <div className="ml-auto flex items-center gap-1.5 text-tg-hint">
+                        <div className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-tg-hint/30 border-t-tg-button"></div>
+                        <span className="text-[10px]">обновление...</span>
+                      </div>
+                    )}
                   </h3>
                   <div className="bg-tg-secondaryBg rounded-2xl overflow-hidden shadow-sm divide-y divide-tg-hint divide-opacity-10">
                     {leaderboard.map((student, idx) => (
