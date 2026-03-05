@@ -916,7 +916,7 @@ export default function Schedule() {
               <div 
                 ref={gridRef}
                 className={`relative ${dragState.isDragging ? 'touch-none select-none overscroll-none' : ''}`}
-                style={{ touchAction: 'none' }}
+                style={{ touchAction: dragState.isDragging ? 'none' : 'pan-y' }}
                 onMouseDown={handlePointerStart}
                 onMouseMove={handlePointerMove}
                 onMouseUp={handlePointerEnd}
