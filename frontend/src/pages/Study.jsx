@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { BookOpen, Star, GraduationCap, Settings, Info, Search, Trophy } from 'lucide-react';
+import { BookOpen, Star, GraduationCap, Settings, Info, Search, Trophy, Loader2 } from 'lucide-react';
 import { useUser } from '../contexts/UserContext';
 import { useNavigate } from 'react-router-dom';
 import { getStudentGrades, fetchStudentRating } from '../utils/bsuirApi';
@@ -32,6 +32,7 @@ export default function Study() {
     } catch { return null; }
   });
   const [loadingRating, setLoadingRating] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
     // Получаем реальные оценки через API рейтинга (Legacy JSON proxy)
@@ -76,6 +77,7 @@ export default function Study() {
   }, [studentId]);
 
   const fetchXmlMarksBackground = async (cardNum) => {
+    setIsRefreshing(true);
     try {
       const [gradesData, ratingInfo] = await Promise.all([
         getStudentGrades(cardNum),
@@ -87,6 +89,8 @@ export default function Study() {
       localStorage.setItem(`study_ratingData_${cardNum}`, JSON.stringify(ratingInfo));
     } catch (err) {
       console.error("Background refresh error:", err);
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -148,6 +152,12 @@ export default function Study() {
         <div className="p-4 border-b border-[var(--tg-theme-hint-color)] opacity-80 flex justify-between items-center">
           <h2 className="font-semibold flex items-center gap-2">
             <BookOpen size={20}/> Текущие оценки
+            {isRefreshing && (
+              <div className="flex items-center gap-1.5 ml-1 px-2 py-0.5 bg-tg-button bg-opacity-10 text-tg-button rounded-full">
+                <Loader2 size={12} className="animate-spin flex-shrink-0" />
+                <span className="text-[9px] font-bold tracking-wider uppercase">Кэш</span>
+              </div>
+            )}
           </h2>
           {!studentId && <Info size={16} className="text-tg-hint" />}
         </div>
@@ -178,11 +188,17 @@ export default function Study() {
             <>
               {/* Rating Widget */}
               {(loadingRating || ratingData) && (
-                <div className="bg-tg-bg p-4 rounded-xl border border-tg-button border-opacity-20 mb-4">
+                <div className="bg-tg-bg p-4 rounded-xl border border-tg-button border-opacity-20 mb-4 relative">
                   {loadingRating ? (
                     <div className="w-full text-center text-xs text-tg-hint animate-pulse">Загрузка рейтинга...</div>
                   ) : ratingData ? (
                     <>
+                      {isRefreshing && (
+                        <div className="absolute top-2 right-2 flex items-center gap-1 px-1.5 py-0.5 bg-tg-button bg-opacity-5 rounded-full border border-tg-button border-opacity-10">
+                          <Loader2 size={10} className="animate-spin text-tg-button flex-shrink-0" />
+                          <span className="text-[8px] text-tg-button font-bold tracking-wider uppercase opacity-80">КЭШ / ОБНОВЛЯЕМ</span>
+                        </div>
+                      )}
                       {ratingData.specName && (
                         <div className="text-center mb-3">
                           <span className="text-[10px] uppercase font-bold text-tg-hint tracking-wider">Специальность</span>
