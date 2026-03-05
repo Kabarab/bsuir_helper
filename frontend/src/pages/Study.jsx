@@ -153,7 +153,7 @@ export default function Study() {
           <h2 className="font-semibold flex items-center gap-2">
             <BookOpen size={20}/> Текущие оценки
             {isRefreshing && (
-              <div className="flex items-center gap-1.5 ml-1 px-2 py-0.5 bg-tg-button bg-opacity-10 text-tg-button rounded-full">
+              <div className="flex items-center gap-1.5 ml-2 px-2 py-0.5 border border-tg-button text-tg-button rounded-full opacity-70">
                 <Loader2 size={12} className="animate-spin flex-shrink-0" />
                 <span className="text-[9px] font-bold tracking-wider uppercase">Кэш</span>
               </div>
@@ -194,9 +194,9 @@ export default function Study() {
                   ) : ratingData ? (
                     <>
                       {isRefreshing && (
-                        <div className="absolute top-2 right-2 flex items-center gap-1 px-1.5 py-0.5 bg-tg-button bg-opacity-5 rounded-full border border-tg-button border-opacity-10">
-                          <Loader2 size={10} className="animate-spin text-tg-button flex-shrink-0" />
-                          <span className="text-[8px] text-tg-button font-bold tracking-wider uppercase opacity-80">КЭШ / ОБНОВЛЯЕМ</span>
+                        <div className="absolute top-2 right-2 flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-tg-button text-tg-button opacity-70">
+                          <Loader2 size={10} className="animate-spin flex-shrink-0" />
+                          <span className="text-[8px] font-bold tracking-wider uppercase">Кэш / Обновляем</span>
                         </div>
                       )}
                       {ratingData.specName && (
