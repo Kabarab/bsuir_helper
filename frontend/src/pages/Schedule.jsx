@@ -1252,16 +1252,49 @@ export default function Schedule() {
                 </div>
                 <div>
                   <label className="block text-xs font-semibold uppercase text-tg-hint mb-1.5 ml-1">Конец</label>
-                  <input 
-                    type="time"
-                    value={newPlan.endTime}
-                    min={newPlan.startTime}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      if (val > newPlan.startTime) setNewPlan({...newPlan, endTime: val});
-                    }}
-                    className="w-full px-4 h-[52px] rounded-2xl bg-tg-bg text-tg-text focus:outline-none ring-2 ring-transparent focus:ring-tg-button/30 border-none transition-all font-medium appearance-none"
-                  />
+                  {(() => {
+                    const [sH, sM] = newPlan.startTime.split(':').map(Number);
+                    const startTotal = sH * 60 + sM;
+                    const [eH, eM] = newPlan.endTime.split(':').map(Number);
+                    // Build valid hour options
+                    const hours = [];
+                    for (let h = 0; h < 24; h++) {
+                      // Include hour if at least one minute slot in it is > startTotal
+                      if ((h + 1) * 60 > startTotal + 5) hours.push(h);
+                    }
+                    // Build valid minute options for selected end hour
+                    const minutes = [];
+                    for (let m = 0; m < 60; m += 5) {
+                      if (eH * 60 + m > startTotal) minutes.push(m);
+                    }
+                    return (
+                      <div className="flex gap-2">
+                        <select
+                          value={eH}
+                          onChange={(e) => {
+                            const newH = parseInt(e.target.value);
+                            let newM = eM;
+                            // Clamp minutes if needed
+                            if (newH * 60 + newM <= startTotal) {
+                              newM = Math.ceil((startTotal - newH * 60 + 5) / 5) * 5;
+                              if (newM >= 60) newM = 55;
+                            }
+                            setNewPlan({...newPlan, endTime: `${newH.toString().padStart(2,'0')}:${newM.toString().padStart(2,'0')}`});
+                          }}
+                          className="flex-1 px-3 h-[52px] rounded-2xl bg-tg-bg text-tg-text focus:outline-none ring-2 ring-transparent focus:ring-tg-button/30 border-none transition-all font-medium appearance-none text-center"
+                        >
+                          {hours.map(h => <option key={h} value={h}>{h.toString().padStart(2,'0')} ч</option>)}
+                        </select>
+                        <select
+                          value={eM}
+                          onChange={(e) => setNewPlan({...newPlan, endTime: `${eH.toString().padStart(2,'0')}:${parseInt(e.target.value).toString().padStart(2,'0')}`})}
+                          className="flex-1 px-3 h-[52px] rounded-2xl bg-tg-bg text-tg-text focus:outline-none ring-2 ring-transparent focus:ring-tg-button/30 border-none transition-all font-medium appearance-none text-center"
+                        >
+                          {minutes.map(m => <option key={m} value={m}>{m.toString().padStart(2,'0')} мин</option>)}
+                        </select>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
 
