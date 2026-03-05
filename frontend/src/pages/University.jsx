@@ -891,7 +891,7 @@ export default function University() {
                     className="w-full bg-tg-bg text-tg-text p-2.5 rounded-xl border border-tg-hint border-opacity-10 focus:outline-none focus:ring-2 focus:ring-tg-button appearance-none text-sm"
                   >
                     <option value="">Выберите специальность...</option>
-                    {specsXml.map(s => <option key={s.id} value={s.id}>{s.name || s.abbrev}</option>)}
+                    {specsXml.filter(s => String(s.facultyId) === String(selFaculty)).map(s => <option key={s.id} value={s.id}>{s.name || s.abbrev}</option>)}
                   </select>
                 </div>
 

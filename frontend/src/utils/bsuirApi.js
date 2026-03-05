@@ -200,6 +200,7 @@ export async function getSpecialities(facultyId) {
     id: item.getElementsByTagNameNS('*', 'id')[0]?.textContent, // This IS the sdef
     name: item.getElementsByTagNameNS('*', 'name')[0]?.textContent,
     abbrev: item.getElementsByTagNameNS('*', 'abbrev')[0]?.textContent,
+    facultyId: item.getElementsByTagNameNS('*', 'facultyId')[0]?.textContent,
   }));
 }
 
