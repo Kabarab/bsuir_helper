@@ -449,11 +449,10 @@ export default function Schedule() {
     // Auto-scroll logic threshold detection
     if (scrollContainerRef.current) {
       const containerRect = scrollContainerRef.current.getBoundingClientRect();
-      const edgeThreshold = 60;
       
-      if (lastClientY.current - containerRect.top < edgeThreshold) {
+      if (lastClientY.current - containerRect.top < 60) {
         autoScrollDir.current = -7;
-      } else if (containerRect.bottom - lastClientY.current < edgeThreshold) {
+      } else if (window.innerHeight - lastClientY.current < 130 || containerRect.bottom - lastClientY.current < 60) {
         autoScrollDir.current = 7;
       } else {
         autoScrollDir.current = 0;
