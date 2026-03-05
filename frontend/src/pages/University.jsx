@@ -542,30 +542,8 @@ export default function University() {
 
                   {loading ? (
                     <div className="flex justify-center p-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-tg-button"></div></div>
-                  ) : groupSchedule?.schedules ? (
+                  ) : teacherSchedule?.schedules ? (
                     <div className="space-y-4">
-                      {/* Subgroup Toggle */}
-                      <div className="flex bg-tg-secondaryBg p-1 rounded-xl mb-4 text-[10px] sm:text-xs font-bold overflow-x-auto border border-[var(--tg-theme-hint-color)] border-opacity-10 w-fit">
-                        <button 
-                          onClick={() => setSelectedSubgroup(0)}
-                          className={`px-3 py-1.5 rounded-lg transition-colors ${selectedSubgroup === 0 ? 'bg-tg-button text-white shadow-sm' : 'text-tg-hint'} uppercase tracking-wider`}
-                        >
-                          Все
-                        </button>
-                        <button 
-                          onClick={() => setSelectedSubgroup(1)}
-                          className={`px-3 py-1.5 rounded-lg transition-colors ${selectedSubgroup === 1 ? 'bg-tg-button text-white shadow-sm' : 'text-tg-hint'} uppercase tracking-wider`}
-                        >
-                          1 Подгр
-                        </button>
-                        <button 
-                          onClick={() => setSelectedSubgroup(2)}
-                          className={`px-3 py-1.5 rounded-lg transition-colors ${selectedSubgroup === 2 ? 'bg-tg-button text-white shadow-sm' : 'text-tg-hint'} uppercase tracking-wider`}
-                        >
-                          2 Подгр
-                        </button>
-                      </div>
-
                       {/* DATE STRIP */}
                       <div className="-mx-4 px-4 mb-4">
                         <div 
@@ -609,9 +587,8 @@ export default function University() {
                         const selectedDayName = bsuirDayNames[getDay(selectedDate)];
                         
                         let activeLessons = [];
-                        if (groupSchedule.schedules[selectedDayName]) {
-                          activeLessons = groupSchedule.schedules[selectedDayName].filter(lesson => {
-                            if (selectedSubgroup !== 0 && lesson.numSubgroup !== 0 && lesson.numSubgroup !== selectedSubgroup) return false;
+                        if (teacherSchedule.schedules[selectedDayName]) {
+                          activeLessons = teacherSchedule.schedules[selectedDayName].filter(lesson => {
                             if (lesson.weekNumber && lesson.weekNumber.length > 0) {
                               if (!lesson.weekNumber.includes(selectedWeekNumber)) return false;
                             }
@@ -653,13 +630,6 @@ export default function University() {
                                         {lesson.lessonTypeAbbrev}
                                       </div>
 
-                                      {/* Subgroup Badge */}
-                                      {lesson.numSubgroup !== 0 && (
-                                        <div className="absolute top-0 right-[3.5rem] px-2 py-1 rounded-bl-xl font-black text-[9px] uppercase bg-orange-500 text-white z-10">
-                                          {lesson.numSubgroup} ПОДГР
-                                        </div>
-                                      )}
-
                                       <div className="flex flex-col gap-3">
                                         {/* Time */}
                                         <div className={`flex items-center gap-1.5 font-bold text-sm ${colors.text} ${colors.light} w-max px-2 py-1 rounded-lg`}>
@@ -675,29 +645,30 @@ export default function University() {
                                           {lesson.subjectFullName && lesson.subjectFullName !== lesson.subject && (
                                             <p className="text-xs text-tg-hint mt-1 line-clamp-1">{lesson.subjectFullName}</p>
                                           )}
-                                          {lesson.employees && lesson.employees.length > 0 && (
+                                          {lesson.studentGroups && lesson.studentGroups.length > 0 && (
                                             <p className="text-xs text-tg-hint mt-1 font-medium">
-                                              {lesson.employees.map(e => `${e.lastName} ${e.firstName?.[0] || ''}.${e.middleName ? ` ${e.middleName[0]}.` : ''}`).join(', ')}
+                                              {lesson.studentGroups.map(g => g.name).join(', ')}
                                             </p>
                                           )}
                                         </div>
 
                                         {/* Metadata */}
                                         <div className="grid gap-2 text-[13px] pt-3 border-t border-[var(--tg-theme-hint-color)] border-opacity-10">
-
-                                          {lesson.auditories && lesson.auditories.length > 0 && (
+                                          {(lesson.auditories && lesson.auditories.length > 0) || lesson.note ? (
                                             <div className="flex items-start gap-2 justify-between w-full">
-                                              <div className="flex items-center gap-2 text-tg-hint">
-                                                <MapPin size={14} className="shrink-0 opacity-70" />
-                                                <span className="font-medium">{lesson.auditories.join(', ')}</span>
-                                              </div>
+                                              {lesson.auditories && lesson.auditories.length > 0 && (
+                                                <div className="flex items-center gap-2 text-tg-hint">
+                                                  <MapPin size={14} className="shrink-0 opacity-70" />
+                                                  <span className="font-medium">{lesson.auditories.join(', ')}</span>
+                                                </div>
+                                              )}
                                               {lesson.note && (
                                                 <span className="text-[10px] bg-[var(--tg-theme-bg-color)] px-1.5 py-0.5 rounded text-tg-hint truncate max-w-[120px]">
                                                   {lesson.note}
                                                 </span>
                                               )}
                                             </div>
-                                          )}
+                                          ) : null}
                                         </div>
 
                                       </div>
@@ -713,7 +684,7 @@ export default function University() {
                             </div>
                             <h3 className="text-lg font-bold text-tg-text mb-1">Выходной!</h3>
                             <p className="text-sm font-medium opacity-80 text-center max-w-[200px]">
-                              Пар у группы нет.
+                              Пар у преподавателя нет.
                             </p>
                           </div>
                         );
