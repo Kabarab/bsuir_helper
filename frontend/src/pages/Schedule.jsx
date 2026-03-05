@@ -66,6 +66,10 @@ export default function Schedule() {
     return saved ? JSON.parse(saved) : [];
   });
 
+  // Task modal for adding plans linked to events
+  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  const [newTask, setNewTask] = useState({ title: '', description: '', priority: 'medium', linkedEventId: null, linkedEventLabel: '' });
+
   // Expandable lesson state
   const [expandedLessonId, setExpandedLessonId] = useState(null);
 
@@ -467,21 +471,37 @@ export default function Schedule() {
 
   const handleAddPlanForEvent = (lesson) => {
     dismissContextMenu();
-    setIsEditing(false);
-    setEditEventId(null);
-    setNewPlan({
+    const dateKey = format(selectedDate, 'yyyy-MM-dd');
+    const eventId = `${dateKey}_${lesson.startLessonTime}_${lesson.subject}`;
+    setNewTask({
       title: '',
-      startTime: lesson.startLessonTime,
-      endTime: lesson.endLessonTime,
-      type: 'CUSTOM',
-      color: 'blue',
-      date: format(selectedDate, 'yyyy-MM-dd'),
-      is_recurring: false,
-      recurrence_type: 'weekly',
-      recurrence_end_date: '',
-      recurrence_interval: 1
+      description: '',
+      priority: 'medium',
+      linkedEventId: eventId,
+      linkedEventLabel: `${lesson.startLessonTime} - ${lesson.subject}`
     });
-    setIsModalOpen(true);
+    setIsTaskModalOpen(true);
+  };
+
+  const handleSaveTask = () => {
+    if (!newTask.title.trim()) return;
+    const taskToCreate = {
+      title: newTask.title,
+      description: newTask.description,
+      priority: newTask.priority,
+      linkedEventId: newTask.linkedEventId,
+      created_at: Date.now()
+    };
+    axios.post(`/api/tasks/${telegramId}`, taskToCreate)
+      .then(res => {
+        setPlannerTasks(prev => [res.data, ...prev]);
+        // Also update localStorage for cross-page sync
+        const updated = [res.data, ...plannerTasks];
+        localStorage.setItem('bsuir_tasks', JSON.stringify(updated));
+        setIsTaskModalOpen(false);
+        setNewTask({ title: '', description: '', priority: 'medium', linkedEventId: null, linkedEventLabel: '' });
+      })
+      .catch(console.error);
   };
 
   const handleEditEvent = (lesson) => {
@@ -1378,6 +1398,80 @@ export default function Schedule() {
                 {isEditing ? 'Сохранить изменения' : 'Сохранить в расписание'}
               </button>
             </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {/* TASK CREATION MODAL (linked to event) */}
+      {isTaskModalOpen && (
+        <div className="fixed inset-0 z-[55] flex items-end justify-center">
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setIsTaskModalOpen(false)} />
+          <div className="relative bg-tg-secondaryBg w-full max-w-md rounded-t-3xl shadow-2xl transition-transform animate-slide-up max-h-[85vh] flex flex-col mb-[70px]">
+            <div className="flex items-center justify-between p-6 pb-2">
+              <h2 className="text-xl font-bold text-tg-text">Новая задача</h2>
+              <button type="button" onClick={() => setIsTaskModalOpen(false)} className="text-tg-hint bg-tg-bg p-2 rounded-full"><X size={20} /></button>
+            </div>
+            
+            {/* Linked event badge */}
+            {newTask.linkedEventLabel && (
+              <div className="mx-6 mb-2 flex items-center gap-2 text-xs font-bold text-tg-button bg-tg-button/10 px-3 py-2 rounded-xl border border-tg-button/20">
+                <ClipboardList size={14} />
+                Привязано к: {newTask.linkedEventLabel}
+              </div>
+            )}
+
+            <form onSubmit={(e) => { e.preventDefault(); handleSaveTask(); }} className="flex flex-col flex-1 overflow-hidden">
+              <div className="overflow-y-auto overflow-x-hidden px-6 flex-1">
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-semibold uppercase text-tg-hint mb-1.5 ml-1">Название</label>
+                    <input 
+                      type="text"
+                      value={newTask.title}
+                      onChange={(e) => setNewTask({...newTask, title: e.target.value})}
+                      placeholder="Что нужно сделать?"
+                      className="w-full px-4 h-[52px] rounded-2xl bg-tg-bg text-tg-text focus:outline-none ring-2 ring-transparent focus:ring-tg-button/30 border-none transition-all font-medium appearance-none"
+                      autoFocus
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold uppercase text-tg-hint mb-1.5 ml-1">Описание</label>
+                    <textarea 
+                      value={newTask.description}
+                      onChange={(e) => setNewTask({...newTask, description: e.target.value})}
+                      placeholder="Дополнительные детали..."
+                      className="w-full px-4 py-3 rounded-2xl bg-tg-bg text-tg-text focus:outline-none ring-2 ring-transparent focus:ring-tg-button/30 border-none transition-all font-medium resize-none h-24 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold uppercase text-tg-hint mb-1.5 ml-1">Приоритет</label>
+                    <div className="flex gap-2">
+                      {[{key: 'low', label: 'Низкий', color: 'blue'}, {key: 'medium', label: 'Средний', color: 'amber'}, {key: 'high', label: 'Высокий', color: 'red'}].map(p => (
+                        <button
+                          key={p.key}
+                          type="button"
+                          onClick={() => setNewTask({...newTask, priority: p.key})}
+                          className={`flex-1 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all border-2 ${
+                            newTask.priority === p.key 
+                              ? `bg-${p.color}-500 text-white border-${p.color}-500 shadow-md` 
+                              : 'bg-tg-bg text-tg-hint border-transparent'
+                          }`}
+                        >
+                          {p.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="px-6 py-4 border-t border-[var(--tg-theme-hint-color)] border-opacity-10">
+                <button 
+                  type="submit"
+                  className="w-full py-4 bg-tg-button text-tg-buttonText font-bold rounded-2xl active:scale-[0.98] transition-all shadow-lg shadow-tg-button/30 text-base"
+                >
+                  Добавить задачу
+                </button>
+              </div>
             </form>
           </div>
         </div>
