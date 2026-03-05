@@ -454,7 +454,6 @@ export default function Schedule() {
     };
 
     const onTouchEnd = (e) => {
-      isDraggingRef.current = false;
       handlePointerEnd();
     };
 
