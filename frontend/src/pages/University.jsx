@@ -68,7 +68,7 @@ export default function University() {
       }
     }, 100);
     return () => clearTimeout(timer);
-  }, [dateStrip, activeTab, selectedGroup, selectedTeacher]);
+  }, [dateStrip, activeTab, selectedGroup, selectedTeacher, teacherSchedule, groupSchedule]);
 
   // Current Week logic
   const [currentWeekNum, setCurrentWeekNum] = useState(null);
@@ -363,7 +363,6 @@ export default function University() {
                         key={t.id} 
                         onClick={() => {
                           setSelectedTeacher(t);
-                          setSelectedDate(getMinskNow());
                           loadTeacherSchedule(t.urlId);
                         }}
                         className="bg-tg-secondaryBg p-3 rounded-xl flex items-center gap-4 cursor-pointer hover:bg-opacity-80 transition"
@@ -661,7 +660,6 @@ export default function University() {
                         key={g.id} 
                         onClick={() => {
                           setSelectedGroup(g);
-                          setSelectedDate(getMinskNow());
                           loadGroupSchedule(g.name);
                         }}
                         className={`bg-tg-secondaryBg p-3 rounded-xl flex flex-col items-center justify-center text-center cursor-pointer transition relative ${pinnedGroups.includes(g.name) ? 'ring-2 ring-tg-button ring-opacity-50' : 'hover:bg-opacity-80'}`}
