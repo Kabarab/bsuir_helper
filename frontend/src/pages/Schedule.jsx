@@ -422,6 +422,10 @@ export default function Schedule() {
     }, 300);
   };
 
+  const autoScrollDir = useRef(0);
+  const lastClientY = useRef(0);
+  const autoScrollRaf = useRef(null);
+
   const handleTouchMove = (e) => {
     if (!dragState.isDragging) {
       if (longPressTimer.current) {
@@ -434,13 +438,57 @@ export default function Schedule() {
       }
       return;
     }
+    
+    lastClientY.current = e.touches[0].clientY;
     const rect = gridRef.current.getBoundingClientRect();
-    const touchY = e.touches[0].clientY - rect.top;
+    let touchY = lastClientY.current - rect.top;
+    touchY = Math.max(0, Math.min(touchY, rect.height));
+
     setDragState(prev => ({ ...prev, currentY: touchY }));
     
+    // Auto-scroll logic threshold detection
+    if (scrollContainerRef.current) {
+      const containerRect = scrollContainerRef.current.getBoundingClientRect();
+      const edgeThreshold = 60;
+      
+      if (lastClientY.current - containerRect.top < edgeThreshold) {
+        autoScrollDir.current = -7;
+      } else if (containerRect.bottom - lastClientY.current < edgeThreshold) {
+        autoScrollDir.current = 7;
+      } else {
+        autoScrollDir.current = 0;
+      }
+    }
+
     // Prevent scrolling and Telegram Web App swiping while dragging
     if (e.cancelable) e.preventDefault();
   };
+
+  useEffect(() => {
+    const handleAutoScroll = () => {
+      if (dragState.isDragging && autoScrollDir.current !== 0 && scrollContainerRef.current && gridRef.current) {
+        scrollContainerRef.current.scrollTop += autoScrollDir.current;
+        
+        const rect = gridRef.current.getBoundingClientRect();
+        let touchY = lastClientY.current - rect.top;
+        touchY = Math.max(0, Math.min(touchY, rect.height));
+        
+        setDragState(prev => ({ ...prev, currentY: touchY }));
+      }
+      autoScrollRaf.current = requestAnimationFrame(handleAutoScroll);
+    };
+
+    if (dragState.isDragging) {
+      autoScrollRaf.current = requestAnimationFrame(handleAutoScroll);
+    } else {
+      autoScrollDir.current = 0;
+      if (autoScrollRaf.current) cancelAnimationFrame(autoScrollRaf.current);
+    }
+
+    return () => {
+      if (autoScrollRaf.current) cancelAnimationFrame(autoScrollRaf.current);
+    };
+  }, [dragState.isDragging]);
 
   const handleTouchEnd = () => {
     if (longPressTimer.current) {
