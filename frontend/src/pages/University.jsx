@@ -209,9 +209,40 @@ export default function University() {
         .finally(() => setLoading(false));
     } else if (activeTab === 'rating' && facultiesXml.length === 0) {
       setLoading(true);
-      getFaculties().then(setFacultiesXml).catch(console.error).finally(() => setLoading(false));
+      // Restore cached rating state from localStorage
+      try {
+        const cached = JSON.parse(localStorage.getItem('rating_cache') || 'null');
+        if (cached) {
+          setSelFaculty(cached.faculty || '');
+          setSelSpec(cached.spec || '');
+          setSelCourse(cached.course || '');
+          if (cached.specs) setSpecsXml(cached.specs);
+          if (cached.courses) setCoursesXml(cached.courses);
+          if (cached.leaderboard) setLeaderboard(cached.leaderboard);
+        }
+      } catch(e) {}
+      getFaculties().then(facs => {
+        setFacultiesXml(facs);
+        // Background refresh if we have cached selections
+        try {
+          const cached = JSON.parse(localStorage.getItem('rating_cache') || 'null');
+          if (cached?.faculty && cached?.spec && cached?.course) {
+            getRating(cached.spec, cached.course)
+              .then(fresh => { setLeaderboard(fresh); saveRatingCache({ leaderboard: fresh }); })
+              .catch(console.error);
+          }
+        } catch(e) {}
+      }).catch(console.error).finally(() => setLoading(false));
     }
   }, [activeTab]);
+
+  // Helper to persist rating selections to localStorage
+  const saveRatingCache = (patch) => {
+    try {
+      const prev = JSON.parse(localStorage.getItem('rating_cache') || '{}');
+      localStorage.setItem('rating_cache', JSON.stringify({ ...prev, ...patch }));
+    } catch(e) {}
+  };
 
   // Hierarchical Filter Handlers
   const handleFacultyChange = (id) => {
@@ -221,9 +252,13 @@ export default function University() {
     setSpecsXml([]);
     setCoursesXml([]);
     setLeaderboard([]);
+    saveRatingCache({ faculty: id, spec: '', course: '', specs: [], courses: [], leaderboard: [] });
     if (id) {
       setLoading(true);
-      getActiveSpecialities(id).then(setSpecsXml).finally(() => setLoading(false));
+      getActiveSpecialities(id).then(specs => {
+        setSpecsXml(specs);
+        saveRatingCache({ specs });
+      }).finally(() => setLoading(false));
     }
   };
 
@@ -232,22 +267,28 @@ export default function University() {
     setSelCourse('');
     setCoursesXml([]);
     setLeaderboard([]);
+    saveRatingCache({ spec: id, course: '', courses: [], leaderboard: [] });
     if (id && selFaculty) {
       setLoading(true);
-      getCourses(selFaculty, id).then(setCoursesXml).finally(() => setLoading(false));
+      getCourses(selFaculty, id).then(courses => {
+        setCoursesXml(courses);
+        saveRatingCache({ courses });
+      }).finally(() => setLoading(false));
     }
   };
 
   const handleCourseChange = (c) => {
     setSelCourse(c);
+    saveRatingCache({ course: c });
     if (c && selSpec) {
       setLoadingRating(true);
       getRating(selSpec, c)
-        .then(setLeaderboard)
+        .then(lb => { setLeaderboard(lb); saveRatingCache({ leaderboard: lb }); })
         .catch(console.error)
         .finally(() => setLoadingRating(false));
     } else {
       setLeaderboard([]);
+      saveRatingCache({ leaderboard: [] });
     }
   };
 
