@@ -42,15 +42,15 @@ export default function University() {
   const [now, setNow] = useState(getMinskNow());
   const [scheduleViewMode, setScheduleViewMode] = useState('list');
   const [selectedSubgroup, setSelectedSubgroup] = useState(0); // 0 = all, 1 = first, 2 = second
-  const daysRef = require('react').useRef(null);
-  const scrollContainerRef = require('react').useRef(null);
+  const daysRef = useRef(null);
+  const scrollContainerRef = useRef(null);
 
-  require('react').useEffect(() => {
+  useEffect(() => {
     const timer = setInterval(() => setNow(getMinskNow()), 60000);
     return () => clearInterval(timer);
   }, []);
 
-  const dateStrip = require('react').useMemo(() => {
+  const dateStrip = useMemo(() => {
     const dates = [];
     const today = getMinskNow();
     for (let i = -7; i <= 21; i++) {
@@ -59,7 +59,7 @@ export default function University() {
     return dates;
   }, []);
 
-  require('react').useEffect(() => {
+  useEffect(() => {
     if (daysRef.current) {
        const activeEl = daysRef.current.querySelector('.active-date');
        if (activeEl) activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
@@ -68,7 +68,7 @@ export default function University() {
 
   // Current Week logic
   const [currentWeekNum, setCurrentWeekNum] = useState(null);
-  require('react').useEffect(() => {
+  useEffect(() => {
     axios.get('/api/bsuir/week').then(res => setCurrentWeekNum(res.data)).catch(console.error);
   }, []);
   
