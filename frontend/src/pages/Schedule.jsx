@@ -439,28 +439,35 @@ export default function Schedule() {
       return;
     }
     
+    // Prevent native scrolling for Telegram WebApp environment
+    if (e.cancelable) e.preventDefault();
+
     lastClientY.current = e.touches[0].clientY;
     const rect = gridRef.current.getBoundingClientRect();
+    
+    // Convert screen Y to relative Y in grid
     let touchY = lastClientY.current - rect.top;
-    touchY = Math.max(0, Math.min(touchY, rect.height));
+    
+    // Allow dragging a bit below the visible area to trigger the scroll, but cap for visual
+    const visualTouchY = Math.max(0, Math.min(touchY, rect.height));
 
-    setDragState(prev => ({ ...prev, currentY: touchY }));
+    setDragState(prev => ({ ...prev, currentY: visualTouchY }));
     
     // Auto-scroll logic threshold detection
     if (scrollContainerRef.current) {
       const containerRect = scrollContainerRef.current.getBoundingClientRect();
       
+      // Top edge scroll
       if (lastClientY.current - containerRect.top < 60) {
         autoScrollDir.current = -7;
-      } else if (window.innerHeight - lastClientY.current < 130 || containerRect.bottom - lastClientY.current < 60) {
+      } 
+      // Bottom edge scroll - check against both container bottom and bottom navbar area
+      else if (window.innerHeight - lastClientY.current < 130 || containerRect.bottom - lastClientY.current < 60) {
         autoScrollDir.current = 7;
       } else {
         autoScrollDir.current = 0;
       }
     }
-
-    // Prevent scrolling and Telegram Web App swiping while dragging
-    if (e.cancelable) e.preventDefault();
   };
 
   useEffect(() => {
