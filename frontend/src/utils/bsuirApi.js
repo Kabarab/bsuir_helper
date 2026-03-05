@@ -6,6 +6,29 @@ import axios from 'axios';
 
 const PROXY_URL = '/api/bsuir/proxy';
 
+// --- Simple in-memory TTL cache ---
+const _cache = {};
+function cacheGet(key, ttlMs) {
+  const e = _cache[key];
+  if (e && Date.now() - e.ts < ttlMs) return e.data;
+  return null;
+}
+function cacheSet(key, data) {
+  _cache[key] = { data, ts: Date.now() };
+}
+const TTL_GROUPS = 5 * 60 * 1000;   // 5 min
+const TTL_SPECS  = 5 * 60 * 1000;   // 5 min
+const TTL_RATING = 10 * 60 * 1000;  // 10 min
+
+async function getCachedGroups() {
+  const cached = cacheGet('groups', TTL_GROUPS);
+  if (cached) return cached;
+  const res = await axios.get('/api/bsuir/groups');
+  const data = res.data || [];
+  cacheSet('groups', data);
+  return data;
+}
+
 /**
  * Fetches raw content (XML) via backend proxy.
  */
@@ -212,29 +235,28 @@ export async function getSpecialities(facultyId) {
  * Task 2: Fetch Active Specialities by cross-referencing with groups
  */
 export async function getActiveSpecialities(facultyId) {
-  // 1. Fetch active groups to get active sdefs
-  const groupsResponse = await axios.get('/api/bsuir/groups');
-  const activeGroups = groupsResponse.data || [];
+  const cacheKey = `activeSpecs:${facultyId}`;
+  const cached = cacheGet(cacheKey, TTL_SPECS);
+  if (cached) return cached;
+
+  const activeGroups = await getCachedGroups();
   const activeSdefs = new Set(
     activeGroups
       .filter(g => String(g.facultyId) === String(facultyId))
       .map(g => g.specialityDepartmentEducationFormId)
   );
 
-  // 2. Fetch all specialties for this faculty
   const allSpecs = await getSpecialities(facultyId);
-
-  // 3. Filter and enrich
-  return allSpecs.filter(s => activeSdefs.has(Number(s.id)));
+  const result = allSpecs.filter(s => activeSdefs.has(Number(s.id)));
+  cacheSet(cacheKey, result);
+  return result;
 }
 
 /**
  * Task 2: Fetch Courses - Derived from active groups
  */
 export async function getCourses(facultyId, specialityId) {
-  // Instead of the broken IIS courses API, use the groups list
-  const groupsResponse = await axios.get('/api/bsuir/groups');
-  const activeGroups = groupsResponse.data || [];
+  const activeGroups = await getCachedGroups();
   
   const courses = activeGroups
     .filter(g => 
@@ -243,7 +265,6 @@ export async function getCourses(facultyId, specialityId) {
     )
     .map(g => g.course);
 
-  // Return unique sorted course numbers
   return [...new Set(courses)].sort((a, b) => a - b);
 }
 
@@ -251,6 +272,10 @@ export async function getCourses(facultyId, specialityId) {
  * Task 2: Fetch Rating (Leaderboard)
  */
 export async function getRating(sdef, course) {
+  const cacheKey = `rating:${sdef}:${course}`;
+  const cached = cacheGet(cacheKey, TTL_RATING);
+  if (cached) return cached;
+
   const url = `https://iis.bsuir.by/api/v1/rating?sdef=${sdef}&course=${course}`;
   const xmlText = await fetchRaw(url);
   const xml = parseXml(xmlText);
@@ -262,8 +287,9 @@ export async function getRating(sdef, course) {
     studentCardNumber: item.getElementsByTagNameNS('*', 'studentCardNumber')[0]?.textContent,
   }));
   
-  // Sort by average descending
-  return students.sort((a, b) => b.average - a.average);
+  const result = students.sort((a, b) => b.average - a.average);
+  cacheSet(cacheKey, result);
+  return result;
 }
 
 import SDEF_MAP from '../data/sdefMap.json';
