@@ -68,6 +68,7 @@ export default function Schedule() {
   const scrollContainerRef = useRef(null);
   const touchStartPos = useRef({ x: 0, y: 0 });
   const longPressTimer = useRef(null);
+  const isDraggingRef = useRef(false); // Ref for immediate access in listeners
 
   const daysRef = useRef(null);
 
@@ -421,15 +422,50 @@ export default function Schedule() {
     const startY = clientY - rect.top;
     
     touchStartPos.current = { x: clientX, y: clientY };
+    lastClientY.current = clientY;
     
     longPressTimer.current = setTimeout(() => {
       longPressTimer.current = null;
+      isDraggingRef.current = true;
       setDragState({ isDragging: true, startY: startY, currentY: startY });
       if (window.navigator?.vibrate) {
         window.navigator.vibrate(50);
       }
     }, 300);
   };
+
+  useEffect(() => {
+    const gridEl = gridRef.current;
+    if (!gridEl) return;
+
+    const onTouchStart = (e) => {
+      handlePointerStart(e);
+    };
+
+    const onTouchMove = (e) => {
+      if (isDraggingRef.current) {
+        if (e.cancelable) e.preventDefault();
+      }
+      handlePointerMove(e);
+    };
+
+    const onTouchEnd = (e) => {
+      isDraggingRef.current = false;
+      handlePointerEnd();
+    };
+
+    gridEl.addEventListener('touchstart', onTouchStart, { passive: false });
+    gridEl.addEventListener('touchmove', onTouchMove, { passive: false });
+    gridEl.addEventListener('touchend', onTouchEnd, { passive: false });
+    gridEl.addEventListener('touchcancel', onTouchEnd, { passive: false });
+
+    return () => {
+      gridEl.removeEventListener('touchstart', onTouchStart);
+      gridEl.removeEventListener('touchmove', onTouchMove);
+      gridEl.removeEventListener('touchend', onTouchEnd);
+      gridEl.removeEventListener('touchcancel', onTouchEnd);
+    };
+  }, [viewMode, dragState.isDragging]); // Re-attach if mode changes
 
   const autoScrollDir = useRef(0);
   const lastClientY = useRef(0);
@@ -450,9 +486,6 @@ export default function Schedule() {
       return;
     }
     
-    // Prevent native scrolling for Telegram WebApp environment
-    if (e.cancelable && e.type.startsWith('touch')) e.preventDefault();
-
     lastClientY.current = clientY;
     const rect = gridRef.current.getBoundingClientRect();
     
@@ -460,7 +493,6 @@ export default function Schedule() {
     let pointerY = lastClientY.current - rect.top;
     
     // Allow dragging a bit below the visible area to trigger the scroll, but cap for visual
-    // Use logical grid height (24 hours * 80px) as bounds
     const logicalHeight = 24 * 80; // 1920px
     const visualPointerY = Math.max(0, Math.min(pointerY, logicalHeight));
 
@@ -471,12 +503,12 @@ export default function Schedule() {
       const containerRect = scrollContainerRef.current.getBoundingClientRect();
       
       // Top edge scroll
-      if (lastClientY.current - containerRect.top < 40 || lastClientY.current < 120) {
-        autoScrollDir.current = -5;
+      if (lastClientY.current - containerRect.top < 60 || lastClientY.current < 140) {
+        autoScrollDir.current = -8;
       } 
-      // Bottom edge scroll - check ONLY near the bottom menu level (approx 100px from window bottom)
-      else if (window.innerHeight - lastClientY.current < 100) {
-        autoScrollDir.current = 5;
+      // Bottom edge scroll - check near bottom menu
+      else if (window.innerHeight - lastClientY.current < 120) {
+        autoScrollDir.current = 8;
       } else {
         autoScrollDir.current = 0;
       }
@@ -522,6 +554,7 @@ export default function Schedule() {
     }
 
     if (!dragState.isDragging) return;
+    isDraggingRef.current = false;
     
     const y1 = Math.min(dragState.startY, dragState.currentY);
     const y2 = Math.max(dragState.startY, dragState.currentY);
@@ -874,11 +907,8 @@ export default function Schedule() {
               {/* Events Grid */}
               <div 
                 ref={gridRef}
-                className={`relative ${dragState.isDragging ? 'touch-none select-none' : ''}`}
-                onTouchStart={handlePointerStart}
-                onTouchMove={handlePointerMove}
-                onTouchEnd={handlePointerEnd}
-                onTouchCancel={handlePointerEnd}
+                className={`relative ${dragState.isDragging ? 'touch-none select-none overscroll-none' : ''}`}
+                style={{ touchAction: 'none' }}
                 onMouseDown={handlePointerStart}
                 onMouseMove={handlePointerMove}
                 onMouseUp={handlePointerEnd}
