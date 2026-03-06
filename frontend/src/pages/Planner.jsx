@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Circle, CheckCircle2, Calendar, Edit2, Trash2, PlusCircle, X, Check } from 'lucide-react';
+import { Circle, CheckCircle2, Calendar, Edit2, Trash2, PlusCircle, X, Check, Bell } from 'lucide-react';
 import { useUser } from '../contexts/UserContext';
 import { getMinskNow } from '../utils/minskTime';
 
@@ -25,7 +25,7 @@ export default function Planner() {
 
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [currentTask, setCurrentTask] = useState({ id: null, title: '', description: '', priority: 'medium', dueDate: '', linkedEventId: null });
+  const [currentTask, setCurrentTask] = useState({ id: null, title: '', description: '', priority: 'medium', dueDate: '', linkedEventId: null, reminders: [] });
 
   const fetchEventsForDate = (dateStr) => {
     if (!dateStr) return;
@@ -74,9 +74,17 @@ export default function Planner() {
 
   const handleOpenModal = (task = null) => {
     if (task) {
-      setCurrentTask(task);
+      let reminders = [];
+      if (task.reminders) {
+        try {
+          reminders = typeof task.reminders === 'string' ? JSON.parse(task.reminders) : task.reminders;
+        } catch (e) {
+          console.error('Failed to parse reminders:', e);
+        }
+      }
+      setCurrentTask({ ...task, reminders: Array.isArray(reminders) ? reminders : [] });
     } else {
-      setCurrentTask({ id: null, title: '', description: '', priority: 'medium', dueDate: '', linkedEventId: null });
+      setCurrentTask({ id: null, title: '', description: '', priority: 'medium', dueDate: '', linkedEventId: null, reminders: [] });
     }
     setIsModalOpen(true);
   };
@@ -88,12 +96,17 @@ export default function Planner() {
   const handleSaveTask = () => {
     if (!currentTask.title.trim()) return;
     
+    const taskPayload = {
+      ...currentTask,
+      reminders: (currentTask.reminders || []).length > 0 ? JSON.stringify(currentTask.reminders) : null
+    };
+
     if (currentTask.id) {
-      axios.put(`/api/tasks/${currentTask.id}`, currentTask)
+      axios.put(`/api/tasks/${currentTask.id}`, taskPayload)
         .then(res => setTasks(tasks.map(t => t.id === currentTask.id ? res.data : t)))
         .catch(console.error);
     } else {
-      const taskToCreate = { ...currentTask, created_at: Date.now() };
+      const taskToCreate = { ...taskPayload, created_at: Date.now() };
       axios.post(`/api/tasks/${telegramId}`, taskToCreate)
         .then(res => setTasks([res.data, ...tasks]))
         .catch(console.error);
@@ -316,6 +329,55 @@ export default function Planner() {
                     );
                   })}
                 </select>
+              </div>
+
+              {/* Reminders section */}
+              <div>
+                <label className="block text-xs font-semibold uppercase text-tg-hint mb-2 ml-1 flex items-center gap-1.5">
+                  <Bell size={12} /> Напомнить за
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { value: 5, label: '5 мин' },
+                    { value: 15, label: '15 мин' },
+                    { value: 30, label: '30 мин' },
+                    { value: 60, label: '1 час' },
+                    { value: 120, label: '2 часа' },
+                    { value: 1440, label: '1 день' },
+                  ].map(r => {
+                    const isActive = (currentTask.reminders || []).includes(r.value);
+                    return (
+                      <button
+                        key={r.value}
+                        type="button"
+                        onClick={() => {
+                          setCurrentTask(prev => ({
+                            ...prev,
+                            reminders: isActive
+                              ? (prev.reminders || []).filter(v => v !== r.value)
+                              : [...(prev.reminders || []), r.value].sort((a, b) => a - b)
+                          }));
+                        }}
+                        className={`px-3 py-2 rounded-xl text-[11px] font-bold transition-all border-2 ${
+                          isActive
+                            ? 'bg-tg-button text-tg-buttonText border-tg-button shadow-md'
+                            : 'bg-tg-bg text-tg-hint border-transparent'
+                        }`}
+                      >
+                        {r.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                {(currentTask.reminders || []).length > 0 && (
+                  <div className="mt-2 text-[10px] text-tg-hint font-medium ml-1">
+                    Выбрано: {(currentTask.reminders || []).map(r => {
+                      if (r >= 1440) return `${r / 1440} д`;
+                      if (r >= 60) return `${r / 60} ч`;
+                      return `${r} мин`;
+                    }).join(', ')}
+                  </div>
+                )}
               </div>
 
             </div>
