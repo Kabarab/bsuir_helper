@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime
+from sqlalchemy import Column, Integer, BigInteger, String, Boolean, ForeignKey, DateTime
 from sqlalchemy.orm import relationship
 from .core import Base
 
@@ -6,7 +6,7 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
-    telegram_id = Column(Integer, unique=True, index=True, nullable=False)
+    telegram_id = Column(BigInteger, unique=True, index=True, nullable=False)
     bsuir_group = Column(String, nullable=True)
     bsuir_subgroup = Column(Integer, default=0)
     bsuir_id = Column(String, nullable=True)
@@ -27,7 +27,7 @@ class Task(Base):
     due_date = Column(String, nullable=True) # YYYY-MM-DD
     subject = Column(String, nullable=True)
     linkedEventId = Column(String, nullable=True)
-    created_at = Column(Integer, nullable=True) # Date.now() timestamp
+    created_at = Column(BigInteger, nullable=True) # Date.now() timestamp
     last_reminded_at = Column(DateTime, nullable=True)
     reminders = Column(String, nullable=True)  # JSON array of reminder offsets in minutes
 

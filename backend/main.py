@@ -84,6 +84,19 @@ async def startup_event():
         await safe_add_column("custom_events", "recurrence_end_date", "VARCHAR", None)
         await safe_add_column("custom_events", "recurrence_interval", "INTEGER", "1")
         await safe_add_column("tasks", "reminders", "VARCHAR", None)
+        
+        # Alter column types to BigInt for Postgres if needed
+        async def alter_column_type_pgsql(table, column, new_type):
+            try:
+                # only Postgres actually needs this manual alteration for BIGINT
+                if hasattr(engine.dialect, "name") and engine.dialect.name == "postgresql":
+                    await conn.execute(text(f"ALTER TABLE {table} ALTER COLUMN {column} TYPE {new_type};"))
+                    print(f"Altered column {table}.{column} to {new_type}", flush=True)
+            except Exception as e:
+                print(f"Schema alter notice ({table}.{column}): {e}", flush=True)
+                
+        await alter_column_type_pgsql("tasks", "created_at", "BIGINT")
+        await alter_column_type_pgsql("users", "telegram_id", "BIGINT")
             
     # Настройка кнопки меню (WebApp)
     await setup_menu_button()
