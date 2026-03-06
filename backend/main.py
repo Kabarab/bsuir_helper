@@ -84,6 +84,8 @@ async def startup_event():
         await safe_add_column("custom_events", "recurrence_end_date", "VARCHAR", None)
         await safe_add_column("custom_events", "recurrence_interval", "INTEGER", "1")
         await safe_add_column("tasks", "reminders", "VARCHAR", None)
+        await safe_add_column("users", "is_teacher", "BOOLEAN", "false")
+        await safe_add_column("users", "teacher_url_id", "VARCHAR", None)
         
         # Alter column types to BigInt for Postgres if needed
         async def alter_column_type_pgsql(table, column, new_type):
@@ -175,6 +177,8 @@ class UserUpdate(BaseModel):
     bsuir_group: Optional[str] = None
     bsuir_subgroup: Optional[int] = 0
     bsuir_id: Optional[str] = None
+    is_teacher: Optional[bool] = False
+    teacher_url_id: Optional[str] = None
 
 class UserResponse(BaseModel):
     id: int
@@ -182,6 +186,8 @@ class UserResponse(BaseModel):
     bsuir_group: Optional[str] = None
     bsuir_subgroup: Optional[int] = 0
     bsuir_id: Optional[str] = None
+    is_teacher: Optional[bool] = False
+    teacher_url_id: Optional[str] = None
 
 
 # --- Routes - Tasks ---
@@ -289,6 +295,12 @@ async def update_user_preferences(telegram_id: int, user_update: UserUpdate, db:
 
     if user_update.bsuir_subgroup is not None:
         user.bsuir_subgroup = user_update.bsuir_subgroup
+
+    if user_update.is_teacher is not None:
+        user.is_teacher = user_update.is_teacher
+
+    if user_update.teacher_url_id is not None:
+        user.teacher_url_id = user_update.teacher_url_id
         
     await db.commit()
     await db.refresh(user)

@@ -17,13 +17,14 @@ const COLOR_PRESETS = {
 };
 
 export default function Schedule() {
-  const { group, subgroup, telegramId } = useUser();
+  const { group, subgroup, telegramId, isTeacher, teacherUrlId } = useUser();
   const navigate = useNavigate();
 
   const [schedule, setSchedule] = useState(() => {
-    if (!group) return null;
+    const key = isTeacher ? teacherUrlId : group;
+    if (!key) return null;
     try {
-      const cached = localStorage.getItem(`schedule_${group}`);
+      const cached = localStorage.getItem(`schedule_${key}`);
       return cached ? JSON.parse(cached) : null;
     } catch { return null; }
   });
@@ -126,7 +127,8 @@ export default function Schedule() {
       .then(res => setCurrentWeekNum(res.data))
       .catch(console.error);
 
-    axios.get(`/api/bsuir/schedule/${g}`)
+    const url = isTeacher ? `/api/bsuir/teachers/${g}/schedule` : `/api/bsuir/schedule/${g}`;
+    axios.get(url)
       .then(res => {
          setSchedule(res.data);
          localStorage.setItem(`schedule_${g}`, JSON.stringify(res.data));
@@ -175,21 +177,22 @@ export default function Schedule() {
   };
 
   useEffect(() => {
-    if (!group) return;
+    const key = isTeacher ? teacherUrlId : group;
+    if (!key) return;
 
-    // Try to load cached schedule for this group
-    const cachedSchedule = localStorage.getItem(`schedule_${group}`);
+    // Try to load cached schedule for this key
+    const cachedSchedule = localStorage.getItem(`schedule_${key}`);
     if (cachedSchedule) {
       // Cache hit — show instantly, refresh in background
       try { setSchedule(JSON.parse(cachedSchedule)); } catch { /* ignore */ }
       setLoading(false);
-      fetchSchedule(group, false); // background refresh without loader
+      fetchSchedule(key, false); // background refresh without loader
     } else {
       // No cache — show loader
       setSchedule(null);
-      fetchSchedule(group, true);
+      fetchSchedule(key, true);
     }
-  }, [group]);
+  }, [group, isTeacher, teacherUrlId]);
 
   // Generate an array of dates (-1 week to +3 weeks from today)
   const dateStrip = useMemo(() => {

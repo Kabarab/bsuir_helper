@@ -12,6 +12,8 @@ export const UserProvider = ({ children }) => {
     group: localStorage.getItem('bsuir_group') || null,
     subgroup: parseInt(localStorage.getItem('bsuir_subgroup') || '0', 10),
     studentId: localStorage.getItem('bsuir_student_id') || null,
+    isTeacher: localStorage.getItem('bsuir_is_teacher') === 'true',
+    teacherUrlId: localStorage.getItem('bsuir_teacher_url_id') || null,
     isInitializing: true,
   });
 
@@ -32,6 +34,12 @@ export const UserProvider = ({ children }) => {
           if (res.data.bsuir_group) localStorage.setItem('bsuir_group', res.data.bsuir_group);
           localStorage.setItem('bsuir_subgroup', (res.data.bsuir_subgroup || 0).toString());
           if (res.data.bsuir_id) localStorage.setItem('bsuir_student_id', res.data.bsuir_id);
+          
+          if (res.data.is_teacher !== undefined) {
+            setUserState(prev => ({ ...prev, isTeacher: res.data.is_teacher, teacherUrlId: res.data.teacher_url_id }));
+            localStorage.setItem('bsuir_is_teacher', String(res.data.is_teacher));
+            if (res.data.teacher_url_id) localStorage.setItem('bsuir_teacher_url_id', res.data.teacher_url_id);
+          }
         } else {
           setUserState(prev => ({ ...prev, isInitializing: false }));
         }
@@ -47,12 +55,23 @@ export const UserProvider = ({ children }) => {
       const res = await axios.put(`/api/users/${telegramId}/preferences`, {
         bsuir_group: group || null,
         bsuir_subgroup: subgroup,
-        bsuir_id: studentId || null
+        bsuir_id: studentId || null,
+        is_teacher: arguments[3] !== undefined ? arguments[3] : userState.isTeacher,
+        teacher_url_id: arguments[4] !== undefined ? arguments[4] : userState.teacherUrlId
       });
-      setUserState(prev => ({ ...prev, group: res.data.bsuir_group, subgroup: res.data.bsuir_subgroup, studentId: res.data.bsuir_id }));
+      setUserState(prev => ({ 
+        ...prev, 
+        group: res.data.bsuir_group, 
+        subgroup: res.data.bsuir_subgroup, 
+        studentId: res.data.bsuir_id,
+        isTeacher: res.data.is_teacher,
+        teacherUrlId: res.data.teacher_url_id
+      }));
       if (res.data.bsuir_group) localStorage.setItem('bsuir_group', res.data.bsuir_group);
       localStorage.setItem('bsuir_subgroup', res.data.bsuir_subgroup.toString());
       if (res.data.bsuir_id) localStorage.setItem('bsuir_student_id', res.data.bsuir_id);
+      localStorage.setItem('bsuir_is_teacher', String(res.data.is_teacher));
+      if (res.data.teacher_url_id) localStorage.setItem('bsuir_teacher_url_id', res.data.teacher_url_id);
       return true;
     } catch (e) {
       console.error("Failed to update preferences", e);

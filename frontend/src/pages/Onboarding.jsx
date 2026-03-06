@@ -6,13 +6,40 @@ export default function Onboarding() {
   const { updatePreferences } = useUser();
   const [inputGroup, setInputGroup] = useState('');
   const [inputStudentId, setInputStudentId] = useState('');
+  const [isTeacher, setIsTeacher] = useState(false);
+  const [teachers, setTeachers] = useState([]);
+  const [teacherSearch, setTeacherSearch] = useState('');
+  const [selectedTeacher, setSelectedTeacher] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSave = async () => {
-    if (!inputGroup.trim()) return;
+    if (!isTeacher && !inputGroup.trim()) return;
+    if (isTeacher && !selectedTeacher) return;
+
     setIsLoading(true);
-    await updatePreferences(inputGroup.trim(), 0, inputStudentId.trim());
+    if (isTeacher) {
+      await updatePreferences(null, 0, null, true, selectedTeacher.urlId);
+    } else {
+      await updatePreferences(inputGroup.trim(), 0, inputStudentId.trim(), false, null);
+    }
     setIsLoading(false);
+  };
+
+  const handleSearchTeachers = async (val) => {
+    setTeacherSearch(val);
+    if (val.length < 2) {
+      setTeachers([]);
+      return;
+    }
+    try {
+      const res = await axios.get('/api/bsuir/teachers');
+      const filtered = res.data.filter(t => 
+        t.fio.toLowerCase().includes(val.toLowerCase())
+      ).slice(0, 5);
+      setTeachers(filtered);
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   return (
@@ -32,29 +59,76 @@ export default function Onboarding() {
         </p>
 
         <div className="w-full space-y-4">
-          <div className="relative">
+          <label className="flex items-center gap-3 p-4 bg-tg-secondaryBg rounded-2xl cursor-pointer hover:bg-opacity-80 transition-all border-2 border-transparent focus-within:border-tg-button">
             <input 
-              type="text" 
-              value={inputGroup}
-              onChange={(e) => setInputGroup(e.target.value)}
-              placeholder="Учебная группа (напр. 114041)" 
-              className="w-full p-4 pl-5 pr-12 rounded-2xl bg-tg-secondaryBg border-2 border-transparent focus:border-tg-button outline-none text-lg font-bold shadow-sm transition-all text-tg-text placeholder:font-medium placeholder:text-tg-hint/50"
+              type="checkbox" 
+              checked={isTeacher}
+              onChange={(e) => setIsTeacher(e.target.checked)}
+              className="w-5 h-5 accent-tg-button"
             />
-          </div>
+            <span className="font-bold text-tg-text">Я преподаватель</span>
+          </label>
 
-          <div className="relative">
-            <input 
-              type="text" 
-              value={inputStudentId}
-              onChange={(e) => setInputStudentId(e.target.value)}
-              placeholder="Номер студенческого (для оценок)" 
-              className="w-full p-4 pl-5 pr-12 rounded-2xl bg-tg-secondaryBg border-2 border-transparent focus:border-tg-button outline-none text-lg font-bold shadow-sm transition-all text-tg-text placeholder:font-medium placeholder:text-tg-hint/50"
-            />
-          </div>
+          {!isTeacher ? (
+            <>
+              <div className="relative">
+                <input 
+                  type="text" 
+                  value={inputGroup}
+                  onChange={(e) => setInputGroup(e.target.value)}
+                  placeholder="Учебная группа (напр. 114041)" 
+                  className="w-full p-4 pl-5 pr-12 rounded-2xl bg-tg-secondaryBg border-2 border-transparent focus:border-tg-button outline-none text-lg font-bold shadow-sm transition-all text-tg-text placeholder:font-medium placeholder:text-tg-hint/50"
+                />
+              </div>
+
+              <div className="relative">
+                <input 
+                  type="text" 
+                  value={inputStudentId}
+                  onChange={(e) => setInputStudentId(e.target.value)}
+                  placeholder="Номер студенческого (для оценок)" 
+                  className="w-full p-4 pl-5 pr-12 rounded-2xl bg-tg-secondaryBg border-2 border-transparent focus:border-tg-button outline-none text-lg font-bold shadow-sm transition-all text-tg-text placeholder:font-medium placeholder:text-tg-hint/50"
+                />
+              </div>
+            </>
+          ) : (
+            <div className="relative space-y-2">
+              <input 
+                type="text" 
+                value={teacherSearch}
+                onChange={(e) => handleSearchTeachers(e.target.value)}
+                placeholder="Ваше ФИО" 
+                className="w-full p-4 pl-5 pr-12 rounded-2xl bg-tg-secondaryBg border-2 border-transparent focus:border-tg-button outline-none text-lg font-bold shadow-sm transition-all text-tg-text placeholder:font-medium placeholder:text-tg-hint/50"
+              />
+              {teachers.length > 0 && (
+                <div className="absolute top-full left-0 right-0 bg-tg-secondaryBg border border-tg-button/20 rounded-2xl mt-2 overflow-hidden shadow-2xl z-50">
+                  {teachers.map(t => (
+                    <div 
+                      key={t.id}
+                      onClick={() => {
+                        setSelectedTeacher(t);
+                        setTeacherSearch(t.fio);
+                        setTeachers([]);
+                      }}
+                      className={`p-4 hover:bg-tg-button hover:text-tg-buttonText cursor-pointer font-bold border-b border-tg-hint/10 last:border-0 ${selectedTeacher?.id === t.id ? 'bg-tg-button/20' : ''}`}
+                    >
+                      {t.fio}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {selectedTeacher && (
+                <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center gap-3">
+                   <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center text-white">✓</div>
+                   <div className="text-sm font-bold text-tg-text">Выбран: {selectedTeacher.fio}</div>
+                </div>
+              )}
+            </div>
+          )}
 
           <button 
             onClick={handleSave}
-            disabled={!inputGroup.trim() || isLoading}
+            disabled={(isTeacher ? !selectedTeacher : !inputGroup.trim()) || isLoading}
             className="w-full bg-tg-button text-tg-buttonText p-4 rounded-2xl font-bold text-lg flex justify-center items-center gap-2 shadow-lg hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 disabled:active:scale-100"
           >
             {isLoading ? (

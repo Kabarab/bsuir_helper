@@ -10,6 +10,8 @@ class User(Base):
     bsuir_group = Column(String, nullable=True)
     bsuir_subgroup = Column(Integer, default=0)
     bsuir_id = Column(String, nullable=True)
+    is_teacher = Column(Boolean, default=False)
+    teacher_url_id = Column(String, nullable=True)
     notification_offset = Column(Integer, default=10) # minutes before
 
     tasks = relationship("Task", back_populates="owner", cascade="all, delete-orphan")
