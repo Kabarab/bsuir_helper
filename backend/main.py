@@ -191,7 +191,10 @@ async def create_task(telegram_id: int, task: TaskCreate, db: AsyncSession = Dep
     user_result = await db.execute(select(User).where(User.telegram_id == telegram_id))
     user = user_result.scalars().first()
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        user = User(telegram_id=telegram_id)
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
     
     new_task = Task(
         user_id=user.id, 
@@ -293,7 +296,10 @@ async def create_event(telegram_id: int, event: CustomEventCreate, db: AsyncSess
     user_result = await db.execute(select(User).where(User.telegram_id == telegram_id))
     user = user_result.scalars().first()
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        user = User(telegram_id=telegram_id)
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
         
     new_event = CustomEvent(
         user_id=user.id,
