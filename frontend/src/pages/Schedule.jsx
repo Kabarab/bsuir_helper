@@ -876,17 +876,17 @@ export default function Schedule() {
                         onTouchStart={(e) => handleEventTouchStart(e, lesson)}
                         onTouchMove={handleEventTouchMove}
                         onTouchEnd={handleEventTouchEnd}
-                        className={`w-[calc(100%-3rem)] md:w-[calc(50%-2.5rem)] rounded-2xl p-4 shadow-sm border border-opacity-10 relative overflow-hidden select-none transition-all cursor-pointer hover:shadow-md hover:-translate-y-1 ${isPast ? 'bg-tg-secondaryBg border-[var(--tg-theme-hint-color)] opacity-60' : `${colors.light} ${colors.border} shadow-lg scale-[1.01]`}`}
+                        className={`w-[calc(100%-3rem)] md:w-[calc(50%-2.5rem)] rounded-2xl p-4 shadow-sm border border-opacity-10 relative overflow-hidden select-none transition-all cursor-pointer hover:shadow-md hover:-translate-y-1 backdrop-blur-md ${isPast ? 'bg-tg-secondaryBg border-[var(--tg-theme-hint-color)] opacity-60' : `${colors.light.replace('bg-', 'bg-opacity-20 bg-')} ${colors.border} shadow-lg scale-[1.01]`}`}
                       >
                       {/* Progress fill overlay */}
                       {isActive && (
                         <div 
-                          className="absolute top-0 left-0 right-0 bg-black opacity-[0.07] transition-all duration-1000 ease-linear"
+                          className="absolute top-0 left-0 right-0 bg-black opacity-20 transition-all duration-1000 ease-linear"
                           style={{ height: `${progressPct}%` }}
                         />
                       )}
                       {isPast && (
-                        <div className="absolute inset-0 bg-black opacity-[0.05]" />
+                        <div className="absolute inset-0 bg-black opacity-10" />
                       )}
                       {/* Lesson Type Banner */}
                       <div className={`absolute top-0 right-0 px-3 py-1 rounded-bl-xl font-black text-[10px] tracking-widest uppercase ${isPast ? colors.bg : 'bg-white/40'} ${isPast ? 'text-white' : colors.text} shadow-sm z-10`}>
@@ -1147,17 +1147,17 @@ export default function Schedule() {
                         onTouchStart={(e) => { if (!isDraggingRef.current) handleEventTouchStart(e, lesson); }}
                         onTouchMove={(e) => { if (!isDraggingRef.current) handleEventTouchMove(e); }}
                         onTouchEnd={(e) => { if (!isDraggingRef.current) handleEventTouchEnd(); }}
-                        className={`absolute left-2 right-2 rounded-xl p-2 border-l-4 shadow-sm flex flex-col justify-between overflow-hidden select-none transition-all hover:scale-[1.02] hover:z-20 ${isPast ? `${colors.light} ${colors.border} opacity-50` : `${colors.light} ${colors.border} shadow-md ${isActive ? 'ring-2 ring-white/30 z-10' : ''}`}`}
+                        className={`absolute left-2 right-2 rounded-xl p-2 border-l-4 shadow-sm flex flex-col justify-between overflow-hidden select-none transition-all hover:scale-[1.02] hover:z-20 backdrop-blur-sm ${isPast ? `${colors.light} ${colors.border} opacity-50` : `${colors.light.replace('bg-', 'bg-opacity-20 bg-')} ${colors.border} shadow-md ${isActive ? 'ring-2 ring-white/30 z-10' : ''}`}`}
                       >
                         {/* Progress fill overlay for calendar view */}
                         {isActive && (
                           <div 
-                            className="absolute top-0 left-0 right-0 bg-black opacity-[0.07] transition-all duration-1000 ease-linear"
+                            className="absolute top-0 left-0 right-0 bg-black opacity-20 transition-all duration-1000 ease-linear"
                             style={{ height: `${progressPct}%` }}
                           />
                         )}
                         {isPast && (
-                          <div className="absolute inset-0 bg-black opacity-[0.05]" />
+                          <div className="absolute inset-0 bg-black opacity-10" />
                         )}
                         <div>
                           <div className="flex items-center justify-between mb-0.5">

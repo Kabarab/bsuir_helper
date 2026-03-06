@@ -540,17 +540,17 @@ export default function University() {
                                     
                                     {/* Card */}
                                     <div 
-                                      className={`w-[calc(100%-3rem)] md:w-[calc(50%-2.5rem)] rounded-2xl p-4 shadow-sm border border-opacity-10 relative overflow-hidden transition-all hover:shadow-md hover:-translate-y-1 ${isPast ? 'bg-tg-secondaryBg border-[var(--tg-theme-hint-color)] opacity-60' : `${colors.light} ${colors.border} shadow-lg scale-[1.01]`}`}
+                                      className={`w-[calc(100%-3rem)] md:w-[calc(50%-2.5rem)] rounded-2xl p-4 shadow-sm border border-opacity-10 relative overflow-hidden transition-all hover:shadow-md hover:-translate-y-1 backdrop-blur-md ${isPast ? 'bg-tg-secondaryBg border-[var(--tg-theme-hint-color)] opacity-60' : `${colors.light.replace('bg-', 'bg-opacity-20 bg-')} ${colors.border} shadow-lg scale-[1.01]`}`}
                                     >
                                       {/* Progress fill overlay */}
                                       {isActive && (
                                         <div 
-                                          className="absolute top-0 left-0 right-0 bg-black opacity-[0.07] transition-all duration-1000 ease-linear"
+                                          className="absolute top-0 left-0 right-0 bg-black opacity-20 transition-all duration-1000 ease-linear"
                                           style={{ height: `${progressPct}%` }}
                                         />
                                       )}
                                       {isPast && (
-                                        <div className="absolute inset-0 bg-black opacity-[0.05]" />
+                                        <div className="absolute inset-0 bg-black opacity-10" />
                                       )}
                                       {/* Lesson Type Banner */}
                                       <div className={`absolute top-0 right-0 px-3 py-1 rounded-bl-xl font-black text-[10px] tracking-widest uppercase ${isPast ? colors.bg : 'bg-white/40'} ${isPast ? 'text-white' : colors.text} shadow-sm z-10`}>
@@ -823,17 +823,17 @@ export default function University() {
                                     
                                     {/* Card */}
                                     <div 
-                                      className={`w-[calc(100%-3rem)] md:w-[calc(50%-2.5rem)] rounded-2xl p-4 shadow-sm border border-opacity-10 relative overflow-hidden transition-all hover:shadow-md hover:-translate-y-1 ${isPast ? 'bg-tg-secondaryBg border-[var(--tg-theme-hint-color)] opacity-60' : `${colors.light} ${colors.border} shadow-lg scale-[1.01]`}`}
+                                      className={`w-[calc(100%-3rem)] md:w-[calc(50%-2.5rem)] rounded-2xl p-4 shadow-sm border border-opacity-10 relative overflow-hidden transition-all hover:shadow-md hover:-translate-y-1 backdrop-blur-md ${isPast ? 'bg-tg-secondaryBg border-[var(--tg-theme-hint-color)] opacity-60' : `${colors.light.replace('bg-', 'bg-opacity-20 bg-')} ${colors.border} shadow-lg scale-[1.01]`}`}
                                     >
                                       {/* Progress fill overlay */}
                                       {isActive && (
                                         <div 
-                                          className="absolute top-0 left-0 right-0 bg-black opacity-[0.07] transition-all duration-1000 ease-linear"
+                                          className="absolute top-0 left-0 right-0 bg-black opacity-20 transition-all duration-1000 ease-linear"
                                           style={{ height: `${progressPct}%` }}
                                         />
                                       )}
                                       {isPast && (
-                                        <div className="absolute inset-0 bg-black opacity-[0.05]" />
+                                        <div className="absolute inset-0 bg-black opacity-10" />
                                       )}
                                       {/* Lesson Type Banner */}
                                       <div className={`absolute top-0 right-0 px-3 py-1 rounded-bl-xl font-black text-[10px] tracking-widest uppercase ${isPast ? colors.bg : 'bg-white/40'} ${isPast ? 'text-white' : colors.text} shadow-sm z-10`}>
