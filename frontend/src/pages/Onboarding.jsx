@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import axios from 'axios';
 import { useUser } from '../contexts/UserContext';
 import { GraduationCap, ArrowRight } from 'lucide-react';
 
@@ -10,6 +11,7 @@ export default function Onboarding() {
   const [teachers, setTeachers] = useState([]);
   const [teacherSearch, setTeacherSearch] = useState('');
   const [selectedTeacher, setSelectedTeacher] = useState(null);
+  const [groupSuggestions, setGroupSuggestions] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSave = async () => {
@@ -37,6 +39,23 @@ export default function Onboarding() {
         t.fio.toLowerCase().includes(val.toLowerCase())
       ).slice(0, 5);
       setTeachers(filtered);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleGroupSearch = async (val) => {
+    setInputGroup(val);
+    if (val.length < 2) {
+      setGroupSuggestions([]);
+      return;
+    }
+    try {
+      const res = await axios.get('/api/bsuir/groups');
+      const filtered = res.data.filter(g => 
+        g.name.includes(val)
+      ).slice(0, 5);
+      setGroupSuggestions(filtered);
     } catch (e) {
       console.error(e);
     }
@@ -75,10 +94,30 @@ export default function Onboarding() {
                 <input 
                   type="text" 
                   value={inputGroup}
-                  onChange={(e) => setInputGroup(e.target.value)}
+                  onChange={(e) => handleGroupSearch(e.target.value)}
                   placeholder="Учебная группа (напр. 114041)" 
                   className="w-full p-4 pl-5 pr-12 rounded-2xl bg-tg-secondaryBg border-2 border-transparent focus:border-tg-button outline-none text-lg font-bold shadow-sm transition-all text-tg-text placeholder:font-medium placeholder:text-tg-hint/50"
+                  autoComplete="off"
                 />
+                {groupSuggestions.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 bg-tg-secondaryBg border border-tg-button/20 rounded-2xl mt-2 overflow-hidden shadow-2xl z-50">
+                    {groupSuggestions.map(g => (
+                      <div 
+                        key={g.id}
+                        onClick={() => {
+                          setInputGroup(g.name);
+                          setGroupSuggestions([]);
+                        }}
+                        className="p-4 hover:bg-tg-button hover:text-tg-buttonText cursor-pointer font-bold border-b border-tg-hint/10 last:border-0"
+                      >
+                        <div className="flex justify-between items-center">
+                          <span>{g.name}</span>
+                          <span className="text-[10px] opacity-70">{g.facultyAbbrev}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="relative">
