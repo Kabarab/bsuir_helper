@@ -272,7 +272,10 @@ export default function Schedule() {
         }
         
         // English teacher filtering
-        const isEnglish = (lesson.subject || "").toLowerCase().includes("иностранный язык");
+        const subject = (lesson.subject || "").toLowerCase();
+        const note = (lesson.note || "").toLowerCase();
+        const isEnglish = subject.includes("иностр") || subject.includes("иняз") || note.includes("иностр") || note.includes("иняз");
+        
         if (isEnglish && englishTeacherId) {
           const hasSelectedTeacher = lesson.employees?.some(emp => emp.urlId === englishTeacherId);
           if (!hasSelectedTeacher) return false;

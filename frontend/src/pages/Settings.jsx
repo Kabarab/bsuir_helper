@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
 export default function Settings() {
-  const { group, subgroup, studentId, isTeacher, teacherUrlId, updatePreferences } = useUser();
+  const { group, subgroup, studentId, isTeacher, teacherUrlId, englishTeacherId: savedEngId, englishTeacherFio: savedEngFio, updatePreferences } = useUser();
   const navigate = useNavigate();
   
   const [inputGroup, setInputGroup] = useState(group || '');
@@ -17,7 +17,8 @@ export default function Settings() {
   const [teachers, setTeachers] = useState([]);
   const [selectedTeacher, setSelectedTeacher] = useState(null);
   
-  const [englishTeacherId, setEnglishTeacherId] = useState(useUser().englishTeacherId || null);
+  const [englishTeacherId, setEnglishTeacherId] = useState(savedEngId || null);
+  const [englishTeacherFio, setEnglishTeacherFio] = useState(savedEngFio || null);
   const [englishTeacherSearch, setEnglishTeacherSearch] = useState('');
   const [englishTeachers, setEnglishTeachers] = useState([]);
   const [selectedEnglishTeacher, setSelectedEnglishTeacher] = useState(null);
@@ -76,7 +77,8 @@ export default function Settings() {
       isTeacherLocal ? null : inputStudentId.trim(),
       isTeacherLocal,
       isTeacherLocal ? (selectedTeacher?.urlId || teacherUrlId) : null,
-      selectedEnglishTeacher?.urlId || englishTeacherId
+      selectedEnglishTeacher?.urlId || englishTeacherId,
+      selectedEnglishTeacher?.fio || englishTeacherFio
     );
     setIsSaving(false);
     if (success) {
@@ -85,7 +87,6 @@ export default function Settings() {
   };
 
   const hasChanges = () => {
-    if (isTeacherLocal !== isTeacher) return true;
     if (isTeacherLocal) {
       return (selectedTeacher && selectedTeacher.urlId !== teacherUrlId) || (selectedEnglishTeacher && selectedEnglishTeacher.urlId !== englishTeacherId);
     }
@@ -269,7 +270,7 @@ export default function Settings() {
           ) : englishTeacherId && !englishTeacherSearch && (
             <div className="p-3 bg-tg-button/5 border border-tg-button/10 rounded-xl flex items-center gap-3">
                <div className="w-8 h-8 rounded-full bg-tg-button/20 flex items-center justify-center text-tg-button">✓</div>
-               <div className="text-sm font-bold text-tg-text">Преподаватель сохранен</div>
+               <div className="text-sm font-bold text-tg-text">Выбран: {englishTeacherFio || "Преподаватель"}</div>
                <button 
                  onClick={() => {
                    setEnglishTeacherSearch(' '); 

@@ -87,6 +87,7 @@ async def startup_event():
         await safe_add_column("users", "is_teacher", "BOOLEAN", "false")
         await safe_add_column("users", "teacher_url_id", "VARCHAR", None)
         await safe_add_column("users", "english_teacher_id", "VARCHAR", None)
+        await safe_add_column("users", "english_teacher_fio", "VARCHAR", None)
         
         # Alter column types to BigInt for Postgres if needed
         async def alter_column_type_pgsql(table, column, new_type):
@@ -304,6 +305,9 @@ async def update_user_preferences(telegram_id: int, user_update: UserUpdate, db:
         
     if user_update.english_teacher_id is not None:
         user.english_teacher_id = user_update.english_teacher_id
+
+    if user_update.english_teacher_fio is not None:
+        user.english_teacher_fio = user_update.english_teacher_fio
         
     await db.commit()
     await db.refresh(user)
