@@ -402,7 +402,7 @@ export default function Schedule() {
     }));
 
     return [...lessons, ...formattedPlans].sort((a, b) => a.startLessonTime.localeCompare(b.startLessonTime));
-  }, [schedule, selectedDayName, selectedWeekNumber, subgroup, customPlans, selectedDate]);
+  }, [schedule, selectedDayName, selectedWeekNumber, subgroup, customPlans, selectedDate, englishTeacherId]);
 
   const handleAddPlan = () => {
     if (!newPlan.title) return;

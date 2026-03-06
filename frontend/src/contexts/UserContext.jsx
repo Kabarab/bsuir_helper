@@ -81,6 +81,8 @@ export const UserProvider = ({ children }) => {
       if (res.data.bsuir_id) localStorage.setItem('bsuir_student_id', res.data.bsuir_id);
       localStorage.setItem('bsuir_is_teacher', String(res.data.is_teacher));
       if (res.data.teacher_url_id) localStorage.setItem('bsuir_teacher_url_id', res.data.teacher_url_id);
+      if (res.data.english_teacher_id) localStorage.setItem('bsuir_english_teacher_id', res.data.english_teacher_id);
+      if (res.data.english_teacher_fio) localStorage.setItem('bsuir_english_teacher_fio', res.data.english_teacher_fio);
       return true;
     } catch (e) {
       console.error("Failed to update preferences", e);

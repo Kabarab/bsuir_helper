@@ -22,6 +22,11 @@ export default function Settings() {
   const [englishTeacherSearch, setEnglishTeacherSearch] = useState('');
   const [englishTeachers, setEnglishTeachers] = useState([]);
   const [selectedEnglishTeacher, setSelectedEnglishTeacher] = useState(null);
+
+  useEffect(() => {
+    setEnglishTeacherId(savedEngId || null);
+    setEnglishTeacherFio(savedEngFio || null);
+  }, [savedEngId, savedEngFio]);
   
   const [isSaving, setIsSaving] = useState(false);
 
@@ -87,6 +92,7 @@ export default function Settings() {
   };
 
   const hasChanges = () => {
+    if (isTeacherLocal !== isTeacher) return true;
     if (isTeacherLocal) {
       return (selectedTeacher && selectedTeacher.urlId !== teacherUrlId) || (selectedEnglishTeacher && selectedEnglishTeacher.urlId !== englishTeacherId);
     }
@@ -287,7 +293,7 @@ export default function Settings() {
 
       <button 
         onClick={handleSave}
-        disabled={isSaving || !hasChanges() || (!isTeacherLocal && !inputGroup.trim()) || (isTeacherLocal && !selectedTeacher && !teacherUrlId)}
+        disabled={isSaving || !hasChanges() || (!isTeacherLocal && !inputGroup.trim()) || (isTeacherLocal && !selectedTeacher && !teacherUrlId && !selectedTeacher)}
         className="w-full py-4 bg-tg-button text-tg-buttonText font-bold rounded-2xl mt-auto active:scale-[0.98] transition-all shadow-lg shadow-tg-button/30 text-base flex justify-center items-center gap-2 disabled:opacity-50 disabled:shadow-none"
       >
         {isSaving ? (
