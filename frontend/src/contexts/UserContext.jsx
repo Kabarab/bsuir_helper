@@ -50,14 +50,14 @@ export const UserProvider = ({ children }) => {
       });
   }, [telegramId]);
 
-  const updatePreferences = async (group, subgroup, studentId = null) => {
+  const updatePreferences = async (group, subgroup, studentId = null, isTeacherParam = undefined, teacherUrlIdParam = undefined) => {
     try {
       const res = await axios.put(`/api/users/${telegramId}/preferences`, {
         bsuir_group: group || null,
         bsuir_subgroup: subgroup,
         bsuir_id: studentId || null,
-        is_teacher: arguments[3] !== undefined ? arguments[3] : userState.isTeacher,
-        teacher_url_id: arguments[4] !== undefined ? arguments[4] : userState.teacherUrlId
+        is_teacher: isTeacherParam !== undefined ? isTeacherParam : userState.isTeacher,
+        teacher_url_id: teacherUrlIdParam !== undefined ? teacherUrlIdParam : userState.teacherUrlId
       });
       setUserState(prev => ({ 
         ...prev, 
