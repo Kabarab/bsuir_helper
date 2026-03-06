@@ -1,29 +1,72 @@
 import { useState, useEffect } from 'react';
 import { useUser } from '../contexts/UserContext';
-import { Settings as SettingsIcon, Save, ChevronLeft } from 'lucide-react';
+import { Settings as SettingsIcon, Save, ChevronLeft, GraduationCap, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 
 export default function Settings() {
-  const { group, subgroup, studentId, updatePreferences } = useUser();
+  const { group, subgroup, studentId, isTeacher, teacherUrlId, updatePreferences } = useUser();
   const navigate = useNavigate();
   
   const [inputGroup, setInputGroup] = useState(group || '');
   const [inputStudentId, setInputStudentId] = useState(studentId || '');
   const [inputSubgroup, setInputSubgroup] = useState(subgroup || 0);
+  
+  const [isTeacherLocal, setIsTeacherLocal] = useState(isTeacher);
+  const [teacherSearch, setTeacherSearch] = useState('');
+  const [teachers, setTeachers] = useState([]);
+  const [selectedTeacher, setSelectedTeacher] = useState(null);
+  
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     setInputGroup(group || '');
     setInputSubgroup(subgroup || 0);
     setInputStudentId(studentId || '');
-  }, [group, subgroup, studentId]);
+    setIsTeacherLocal(isTeacher);
+  }, [group, subgroup, studentId, isTeacher]);
+
+  const handleSearchTeachers = async (val) => {
+    setTeacherSearch(val);
+    if (val.length < 2) {
+      setTeachers([]);
+      return;
+    }
+    try {
+      const res = await axios.get('/api/bsuir/teachers');
+      const filtered = res.data.filter(t => 
+        t.fio.toLowerCase().includes(val.toLowerCase())
+      ).slice(0, 5);
+      setTeachers(filtered);
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const handleSave = async () => {
-    if (!inputGroup.trim()) return;
+    if (!isTeacherLocal && !inputGroup.trim()) return;
+    if (isTeacherLocal && !selectedTeacher && !teacherUrlId) return;
+
     setIsSaving(true);
-    await updatePreferences(inputGroup.trim(), Number(inputSubgroup), inputStudentId.trim());
+    const success = await updatePreferences(
+      isTeacherLocal ? null : inputGroup.trim(), 
+      isTeacherLocal ? 0 : Number(inputSubgroup), 
+      isTeacherLocal ? null : inputStudentId.trim(),
+      isTeacherLocal,
+      isTeacherLocal ? (selectedTeacher?.urlId || teacherUrlId) : null
+    );
     setIsSaving(false);
-    navigate(-1); // Go back to the previous screen
+    if (success) {
+      navigate(-1);
+    }
+  };
+
+  const hasChanges = () => {
+    if (isTeacherLocal !== isTeacher) return true;
+    if (isTeacherLocal) {
+      return selectedTeacher && selectedTeacher.urlId !== teacherUrlId;
+    }
+    return inputGroup !== (group || '') || inputSubgroup !== (subgroup || 0) || inputStudentId !== (studentId || '');
   };
 
   return (
@@ -42,61 +85,117 @@ export default function Settings() {
       </div>
 
       <div className="bg-tg-secondaryBg p-5 rounded-3xl shadow-sm border border-tg-hint/10 mb-6">
-        <h2 className="text-lg font-bold mb-4">Учебные данные</h2>
-        
-        <div className="space-y-5">
-          <div>
-            <label className="block text-xs font-semibold uppercase text-tg-hint mb-1.5 ml-1">
-              Учебная группа
-            </label>
-            <input 
-              type="text" 
-              value={inputGroup}
-              onChange={(e) => setInputGroup(e.target.value)}
-              placeholder="Напр. 114041" 
-              className="w-full px-4 py-3.5 rounded-2xl bg-[var(--tg-theme-bg-color)] text-tg-text focus:outline-none ring-2 ring-transparent focus:ring-tg-button/30 border border-tg-hint/10 transition-all font-bold text-lg"
-            />
-          </div>
+        <h2 className="text-lg font-bold mb-4">Роль в приложении</h2>
+        <label className="flex items-center gap-3 p-4 bg-tg-bg rounded-2xl cursor-pointer border-2 border-transparent focus-within:border-tg-button mb-4">
+          <input 
+            type="checkbox" 
+            checked={isTeacherLocal}
+            onChange={(e) => setIsTeacherLocal(e.target.checked)}
+            className="w-5 h-5 accent-tg-button"
+          />
+          <span className="font-bold text-tg-text">Я преподаватель</span>
+        </label>
 
-          <div>
-            <label className="block text-xs font-semibold uppercase text-tg-hint mb-1.5 ml-1">
-              Номер студенческого (для оценок)
-            </label>
-            <input 
-              type="text" 
-              value={inputStudentId}
-              onChange={(e) => setInputStudentId(e.target.value)}
-              placeholder="Напр. 1140412" 
-              className="w-full px-4 py-3.5 rounded-2xl bg-[var(--tg-theme-bg-color)] text-tg-text focus:outline-none ring-2 ring-transparent focus:ring-tg-button/30 border border-tg-hint/10 transition-all font-bold text-lg"
-            />
+        {isTeacherLocal ? (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-semibold uppercase text-tg-hint mb-1.5 ml-1">
+                Поиск преподавателя
+              </label>
+              <div className="relative">
+                <input 
+                  type="text" 
+                  value={teacherSearch}
+                  onChange={(e) => handleSearchTeachers(e.target.value)}
+                  placeholder="Введите ФИО..." 
+                  className="w-full px-4 py-3.5 rounded-2xl bg-tg-bg text-tg-text focus:outline-none ring-2 ring-transparent focus:ring-tg-button/30 border border-tg-hint/10 transition-all font-bold"
+                />
+                {teachers.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 bg-tg-secondaryBg border border-tg-button/20 rounded-2xl mt-2 overflow-hidden shadow-2xl z-50">
+                    {teachers.map(t => (
+                      <div 
+                        key={t.id}
+                        onClick={() => {
+                          setSelectedTeacher(t);
+                          setTeacherSearch(t.fio);
+                          setTeachers([]);
+                        }}
+                        className="p-4 hover:bg-tg-button hover:text-tg-buttonText cursor-pointer font-bold border-b border-tg-hint/10 last:border-0"
+                      >
+                        {t.fio}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+            {selectedTeacher ? (
+              <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center gap-3">
+                 <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center text-white">✓</div>
+                 <div className="text-sm font-bold text-tg-text">Будет выбран: {selectedTeacher.fio}</div>
+              </div>
+            ) : teacherUrlId && (
+              <div className="p-3 bg-tg-button/5 border border-tg-button/10 rounded-xl flex items-center gap-3">
+                 <GraduationCap size={20} className="text-tg-button" />
+                 <div className="text-sm font-bold text-tg-text">Профиль преподавателя активен</div>
+              </div>
+            )}
           </div>
+        ) : (
+          <div className="space-y-5">
+            <div>
+              <label className="block text-xs font-semibold uppercase text-tg-hint mb-1.5 ml-1">
+                Учебная группа
+              </label>
+              <input 
+                type="text" 
+                value={inputGroup}
+                onChange={(e) => setInputGroup(e.target.value)}
+                placeholder="Напр. 114041" 
+                className="w-full px-4 py-3.5 rounded-2xl bg-tg-bg text-tg-text focus:outline-none ring-2 ring-transparent focus:ring-tg-button/30 border border-tg-hint/10 transition-all font-bold text-lg"
+              />
+            </div>
 
-          <div>
-             <label className="block text-xs font-semibold uppercase text-tg-hint mb-1.5 ml-1">
-              Подгруппа (для расписания)
-            </label>
-            <div className="flex bg-[var(--tg-theme-bg-color)] p-1 rounded-2xl border border-tg-hint/10">
-              {[0, 1, 2].map(val => (
-                <button
-                  key={val}
-                  onClick={() => setInputSubgroup(val)}
-                  className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all ${
-                    inputSubgroup === val 
-                      ? 'bg-tg-button text-tg-buttonText shadow-md' 
-                      : 'text-tg-hint hover:bg-tg-hint/5'
-                  }`}
-                >
-                  {val === 0 ? 'Все' : `${val} подгруппа`}
-                </button>
-              ))}
+            <div>
+              <label className="block text-xs font-semibold uppercase text-tg-hint mb-1.5 ml-1">
+                Номер студенческого (для оценок)
+              </label>
+              <input 
+                type="text" 
+                value={inputStudentId}
+                onChange={(e) => setInputStudentId(e.target.value)}
+                placeholder="Напр. 1140412" 
+                className="w-full px-4 py-3.5 rounded-2xl bg-tg-bg text-tg-text focus:outline-none ring-2 ring-transparent focus:ring-tg-button/30 border border-tg-hint/10 transition-all font-bold text-lg"
+              />
+            </div>
+
+            <div>
+               <label className="block text-xs font-semibold uppercase text-tg-hint mb-1.5 ml-1">
+                Подгруппа (для расписания)
+              </label>
+              <div className="flex bg-tg-bg p-1 rounded-2xl border border-tg-hint/10">
+                {[0, 1, 2].map(val => (
+                  <button
+                    key={val}
+                    onClick={() => setInputSubgroup(val)}
+                    className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all ${
+                      inputSubgroup === val 
+                        ? 'bg-tg-button text-tg-buttonText shadow-md' 
+                        : 'text-tg-hint hover:bg-tg-hint/5'
+                    }`}
+                  >
+                    {val === 0 ? 'Все' : `${val} подгруппа`}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
 
       <button 
         onClick={handleSave}
-        disabled={isSaving || !inputGroup.trim() || (inputGroup === group && inputSubgroup === subgroup && inputStudentId === studentId)}
+        disabled={isSaving || !hasChanges() || (!isTeacherLocal && !inputGroup.trim()) || (isTeacherLocal && !selectedTeacher && !teacherUrlId)}
         className="w-full py-4 bg-tg-button text-tg-buttonText font-bold rounded-2xl mt-auto active:scale-[0.98] transition-all shadow-lg shadow-tg-button/30 text-base flex justify-center items-center gap-2 disabled:opacity-50 disabled:shadow-none"
       >
         {isSaving ? (
