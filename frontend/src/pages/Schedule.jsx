@@ -1421,7 +1421,7 @@ export default function Schedule() {
               </div>
             )}
 
-            <form onSubmit={(e) => { e.preventDefault(); handleSaveTask(); }} className="flex flex-col flex-1 overflow-hidden">
+            <div className="flex flex-col flex-1 overflow-hidden">
               <div className="overflow-y-auto overflow-x-hidden px-6 flex-1">
                 <div className="space-y-4">
                   <div>
@@ -1513,15 +1513,16 @@ export default function Schedule() {
                   </div>
                 </div>
               </div>
-              <div className="px-6 py-4 border-t border-[var(--tg-theme-hint-color)] border-opacity-10">
+              <div className="px-6 py-4 border-t border-[var(--tg-theme-hint-color)] border-opacity-10 mb-safe">
                 <button 
-                  type="submit"
-                  className="w-full py-4 bg-tg-button text-tg-buttonText font-bold rounded-2xl active:scale-[0.98] transition-all shadow-lg shadow-tg-button/30 text-base"
+                  type="button"
+                  onClick={(e) => { e.preventDefault(); handleSaveTask(); }}
+                  className="w-full py-4 bg-tg-button text-tg-buttonText font-bold rounded-2xl active:scale-[0.98] transition-all shadow-lg shadow-tg-button/30 text-base flex justify-center items-center h-[56px]"
                 >
                   Добавить задачу
                 </button>
               </div>
-            </form>
+            </div>
           </div>
         </div>
       )}
