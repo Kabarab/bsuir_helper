@@ -44,36 +44,81 @@ class NotificationService:
             await db.commit()
 
     async def process_user_tasks(self, db: AsyncSession, user: User):
+        import json
         now = datetime.now(MINSK_TZ).replace(tzinfo=None)
-        threshold = now + timedelta(minutes=user.notification_offset)
         
-        # Find tasks that are due soon, not completed, and haven't been notified yet
+        # Find all incomplete tasks for the user instead of querying by threshold in DB
         result = await db.execute(
             select(Task).where(
                 Task.user_id == user.id,
-                Task.is_completed == False,
-                Task.due_date <= threshold,
-                Task.due_date > now,
-                Task.last_reminded_at == None
+                Task.is_completed == False
             )
         )
         tasks = result.scalars().all()
         
         for task in tasks:
-            time_left = int((task.due_date - now).total_seconds() / 60)
-            msg = (
-                f"🔔 <b>Напоминание о задаче!</b>\n\n"
-                f"📌 {task.title}\n"
-                f"⏰ Начнется через {time_left} мин. ({task.due_date.strftime('%H:%M')})"
-            )
-            if task.subject:
-                msg += f"\n📚 Предмет: {task.subject}"
+            target_dt = None
             
-            try:
-                await bot.send_message(user.telegram_id, msg)
-                task.last_reminded_at = now
-            except Exception as e:
-                logger.error(f"Failed to send task notification to {user.telegram_id}: {e}")
+            # Try parsing from linkedEventId: "2026-03-06_09:00_Maths"
+            if task.linkedEventId:
+                parts = task.linkedEventId.split('_')
+                if len(parts) >= 2:
+                    try:
+                        date_str = parts[0]
+                        time_str = parts[1]
+                        target_dt = datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M")
+                    except ValueError:
+                        pass
+            
+            # Fallback to due_date + end of day
+            if not target_dt and task.due_date:
+                try:
+                    target_dt = datetime.strptime(task.due_date, "%Y-%m-%d").replace(hour=23, minute=59)
+                except ValueError:
+                    pass
+            
+            if not target_dt:
+                continue
+                
+            # If the task is already past the target_dt, don't remind
+            if now > target_dt:
+                continue
+
+            # Parse reminders array [15, 60] etc. or fallback to user.notification_offset
+            reminders_to_check = []
+            if task.reminders:
+                try:
+                    reminders_to_check = json.loads(task.reminders)
+                except Exception:
+                    pass
+            if not reminders_to_check:
+                reminders_to_check = [user.notification_offset]
+                
+            # Sort reminders descending (e.g., 1440, 60, 5) to trigger the largest first
+            for offset_mins in sorted(reminders_to_check, reverse=True):
+                notify_time = target_dt - timedelta(minutes=offset_mins)
+                
+                if now >= notify_time:
+                    # check if we already reminded for this specific offset or a closer one
+                    if task.last_reminded_at and task.last_reminded_at >= notify_time:
+                        continue
+                        
+                    time_left = int((target_dt - now).total_seconds() / 60)
+                    msg = (
+                        f"🔔 <b>Напоминание о задаче!</b>\n\n"
+                        f"📌 {task.title}\n"
+                        f"⏰ Начнется через {time_left} мин. ({target_dt.strftime('%H:%M')})"
+                    )
+                    if task.subject:
+                        msg += f"\n📚 Предмет: {task.subject}"
+                    
+                    try:
+                        await bot.send_message(user.telegram_id, msg)
+                        task.last_reminded_at = now
+                        # We break because we just sent a notification
+                        break
+                    except Exception as e:
+                        logger.error(f"Failed to send task notification to {user.telegram_id}: {e}")
 
     async def process_user_schedule(self, user: User, current_week: int):
         now = datetime.now(MINSK_TZ).replace(tzinfo=None)

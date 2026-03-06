@@ -62,8 +62,13 @@ export default function Schedule() {
 
   // Planner tasks for linking
   const [plannerTasks, setPlannerTasks] = useState(() => {
-    const saved = localStorage.getItem('bsuir_tasks');
-    return saved ? JSON.parse(saved) : [];
+    try {
+      const saved = localStorage.getItem('bsuir_tasks');
+      const parsed = saved ? JSON.parse(saved) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
   });
 
   // Task modal for adding plans linked to events
@@ -495,9 +500,10 @@ export default function Schedule() {
     };
     axios.post(`/api/tasks/${telegramId}`, taskToCreate)
       .then(res => {
-        setPlannerTasks(prev => [res.data, ...prev]);
+        setPlannerTasks(prev => [res.data, ...(prev || [])]);
         // Also update localStorage for cross-page sync
-        const updated = [res.data, ...plannerTasks];
+        const currentTasks = Array.isArray(plannerTasks) ? plannerTasks : [];
+        const updated = [res.data, ...currentTasks];
         localStorage.setItem('bsuir_tasks', JSON.stringify(updated));
         setIsTaskModalOpen(false);
         setNewTask({ title: '', description: '', priority: 'medium', linkedEventId: null, linkedEventLabel: '', reminders: [] });
