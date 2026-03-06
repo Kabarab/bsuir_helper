@@ -179,6 +179,7 @@ class UserUpdate(BaseModel):
     is_teacher: Optional[bool] = False
     teacher_url_id: Optional[str] = None
     english_teacher_id: Optional[str] = None
+    english_teacher_fio: Optional[str] = None
 
 class UserResponse(BaseModel):
     id: int
@@ -189,6 +190,7 @@ class UserResponse(BaseModel):
     is_teacher: Optional[bool] = False
     teacher_url_id: Optional[str] = None
     english_teacher_id: Optional[str] = None
+    english_teacher_fio: Optional[str] = None
 
 
 # --- Routes - Tasks ---
