@@ -238,11 +238,15 @@ export default function Schedule() {
     return targetWeek;
   };
 
-  // Helper: compute lesson progress (0..1) for today only
+  // Helper: compute lesson progress (0..1)
   const getLessonProgress = (lesson) => {
-    const isToday = isSameDay(selectedDate, now);
-    if (!isToday) return lesson.startLessonTime <= format(now, 'HH:mm') ? -1 : null; // -1 = past day lessons irrelevant
-    
+    const lessonDate = startOfDay(selectedDate);
+    const today = startOfDay(now);
+
+    if (lessonDate < today) return 1; // Past day
+    if (lessonDate > today) return 0; // Future day
+
+    // Same day
     const [sH, sM] = lesson.startLessonTime.split(':').map(Number);
     const [eH, eM] = lesson.endLessonTime.split(':').map(Number);
     const startMin = sH * 60 + sM;
@@ -872,20 +876,20 @@ export default function Schedule() {
                       onTouchStart={(e) => handleEventTouchStart(e, lesson)}
                       onTouchMove={handleEventTouchMove}
                       onTouchEnd={handleEventTouchEnd}
-                      className={`w-[calc(100%-3rem)] md:w-[calc(50%-2.5rem)] bg-tg-secondaryBg rounded-2xl p-4 shadow-sm border border-opacity-10 relative overflow-hidden select-none transition-all cursor-pointer hover:shadow-md hover:-translate-y-1 ${isActive ? 'border-tg-button ring-1 ring-tg-button/30 shadow-md' : 'border-[var(--tg-theme-hint-color)]'}`}
+                      className={`w-[calc(100%-3rem)] md:w-[calc(50%-2.5rem)] rounded-2xl p-4 shadow-sm border border-opacity-10 relative overflow-hidden select-none transition-all cursor-pointer hover:shadow-md hover:-translate-y-1 ${isPast ? 'bg-tg-secondaryBg border-[var(--tg-theme-hint-color)] opacity-60' : `${colors.bg} border-white/10 shadow-lg scale-[1.01]`}`}
                     >
                       {/* Progress fill overlay */}
                       {isActive && (
                         <div 
-                          className={`absolute bottom-0 left-0 right-0 ${colors.bg} opacity-[0.08] transition-all duration-1000 ease-linear`}
+                          className="absolute bottom-0 left-0 right-0 bg-white opacity-[0.15] transition-all duration-1000 ease-linear"
                           style={{ height: `${progressPct}%` }}
                         />
                       )}
                       {isPast && (
-                        <div className="absolute inset-0 bg-[var(--tg-theme-hint-color)] opacity-[0.04]" />
+                        <div className="absolute inset-0 bg-black opacity-[0.05]" />
                       )}
                       {/* Lesson Type Banner */}
-                      <div className={`absolute top-0 right-0 px-3 py-1 rounded-bl-xl font-black text-[10px] tracking-widest uppercase ${colors.bg} text-tg-buttonText shadow-sm z-10`}>
+                      <div className={`absolute top-0 right-0 px-3 py-1 rounded-bl-xl font-black text-[10px] tracking-widest uppercase ${isPast ? colors.bg : 'bg-white/20'} text-white shadow-sm z-10`}>
                         {lesson.lessonTypeAbbrev}
                       </div>
 
@@ -898,21 +902,21 @@ export default function Schedule() {
 
                       <div className="flex flex-col gap-3">
                         {/* Time */}
-                        <div className={`flex items-center gap-1.5 font-bold text-sm ${colors.text} ${colors.light} w-max px-2 py-1 rounded-lg`}>
+                        <div className={`flex items-center gap-1.5 font-bold text-sm ${isPast ? colors.text : 'text-white'} ${isPast ? colors.light : 'bg-white/10'} w-max px-2 py-1 rounded-lg`}>
                           <Clock size={14} />
                           {lesson.startLessonTime} <span className="opacity-50 mx-0.5">-</span> {lesson.endLessonTime}
                         </div>
 
                          {/* Subject */}
                         <div className="pr-4">
-                          <h3 className="font-bold text-[15px] leading-tight text-tg-text">
+                          <h3 className={`font-bold text-[15px] leading-tight ${isPast ? 'text-tg-text' : 'text-white'}`}>
                             {lesson.subject}
                           </h3>
                           {lesson.subjectFullName && lesson.subjectFullName !== lesson.subject && (
-                            <p className="text-xs text-tg-hint mt-1 line-clamp-1">{lesson.subjectFullName}</p>
+                            <p className={`text-xs mt-1 line-clamp-1 ${isPast ? 'text-tg-hint' : 'text-white/70'}`}>{lesson.subjectFullName}</p>
                           )}
                           {lesson.employees && lesson.employees.length > 0 && (
-                            <p className="text-xs text-tg-hint mt-1 font-medium">
+                            <p className={`text-xs mt-1 font-medium ${isPast ? 'text-tg-hint' : 'text-white/80'}`}>
                               {lesson.employees.map(e => `${e.lastName} ${e.firstName?.[0] || ''}.${e.middleName ? ` ${e.middleName[0]}.` : ''}`).join(', ')}
                             </p>
                           )}
@@ -925,13 +929,13 @@ export default function Schedule() {
                           const links = plannerTasks.filter(t => t.linkedEventId === eventId && !t.is_completed);
                           if (links.length === 0) return null;
                           return (
-                            <div className="flex flex-col gap-1.5 mt-1 bg-tg-bg/40 p-2 rounded-xl border border-[var(--tg-theme-hint-color)] border-opacity-10">
-                              <span className="text-[10px] font-black uppercase text-tg-hint flex items-center gap-1">
+                            <div className={`flex flex-col gap-1.5 mt-1 p-2 rounded-xl border border-opacity-10 ${isPast ? 'bg-tg-bg/40 border-[var(--tg-theme-hint-color)]' : 'bg-white/10 border-white/20'}`}>
+                              <span className={`text-[10px] font-black uppercase flex items-center gap-1 ${isPast ? 'text-tg-hint' : 'text-white/60'}`}>
                                 <CheckCircle2 size={10} /> Задачи ({links.length}):
                               </span>
                               {links.map(link => (
-                                <div key={link.id} className="text-xs text-tg-text flex items-center gap-1.5 font-medium">
-                                  <div className="w-1 h-1 rounded-full bg-tg-button" />
+                                <div key={link.id} className={`text-xs flex items-center gap-1.5 font-medium ${isPast ? 'text-tg-text' : 'text-white'}`}>
+                                  <div className={`w-1 h-1 rounded-full ${isPast ? 'bg-tg-button' : 'bg-white'}`} />
                                   <span className="truncate">{link.title}</span>
                                 </div>
                               ))}
@@ -941,21 +945,20 @@ export default function Schedule() {
 
                         {/* Metadata */}
                         {!lesson.isCustom && (
-                          <div className="grid gap-2 text-[13px] pt-3 border-t border-[var(--tg-theme-hint-color)] border-opacity-10">
-
-                            {lesson.auditories && lesson.auditories.length > 0 && (
-                              <div className="flex items-start gap-2 justify-between w-full">
-                                <div className="flex items-center gap-2 text-tg-hint">
+                          <div className={`grid gap-2 text-[13px] pt-3 border-t border-opacity-10 ${isPast ? 'border-[var(--tg-theme-hint-color)]' : 'border-white/20'}`}>
+                            <div className="flex items-start gap-2 justify-between w-full">
+                              {lesson.auditories && lesson.auditories.length > 0 && (
+                                <div className={`flex items-center gap-2 ${isPast ? 'text-tg-hint' : 'text-white/80'}`}>
                                   <MapPin size={14} className="shrink-0 opacity-70" />
                                   <span className="font-medium">{lesson.auditories.join(', ')}</span>
                                 </div>
-                                {lesson.note && (
-                                  <span className="text-[10px] bg-[var(--tg-theme-bg-color)] px-1.5 py-0.5 rounded text-tg-hint truncate max-w-[120px]">
-                                    {lesson.note}
-                                  </span>
-                                )}
-                              </div>
-                            )}
+                              )}
+                              {lesson.note && (
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded truncate max-w-[120px] ${isPast ? 'bg-[var(--tg-theme-bg-color)] text-tg-hint' : 'bg-white/20 text-white'}`}>
+                                  {lesson.note}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         )}
                         {/* Expanded details */}
@@ -1144,26 +1147,26 @@ export default function Schedule() {
                         onTouchStart={(e) => { if (!isDraggingRef.current) handleEventTouchStart(e, lesson); }}
                         onTouchMove={(e) => { if (!isDraggingRef.current) handleEventTouchMove(e); }}
                         onTouchEnd={(e) => { if (!isDraggingRef.current) handleEventTouchEnd(); }}
-                        className={`absolute left-2 right-2 rounded-xl p-2 border-l-4 shadow-sm flex flex-col justify-between overflow-hidden select-none transition-all hover:scale-[1.02] hover:z-20 ${colors.light} ${colors.border} ${isPast ? 'opacity-50' : ''} ${isActive ? 'ring-1 ring-tg-button/40 shadow-md z-10' : ''}`}
+                        className={`absolute left-2 right-2 rounded-xl p-2 border-l-4 shadow-sm flex flex-col justify-between overflow-hidden select-none transition-all hover:scale-[1.02] hover:z-20 ${isPast ? `${colors.light} ${colors.border} opacity-50` : `${colors.bg} border-white/20 shadow-md ${isActive ? 'ring-2 ring-white/30 z-10' : ''}`}`}
                       >
                         {/* Progress fill overlay for calendar view */}
                         {isActive && (
                           <div 
-                            className={`absolute bottom-0 left-0 right-0 ${colors.bg} opacity-[0.12] transition-all duration-1000 ease-linear`}
+                            className="absolute bottom-0 left-0 right-0 bg-white opacity-[0.2] transition-all duration-1000 ease-linear"
                             style={{ height: `${progressPct}%` }}
                           />
                         )}
                         {isPast && (
-                          <div className="absolute inset-0 bg-[var(--tg-theme-hint-color)] opacity-[0.06]" />
+                          <div className="absolute inset-0 bg-black opacity-[0.05]" />
                         )}
                         <div>
                           <div className="flex items-center justify-between mb-0.5">
-                            <span className={`text-[9px] font-black uppercase ${colors.text}`}>{lesson.lessonTypeAbbrev}</span>
-                            <span className="text-[9px] font-bold text-tg-hint">{lesson.startLessonTime}</span>
+                            <span className={`text-[9px] font-black uppercase ${isPast ? colors.text : 'text-white'}`}>{lesson.lessonTypeAbbrev}</span>
+                            <span className={`text-[9px] font-bold ${isPast ? 'text-tg-hint' : 'text-white/70'}`}>{lesson.startLessonTime}</span>
                           </div>
-                            <h4 className="text-[11px] font-bold leading-tight text-tg-text line-clamp-2">{lesson.subject}</h4>
+                            <h4 className={`text-[11px] font-bold leading-tight line-clamp-2 ${isPast ? 'text-tg-text' : 'text-white'}`}>{lesson.subject}</h4>
                           {lesson.employees && lesson.employees.length > 0 && (
-                            <div className="text-[9px] mt-0.5 truncate text-tg-hint font-medium">
+                            <div className={`text-[9px] mt-0.5 truncate font-medium ${isPast ? 'text-tg-hint' : 'text-white/80'}`}>
                               {lesson.employees.map(e => `${e.lastName} ${e.firstName?.[0] || ''}.${e.middleName ? ` ${e.middleName[0]}.` : ''}`).join(', ')}
                             </div>
                           )}

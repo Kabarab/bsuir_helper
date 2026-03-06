@@ -117,16 +117,24 @@ export default function University() {
   };
 
   const getLessonProgress = (lesson) => {
-    const isToday = isSameDay(selectedDate, now);
-    if (!isToday) return lesson.startLessonTime <= format(now, 'HH:mm') ? -1 : null;
+    const lessonDate = new Date(selectedDate);
+    lessonDate.setHours(0, 0, 0, 0);
+    const today = new Date(now);
+    today.setHours(0, 0, 0, 0);
+
+    if (lessonDate < today) return 1; // Past day
+    if (lessonDate > today) return 0; // Future day
+
+    // Same day
     const [sH, sM] = lesson.startLessonTime.split(':').map(Number);
     const [eH, eM] = lesson.endLessonTime.split(':').map(Number);
     const startMin = sH * 60 + sM;
     const endMin = eH * 60 + eM;
     const nowMin = now.getHours() * 60 + now.getMinutes();
-    if (nowMin < startMin) return 0;
-    if (nowMin >= endMin) return 1;
-    return (nowMin - startMin) / (endMin - startMin);
+    
+    if (nowMin < startMin) return 0;   // future
+    if (nowMin >= endMin) return 1;     // past
+    return (nowMin - startMin) / (endMin - startMin); // in progress
   };
 
 
@@ -558,49 +566,46 @@ export default function University() {
 
                                       <div className="flex flex-col gap-3">
                                         {/* Time */}
-                                        <div className={`flex items-center gap-1.5 font-bold text-sm ${colors.text} ${colors.light} w-max px-2 py-1 rounded-lg`}>
+                                        <div className={`flex items-center gap-1.5 font-bold text-sm ${isPast ? colors.text : 'text-white'} ${isPast ? colors.light : 'bg-white/10'} w-max px-2 py-1 rounded-lg`}>
                                           <Clock size={14} />
                                           {lesson.startLessonTime} <span className="opacity-50 mx-0.5">-</span> {lesson.endLessonTime}
                                         </div>
 
                                         {/* Subject */}
                                         <div className="pr-4">
-                                          <h3 className="font-bold text-[15px] leading-tight text-tg-text">
+                                          <h3 className={`font-bold text-[15px] leading-tight ${isPast ? 'text-tg-text' : 'text-white'}`}>
                                             {lesson.subject}
                                           </h3>
                                           {lesson.subjectFullName && lesson.subjectFullName !== lesson.subject && (
-                                            <p className="text-xs text-tg-hint mt-1 line-clamp-1">{lesson.subjectFullName}</p>
+                                            <p className={`text-xs mt-1 line-clamp-1 ${isPast ? 'text-tg-hint' : 'text-white/70'}`}>{lesson.subjectFullName}</p>
                                           )}
                                           {lesson.studentGroups && lesson.studentGroups.length > 0 ? (
-                                            <p className="text-xs text-tg-hint mt-1 font-medium">
+                                            <p className={`text-xs mt-1 font-medium ${isPast ? 'text-tg-hint' : 'text-white/80'}`}>
                                               {lesson.studentGroups.map(g => g.name).join(', ')}
                                             </p>
                                           ) : lesson.employees && lesson.employees.length > 0 ? (
-                                            <p className="text-xs text-tg-hint mt-1 font-medium">
+                                            <p className={`text-xs mt-1 font-medium ${isPast ? 'text-tg-hint' : 'text-white/80'}`}>
                                               {lesson.employees.map(e => `${e.lastName} ${e.firstName?.[0] || ''}.${e.middleName ? ` ${e.middleName[0]}.` : ''}`).join(', ')}
                                             </p>
                                           ) : null}
                                         </div>
 
                                         {/* Metadata */}
-                                        <div className="grid gap-2 text-[13px] pt-3 border-t border-[var(--tg-theme-hint-color)] border-opacity-10">
-                                          {(lesson.auditories && lesson.auditories.length > 0) || lesson.note ? (
-                                            <div className="flex items-start gap-2 justify-between w-full">
-                                              {lesson.auditories && lesson.auditories.length > 0 && (
-                                                <div className="flex items-center gap-2 text-tg-hint">
-                                                  <MapPin size={14} className="shrink-0 opacity-70" />
-                                                  <span className="font-medium">{lesson.auditories.join(', ')}</span>
-                                                </div>
-                                              )}
-                                              {lesson.note && (
-                                                <span className="text-[10px] bg-[var(--tg-theme-bg-color)] px-1.5 py-0.5 rounded text-tg-hint truncate max-w-[120px]">
-                                                  {lesson.note}
-                                                </span>
-                                              )}
-                                            </div>
-                                          ) : null}
+                                        <div className={`grid gap-2 text-[13px] pt-3 border-t border-opacity-10 ${isPast ? 'border-[var(--tg-theme-hint-color)]' : 'border-white/20'}`}>
+                                          <div className="flex items-start gap-2 justify-between w-full">
+                                            {lesson.auditories && lesson.auditories.length > 0 && (
+                                              <div className={`flex items-center gap-2 ${isPast ? 'text-tg-hint' : 'text-white/80'}`}>
+                                                <MapPin size={14} className="shrink-0 opacity-70" />
+                                                <span className="font-medium">{lesson.auditories.join(', ')}</span>
+                                              </div>
+                                            )}
+                                            {lesson.note && (
+                                              <span className={`text-[10px] px-1.5 py-0.5 rounded truncate max-w-[120px] ${isPast ? 'bg-[var(--tg-theme-bg-color)] text-tg-hint' : 'bg-white/20 text-white'}`}>
+                                                {lesson.note}
+                                              </span>
+                                            )}
+                                          </div>
                                         </div>
-
                                       </div>
                                     </div>
                                   </div>
@@ -819,7 +824,7 @@ export default function University() {
                                     
                                     {/* Card */}
                                     <div 
-                                      className={`w-[calc(100%-3rem)] md:w-[calc(50%-2.5rem)] bg-tg-secondaryBg rounded-2xl p-4 shadow-sm border border-opacity-10 relative overflow-hidden transition-all hover:shadow-md hover:-translate-y-1 ${isActive ? 'border-tg-button ring-1 ring-tg-button/30 shadow-md' : 'border-[var(--tg-theme-hint-color)]'}`}
+                                      className={`w-[calc(100%-3rem)] md:w-[calc(50%-2.5rem)] rounded-2xl p-4 shadow-sm border border-opacity-10 relative overflow-hidden transition-all hover:shadow-md hover:-translate-y-1 ${isPast ? 'bg-tg-secondaryBg border-[var(--tg-theme-hint-color)] opacity-60' : `${colors.bg} border-white/10 shadow-lg scale-[1.01]`}`}
                                     >
                                       {/* Progress fill overlay */}
                                       {isActive && (
@@ -845,45 +850,42 @@ export default function University() {
 
                                       <div className="flex flex-col gap-3">
                                         {/* Time */}
-                                        <div className={`flex items-center gap-1.5 font-bold text-sm ${colors.text} ${colors.light} w-max px-2 py-1 rounded-lg`}>
+                                        <div className={`flex items-center gap-1.5 font-bold text-sm ${isPast ? colors.text : 'text-white'} ${isPast ? colors.light : 'bg-white/10'} w-max px-2 py-1 rounded-lg`}>
                                           <Clock size={14} />
                                           {lesson.startLessonTime} <span className="opacity-50 mx-0.5">-</span> {lesson.endLessonTime}
                                         </div>
 
                                         {/* Subject */}
                                         <div className="pr-4">
-                                          <h3 className="font-bold text-[15px] leading-tight text-tg-text">
+                                          <h3 className={`font-bold text-[15px] leading-tight ${isPast ? 'text-tg-text' : 'text-white'}`}>
                                             {lesson.subject}
                                           </h3>
                                           {lesson.subjectFullName && lesson.subjectFullName !== lesson.subject && (
-                                            <p className="text-xs text-tg-hint mt-1 line-clamp-1">{lesson.subjectFullName}</p>
+                                            <p className={`text-xs mt-1 line-clamp-1 ${isPast ? 'text-tg-hint' : 'text-white/70'}`}>{lesson.subjectFullName}</p>
                                           )}
                                           {lesson.employees && lesson.employees.length > 0 && (
-                                            <p className="text-xs text-tg-hint mt-1 font-medium">
+                                            <p className={`text-xs mt-1 font-medium ${isPast ? 'text-tg-hint' : 'text-white/80'}`}>
                                               {lesson.employees.map(e => `${e.lastName} ${e.firstName?.[0] || ''}.${e.middleName ? ` ${e.middleName[0]}.` : ''}`).join(', ')}
                                             </p>
                                           )}
                                         </div>
 
                                         {/* Metadata */}
-                                        <div className="grid gap-2 text-[13px] pt-3 border-t border-[var(--tg-theme-hint-color)] border-opacity-10">
-                                          {(lesson.auditories && lesson.auditories.length > 0) || lesson.note ? (
-                                            <div className="flex items-start gap-2 justify-between w-full">
-                                              {lesson.auditories && lesson.auditories.length > 0 && (
-                                                <div className="flex items-center gap-2 text-tg-hint">
-                                                  <MapPin size={14} className="shrink-0 opacity-70" />
-                                                  <span className="font-medium">{lesson.auditories.join(', ')}</span>
-                                                </div>
-                                              )}
-                                              {lesson.note && (
-                                                <span className="text-[10px] bg-[var(--tg-theme-bg-color)] px-1.5 py-0.5 rounded text-tg-hint truncate max-w-[120px]">
-                                                  {lesson.note}
-                                                </span>
-                                              )}
-                                            </div>
-                                          ) : null}
+                                        <div className={`grid gap-2 text-[13px] pt-3 border-t border-opacity-10 ${isPast ? 'border-[var(--tg-theme-hint-color)]' : 'border-white/20'}`}>
+                                          <div className="flex items-start gap-2 justify-between w-full">
+                                            {lesson.auditories && lesson.auditories.length > 0 && (
+                                              <div className={`flex items-center gap-2 ${isPast ? 'text-tg-hint' : 'text-white/80'}`}>
+                                                <MapPin size={14} className="shrink-0 opacity-70" />
+                                                <span className="font-medium">{lesson.auditories.join(', ')}</span>
+                                              </div>
+                                            )}
+                                            {lesson.note && (
+                                              <span className={`text-[10px] px-1.5 py-0.5 rounded truncate max-w-[120px] ${isPast ? 'bg-[var(--tg-theme-bg-color)] text-tg-hint' : 'bg-white/20 text-white'}`}>
+                                                {lesson.note}
+                                              </span>
+                                            )}
+                                          </div>
                                         </div>
-
                                       </div>
                                     </div>
                                   </div>
