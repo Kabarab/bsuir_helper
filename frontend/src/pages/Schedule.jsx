@@ -852,7 +852,7 @@ export default function Schedule() {
                       onTouchStart={(e) => handleEventTouchStart(e, lesson)}
                       onTouchMove={handleEventTouchMove}
                       onTouchEnd={handleEventTouchEnd}
-                      className={`w-[calc(100%-3rem)] md:w-[calc(50%-2.5rem)] bg-tg-secondaryBg rounded-2xl p-4 shadow-sm border border-opacity-10 relative overflow-hidden transition-all cursor-pointer hover:shadow-md hover:-translate-y-1 ${isActive ? 'border-tg-button ring-1 ring-tg-button/30 shadow-md' : 'border-[var(--tg-theme-hint-color)]'}`}
+                      className={`w-[calc(100%-3rem)] md:w-[calc(50%-2.5rem)] bg-tg-secondaryBg rounded-2xl p-4 shadow-sm border border-opacity-10 relative overflow-hidden select-none transition-all cursor-pointer hover:shadow-md hover:-translate-y-1 ${isActive ? 'border-tg-button ring-1 ring-tg-button/30 shadow-md' : 'border-[var(--tg-theme-hint-color)]'}`}
                     >
                       {/* Progress fill overlay */}
                       {isActive && (
@@ -1053,7 +1053,7 @@ export default function Schedule() {
               {/* Events Grid */}
               <div 
                 ref={gridRef}
-                className={`relative ${dragState.isDragging ? 'touch-none select-none overscroll-none' : ''}`}
+                className={`relative select-none ${dragState.isDragging ? 'touch-none overscroll-none' : ''}`}
                 style={{ touchAction: dragState.isDragging ? 'none' : 'pan-y' }}
                 onMouseDown={handlePointerStart}
                 onMouseMove={handlePointerMove}
@@ -1124,7 +1124,7 @@ export default function Schedule() {
                         onTouchStart={(e) => { if (!isDraggingRef.current) handleEventTouchStart(e, lesson); }}
                         onTouchMove={(e) => { if (!isDraggingRef.current) handleEventTouchMove(e); }}
                         onTouchEnd={(e) => { if (!isDraggingRef.current) handleEventTouchEnd(); }}
-                        className={`absolute left-2 right-2 rounded-xl p-2 border-l-4 shadow-sm flex flex-col justify-between overflow-hidden transition-all hover:scale-[1.02] hover:z-20 ${colors.light} ${colors.border} ${isPast ? 'opacity-50' : ''} ${isActive ? 'ring-1 ring-tg-button/40 shadow-md z-10' : ''}`}
+                        className={`absolute left-2 right-2 rounded-xl p-2 border-l-4 shadow-sm flex flex-col justify-between overflow-hidden select-none transition-all hover:scale-[1.02] hover:z-20 ${colors.light} ${colors.border} ${isPast ? 'opacity-50' : ''} ${isActive ? 'ring-1 ring-tg-button/40 shadow-md z-10' : ''}`}
                       >
                         {/* Progress fill overlay for calendar view */}
                         {isActive && (
@@ -1516,7 +1516,11 @@ export default function Schedule() {
               <div className="px-6 py-4 border-t border-[var(--tg-theme-hint-color)] border-opacity-10 mb-safe">
                 <button 
                   type="button"
-                  onClick={(e) => { e.preventDefault(); handleSaveTask(); }}
+                  onClick={(e) => { 
+                    e.preventDefault(); 
+                    console.log('Task Add button clicked, calling handleSaveTask...', newTask);
+                    handleSaveTask(); 
+                  }}
                   className="w-full py-4 bg-tg-button text-tg-buttonText font-bold rounded-2xl active:scale-[0.98] transition-all shadow-lg shadow-tg-button/30 text-base flex justify-center items-center h-[56px]"
                 >
                   Добавить задачу
