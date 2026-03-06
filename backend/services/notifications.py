@@ -130,28 +130,65 @@ class NotificationService:
             return
 
         today_schedule = schedule_data["schedules"].get(today_name, [])
+        valid_pairs = []
         for pair in today_schedule:
             # Check if pair is for current week
             if current_week not in pair.get("weekNumber", []):
                 continue
             
+            # Subgroup filtering
+            pair_subgroup = pair.get("numSubgroup", 0)
+            if pair_subgroup != 0 and user.bsuir_subgroup != 0 and pair_subgroup != user.bsuir_subgroup:
+                continue
+
             start_time_str = pair.get("startLessonTime")
             if not start_time_str:
                 continue
-                
-            pair_time = datetime.strptime(start_time_str, "%H:%M").replace(
-                year=now.year, month=now.month, day=now.day
-            )
             
-            # If pair already passed today
-            if pair_time < now:
+            try:
+                pair_time = datetime.strptime(start_time_str, "%H:%M").replace(
+                    year=now.year, month=now.month, day=now.day
+                )
+                valid_pairs.append((pair_time, pair))
+            except ValueError:
                 continue
-                
+
+        if not valid_pairs:
+            return
+
+        # Sort by time to find the first pair
+        valid_pairs.sort(key=lambda x: x[0])
+        first_pair_time, first_pair = valid_pairs[0]
+
+        for pair_time, pair in valid_pairs:
+            start_time_str = pair.get("startLessonTime")
             time_diff = (pair_time - now).total_seconds() / 60
             
-            # Check if it's time to notify
+            # 1. Check for the "First Lesson" 1-hour reminder
+            if pair == first_pair and 59 <= time_diff <= 61:
+                notif_key = (user.id, now.date().isoformat(), start_time_str, "1h_reminder")
+                if notif_key not in self.notified_pairs:
+                    subject = pair.get("subject", "Пара")
+                    lesson_type = pair.get("lessonTypeAbbrev", "")
+                    auditory = ", ".join(pair.get("auditories", []))
+                    
+                    msg = (
+                        f"⏰ <b>Первая пара через час!</b>\n\n"
+                        f"📖 {subject} ({lesson_type})\n"
+                        f"⏰ Начнется в {start_time_str}\n"
+                        f"📍 {auditory}"
+                    )
+                    
+                    try:
+                        await bot.send_message(user.telegram_id, msg)
+                        self.notified_pairs.add(notif_key)
+                        logger.info(f"Sent 1h reminder to {user.telegram_id} for {subject}")
+                    except Exception as e:
+                        logger.error(f"Failed to send 1h reminder to {user.telegram_id}: {e}")
+
+            # 2. Regular notification based on user.notification_offset
             if 0 <= time_diff <= user.notification_offset:
-                notif_key = (user.id, now.date().isoformat(), start_time_str)
+                notif_key = (user.id, now.date().isoformat(), start_time_str, "regular")
                 if notif_key not in self.notified_pairs:
                     subject = pair.get("subject", "Пара")
                     lesson_type = pair.get("lessonTypeAbbrev", "")
@@ -167,10 +204,11 @@ class NotificationService:
                     try:
                         await bot.send_message(user.telegram_id, msg)
                         self.notified_pairs.add(notif_key)
-                        # Cleanup old notified pairs occasionally
-                        if len(self.notified_pairs) > 1000:
-                            self.notified_pairs = {k for k in self.notified_pairs if k[1] == now.date().isoformat()}
                     except Exception as e:
                         logger.error(f"Failed to send schedule notification to {user.telegram_id}: {e}")
+
+            # Cleanup old notified pairs occasionally
+            if len(self.notified_pairs) > 5000:
+                self.notified_pairs = {k for k in self.notified_pairs if k[1] == now.date().isoformat()}
 
 notification_service = NotificationService()
