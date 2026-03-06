@@ -14,6 +14,7 @@ export const UserProvider = ({ children }) => {
     studentId: localStorage.getItem('bsuir_student_id') || null,
     isTeacher: localStorage.getItem('bsuir_is_teacher') === 'true',
     teacherUrlId: localStorage.getItem('bsuir_teacher_url_id') || null,
+    englishTeacherId: localStorage.getItem('bsuir_english_teacher_id') || null,
     isInitializing: true,
   });
 
@@ -32,6 +33,7 @@ export const UserProvider = ({ children }) => {
             studentId: res.data.bsuir_id,
             isTeacher: res.data.is_teacher,
             teacherUrlId: res.data.teacher_url_id,
+            englishTeacherId: res.data.english_teacher_id,
             isInitializing: false 
           }));
           if (res.data.bsuir_group) localStorage.setItem('bsuir_group', res.data.bsuir_group);
@@ -39,6 +41,7 @@ export const UserProvider = ({ children }) => {
           if (res.data.bsuir_id) localStorage.setItem('bsuir_student_id', res.data.bsuir_id);
           localStorage.setItem('bsuir_is_teacher', String(res.data.is_teacher));
           if (res.data.teacher_url_id) localStorage.setItem('bsuir_teacher_url_id', res.data.teacher_url_id);
+          if (res.data.english_teacher_id) localStorage.setItem('bsuir_english_teacher_id', res.data.english_teacher_id);
         } else {
           setUserState(prev => ({ ...prev, isInitializing: false }));
         }
@@ -49,14 +52,15 @@ export const UserProvider = ({ children }) => {
       });
   }, [telegramId]);
 
-  const updatePreferences = async (group, subgroup, studentId = null, isTeacherParam = undefined, teacherUrlIdParam = undefined) => {
+  const updatePreferences = async (group, subgroup, studentId = null, isTeacherParam = undefined, teacherUrlIdParam = undefined, englishTeacherIdParam = undefined) => {
     try {
       const res = await axios.put(`/api/users/${telegramId}/preferences`, {
         bsuir_group: group || null,
         bsuir_subgroup: subgroup,
         bsuir_id: studentId || null,
         is_teacher: isTeacherParam !== undefined ? isTeacherParam : userState.isTeacher,
-        teacher_url_id: teacherUrlIdParam !== undefined ? teacherUrlIdParam : userState.teacherUrlId
+        teacher_url_id: teacherUrlIdParam !== undefined ? teacherUrlIdParam : userState.teacherUrlId,
+        english_teacher_id: englishTeacherIdParam !== undefined ? englishTeacherIdParam : userState.englishTeacherId
       });
       setUserState(prev => ({ 
         ...prev, 
@@ -64,7 +68,8 @@ export const UserProvider = ({ children }) => {
         subgroup: res.data.bsuir_subgroup, 
         studentId: res.data.bsuir_id,
         isTeacher: res.data.is_teacher,
-        teacherUrlId: res.data.teacher_url_id
+        teacherUrlId: res.data.teacher_url_id,
+        englishTeacherId: res.data.english_teacher_id
       }));
       if (res.data.bsuir_group) localStorage.setItem('bsuir_group', res.data.bsuir_group);
       localStorage.setItem('bsuir_subgroup', res.data.bsuir_subgroup.toString());

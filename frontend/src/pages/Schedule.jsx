@@ -17,7 +17,7 @@ const COLOR_PRESETS = {
 };
 
 export default function Schedule() {
-  const { group, subgroup, telegramId, isTeacher, teacherUrlId } = useUser();
+  const { group, subgroup, telegramId, isTeacher, teacherUrlId, englishTeacherId } = useUser();
   const navigate = useNavigate();
 
   const [schedule, setSchedule] = useState(() => {
@@ -270,6 +270,14 @@ export default function Schedule() {
         if (lesson.weekNumber && lesson.weekNumber.length > 0) {
           if (!lesson.weekNumber.includes(selectedWeekNumber)) return false;
         }
+        
+        // English teacher filtering
+        const isEnglish = (lesson.subject || "").toLowerCase().includes("иностранный язык");
+        if (isEnglish && englishTeacherId) {
+          const hasSelectedTeacher = lesson.employees?.some(emp => emp.urlId === englishTeacherId);
+          if (!hasSelectedTeacher) return false;
+        }
+
         return true;
       });
     }

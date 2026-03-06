@@ -13,6 +13,7 @@ class User(Base):
     is_teacher = Column(Boolean, default=False)
     teacher_url_id = Column(String, nullable=True)
     notification_offset = Column(Integer, default=10) # minutes before
+    english_teacher_id = Column(String, nullable=True)
 
     tasks = relationship("Task", back_populates="owner", cascade="all, delete-orphan")
     custom_events = relationship("CustomEvent", back_populates="owner", cascade="all, delete-orphan")
