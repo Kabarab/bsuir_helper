@@ -5,7 +5,7 @@ import { useUser } from '../contexts/UserContext';
 import { getMinskNow } from '../utils/minskTime';
 
 export default function Planner() {
-  const { group, telegramId } = useUser();
+  const { group, telegramId, isTeacher, teacherUrlId } = useUser();
 
   const [tasks, setTasks] = useState(() => {
     try {
@@ -29,11 +29,15 @@ export default function Planner() {
 
   const fetchEventsForDate = (dateStr) => {
     if (!dateStr) return;
+    const targetKey = isTeacher ? teacherUrlId : group;
+    if (!targetKey) return;
+
     const targetDate = new Date(dateStr);
     const bsuirDayNames = ["Воскресенье", "Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота"];
     const dayName = bsuirDayNames[targetDate.getDay()];
     
-    axios.get(`/api/bsuir/schedule/${group}`)
+    const url = isTeacher ? `/api/bsuir/teachers/${targetKey}/schedule` : `/api/bsuir/schedule/${targetKey}`;
+    axios.get(url)
       .then(res => {
         if (res.data?.schedules && res.data.schedules[dayName]) {
           setScheduleEvents(res.data.schedules[dayName]);

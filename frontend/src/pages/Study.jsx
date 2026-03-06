@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { getStudentGrades, fetchStudentRating } from '../utils/bsuirApi';
 
 export default function Study() {
-  const { group, telegramId, studentId, updatePreferences } = useUser();
+  const { group, telegramId, studentId, isTeacher, updatePreferences } = useUser();
   const navigate = useNavigate();
 
   // Helper to get cache keys bound to a specific studentId
@@ -146,8 +146,25 @@ export default function Study() {
         </button>
       </div>
 
-
-      {/* Секция "Текущие оценки" (XML Task) */}
+      {isTeacher ? (
+        <div className="flex flex-col items-center justify-center text-center py-20 px-6 space-y-4 bg-tg-secondaryBg rounded-3xl border border-tg-hint border-opacity-10">
+          <div className="w-20 h-20 bg-tg-button/10 rounded-full flex items-center justify-center">
+            <GraduationCap size={40} className="text-tg-button" />
+          </div>
+          <h2 className="text-xl font-bold text-tg-text">Вы — преподаватель</h2>
+          <p className="text-tg-hint text-sm leading-relaxed max-w-xs">
+            Раздел «Учеба» предназначен для студентов (оценки и рейтинг). Ваш основной рабочий инструмент — вкладка «Расписание».
+          </p>
+          <button 
+            onClick={() => navigate('/schedule')}
+            className="px-6 py-3 bg-tg-button text-tg-buttonText rounded-2xl font-bold shadow-lg shadow-tg-button/20"
+          >
+            Перейти к расписанию
+          </button>
+        </div>
+      ) : (
+        <>
+          {/* Секция "Текущие оценки" (XML Task) */}
       <div className="bg-tg-secondaryBg rounded-2xl overflow-hidden shadow-sm">
         <div className="p-4 border-b border-[var(--tg-theme-hint-color)] opacity-80 flex justify-between items-center">
           <h2 className="font-semibold flex items-center gap-2">
@@ -260,7 +277,8 @@ export default function Study() {
           )}
         </div>
       </div>
-      
-    </div>
-  );
+    </>
+  )}
+</div>
+);
 }

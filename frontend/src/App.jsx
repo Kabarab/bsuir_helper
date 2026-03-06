@@ -10,7 +10,7 @@ import BottomNav from './components/BottomNav';
 import { UserProvider, useUser } from './contexts/UserContext';
 
 const AuthWrapper = ({ children }) => {
-  const { group, isInitializing } = useUser();
+  const { group, isTeacher, teacherUrlId, isInitializing } = useUser();
 
   if (isInitializing) {
     return (
@@ -20,7 +20,7 @@ const AuthWrapper = ({ children }) => {
     );
   }
 
-  if (!group) {
+  if (!group && !(isTeacher && teacherUrlId)) {
     return <Onboarding />;
   }
 

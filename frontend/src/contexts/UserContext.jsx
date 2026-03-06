@@ -23,23 +23,22 @@ export const UserProvider = ({ children }) => {
     // Fetch latest user preferences from the backend
     axios.get(`/api/users/${telegramId}`)
       .then(res => {
-        if (res.data.bsuir_group || res.data.bsuir_id) {
+        const hasData = res.data.bsuir_group || res.data.bsuir_id || res.data.is_teacher;
+        if (hasData) {
           setUserState(prev => ({ 
             ...prev, 
             group: res.data.bsuir_group, 
             subgroup: res.data.bsuir_subgroup || 0, 
             studentId: res.data.bsuir_id,
+            isTeacher: res.data.is_teacher,
+            teacherUrlId: res.data.teacher_url_id,
             isInitializing: false 
           }));
           if (res.data.bsuir_group) localStorage.setItem('bsuir_group', res.data.bsuir_group);
           localStorage.setItem('bsuir_subgroup', (res.data.bsuir_subgroup || 0).toString());
           if (res.data.bsuir_id) localStorage.setItem('bsuir_student_id', res.data.bsuir_id);
-          
-          if (res.data.is_teacher !== undefined) {
-            setUserState(prev => ({ ...prev, isTeacher: res.data.is_teacher, teacherUrlId: res.data.teacher_url_id }));
-            localStorage.setItem('bsuir_is_teacher', String(res.data.is_teacher));
-            if (res.data.teacher_url_id) localStorage.setItem('bsuir_teacher_url_id', res.data.teacher_url_id);
-          }
+          localStorage.setItem('bsuir_is_teacher', String(res.data.is_teacher));
+          if (res.data.teacher_url_id) localStorage.setItem('bsuir_teacher_url_id', res.data.teacher_url_id);
         } else {
           setUserState(prev => ({ ...prev, isInitializing: false }));
         }
