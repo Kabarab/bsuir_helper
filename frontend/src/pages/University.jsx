@@ -540,7 +540,7 @@ export default function University() {
                                     
                                     {/* Card */}
                                     <div 
-                                      className={`w-[calc(100%-3rem)] md:w-[calc(50%-2.5rem)] rounded-2xl p-4 shadow-sm border border-opacity-10 relative overflow-hidden transition-all hover:shadow-md hover:-translate-y-1 backdrop-blur-md ${isPast ? 'bg-tg-secondaryBg border-[var(--tg-theme-hint-color)] opacity-60' : `${colors.light.replace('bg-', 'bg-opacity-20 bg-')} ${colors.border} shadow-lg scale-[1.01]`}`}
+                                      className={`w-[calc(100%-3rem)] md:w-[calc(50%-2.5rem)] rounded-2xl p-4 shadow-sm border border-opacity-10 relative overflow-hidden transition-all hover:shadow-md hover:-translate-y-1 backdrop-blur-md ${isPast ? 'bg-tg-secondaryBg border-[var(--tg-theme-hint-color)] opacity-60' : `${colors.bg} bg-opacity-10 ${colors.border} shadow-lg scale-[1.01]`}`}
                                     >
                                       {/* Progress fill overlay */}
                                       {isActive && (
@@ -823,7 +823,7 @@ export default function University() {
                                     
                                     {/* Card */}
                                     <div 
-                                      className={`w-[calc(100%-3rem)] md:w-[calc(50%-2.5rem)] rounded-2xl p-4 shadow-sm border border-opacity-10 relative overflow-hidden transition-all hover:shadow-md hover:-translate-y-1 backdrop-blur-md ${isPast ? 'bg-tg-secondaryBg border-[var(--tg-theme-hint-color)] opacity-60' : `${colors.light.replace('bg-', 'bg-opacity-20 bg-')} ${colors.border} shadow-lg scale-[1.01]`}`}
+                                      className={`w-[calc(100%-3rem)] md:w-[calc(50%-2.5rem)] rounded-2xl p-4 shadow-sm border border-opacity-10 relative overflow-hidden transition-all hover:shadow-md hover:-translate-y-1 backdrop-blur-md ${isPast ? 'bg-tg-secondaryBg border-[var(--tg-theme-hint-color)] opacity-60' : `${colors.bg} bg-opacity-10 ${colors.border} shadow-lg scale-[1.01]`}`}
                                     >
                                       {/* Progress fill overlay */}
                                       {isActive && (

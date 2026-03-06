@@ -876,7 +876,7 @@ export default function Schedule() {
                         onTouchStart={(e) => handleEventTouchStart(e, lesson)}
                         onTouchMove={handleEventTouchMove}
                         onTouchEnd={handleEventTouchEnd}
-                        className={`w-[calc(100%-3rem)] md:w-[calc(50%-2.5rem)] rounded-2xl p-4 shadow-sm border border-opacity-10 relative overflow-hidden select-none transition-all cursor-pointer hover:shadow-md hover:-translate-y-1 backdrop-blur-md ${isPast ? 'bg-tg-secondaryBg border-[var(--tg-theme-hint-color)] opacity-60' : `${colors.light.replace('bg-', 'bg-opacity-20 bg-')} ${colors.border} shadow-lg scale-[1.01]`}`}
+                        className={`w-[calc(100%-3rem)] md:w-[calc(50%-2.5rem)] rounded-2xl p-4 shadow-sm border border-opacity-10 relative overflow-hidden select-none transition-all cursor-pointer hover:shadow-md hover:-translate-y-1 backdrop-blur-md ${isPast ? 'bg-tg-secondaryBg border-[var(--tg-theme-hint-color)] opacity-60' : `${colors.bg} bg-opacity-10 ${colors.border} shadow-lg scale-[1.01]`}`}
                       >
                       {/* Progress fill overlay */}
                       {isActive && (
@@ -1147,7 +1147,7 @@ export default function Schedule() {
                         onTouchStart={(e) => { if (!isDraggingRef.current) handleEventTouchStart(e, lesson); }}
                         onTouchMove={(e) => { if (!isDraggingRef.current) handleEventTouchMove(e); }}
                         onTouchEnd={(e) => { if (!isDraggingRef.current) handleEventTouchEnd(); }}
-                        className={`absolute left-2 right-2 rounded-xl p-2 border-l-4 shadow-sm flex flex-col justify-between overflow-hidden select-none transition-all hover:scale-[1.02] hover:z-20 backdrop-blur-sm ${isPast ? `${colors.light} ${colors.border} opacity-50` : `${colors.light.replace('bg-', 'bg-opacity-20 bg-')} ${colors.border} shadow-md ${isActive ? 'ring-2 ring-white/30 z-10' : ''}`}`}
+                        className={`absolute left-2 right-2 rounded-xl p-2 border-l-4 shadow-sm flex flex-col justify-between overflow-hidden select-none transition-all hover:scale-[1.02] hover:z-20 backdrop-blur-sm ${isPast ? `${colors.bg} bg-opacity-5 ${colors.border} opacity-50` : `${colors.bg} bg-opacity-10 ${colors.border} shadow-md ${isActive ? 'ring-2 ring-white/30 z-10' : ''}`}`}
                       >
                         {/* Progress fill overlay for calendar view */}
                         {isActive && (
