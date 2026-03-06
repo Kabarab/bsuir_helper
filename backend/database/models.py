@@ -34,6 +34,7 @@ class Task(Base):
     created_at = Column(BigInteger, nullable=True) # Date.now() timestamp
     last_reminded_at = Column(DateTime, nullable=True)
     reminders = Column(String, nullable=True)  # JSON array of reminder offsets in minutes
+    overdue_notified = Column(Boolean, default=False)
 
     owner = relationship("User", back_populates="tasks")
 

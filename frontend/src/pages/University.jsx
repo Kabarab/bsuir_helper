@@ -540,20 +540,20 @@ export default function University() {
                                     
                                     {/* Card */}
                                     <div 
-                                      className={`w-[calc(100%-3rem)] md:w-[calc(50%-2.5rem)] bg-tg-secondaryBg rounded-2xl p-4 shadow-sm border border-opacity-10 relative overflow-hidden transition-all hover:shadow-md hover:-translate-y-1 ${isActive ? 'border-tg-button ring-1 ring-tg-button/30 shadow-md' : 'border-[var(--tg-theme-hint-color)]'}`}
+                                      className={`w-[calc(100%-3rem)] md:w-[calc(50%-2.5rem)] rounded-2xl p-4 shadow-sm border border-opacity-10 relative overflow-hidden transition-all hover:shadow-md hover:-translate-y-1 ${isPast ? 'bg-tg-secondaryBg border-[var(--tg-theme-hint-color)] opacity-60' : `${colors.light} ${colors.border} shadow-lg scale-[1.01]`}`}
                                     >
                                       {/* Progress fill overlay */}
                                       {isActive && (
                                         <div 
-                                          className={`absolute bottom-0 left-0 right-0 ${colors.bg} opacity-[0.08] transition-all duration-1000 ease-linear`}
+                                          className="absolute top-0 left-0 right-0 bg-black opacity-[0.07] transition-all duration-1000 ease-linear"
                                           style={{ height: `${progressPct}%` }}
                                         />
                                       )}
                                       {isPast && (
-                                        <div className="absolute inset-0 bg-[var(--tg-theme-hint-color)] opacity-[0.04]" />
+                                        <div className="absolute inset-0 bg-black opacity-[0.05]" />
                                       )}
                                       {/* Lesson Type Banner */}
-                                      <div className={`absolute top-0 right-0 px-3 py-1 rounded-bl-xl font-black text-[10px] tracking-widest uppercase ${colors.bg} text-tg-buttonText shadow-sm z-10`}>
+                                      <div className={`absolute top-0 right-0 px-3 py-1 rounded-bl-xl font-black text-[10px] tracking-widest uppercase ${isPast ? colors.bg : 'bg-white/40'} ${isPast ? 'text-white' : colors.text} shadow-sm z-10`}>
                                         {lesson.lessonTypeAbbrev}
                                       </div>
 
@@ -566,41 +566,40 @@ export default function University() {
 
                                       <div className="flex flex-col gap-3">
                                         {/* Time */}
-                                        <div className={`flex items-center gap-1.5 font-bold text-sm ${isPast ? colors.text : 'text-white'} ${isPast ? colors.light : 'bg-white/10'} w-max px-2 py-1 rounded-lg`}>
+                                        <div className={`flex items-center gap-1.5 font-bold text-sm ${isPast ? colors.text : colors.text} ${isPast ? colors.light : 'bg-white/40'} w-max px-2 py-1 rounded-lg`}>
                                           <Clock size={14} />
                                           {lesson.startLessonTime} <span className="opacity-50 mx-0.5">-</span> {lesson.endLessonTime}
                                         </div>
 
                                         {/* Subject */}
                                         <div className="pr-4">
-                                          <h3 className={`font-bold text-[15px] leading-tight ${isPast ? 'text-tg-text' : 'text-white'}`}>
+                                          <h3 className={`font-bold text-[15px] leading-tight ${isPast ? 'text-tg-text' : 'text-tg-text'}`}>
                                             {lesson.subject}
                                           </h3>
                                           {lesson.subjectFullName && lesson.subjectFullName !== lesson.subject && (
-                                            <p className={`text-xs mt-1 line-clamp-1 ${isPast ? 'text-tg-hint' : 'text-white/70'}`}>{lesson.subjectFullName}</p>
+                                            <p className={`text-xs mt-1 line-clamp-1 ${isPast ? 'text-tg-hint' : 'text-tg-text/70'}`}>{lesson.subjectFullName}</p>
                                           )}
                                           {lesson.studentGroups && lesson.studentGroups.length > 0 ? (
-                                            <p className={`text-xs mt-1 font-medium ${isPast ? 'text-tg-hint' : 'text-white/80'}`}>
+                                            <p className={`text-xs mt-1 font-medium ${isPast ? 'text-tg-hint' : 'text-tg-text/80'}`}>
                                               {lesson.studentGroups.map(g => g.name).join(', ')}
                                             </p>
                                           ) : lesson.employees && lesson.employees.length > 0 ? (
-                                            <p className={`text-xs mt-1 font-medium ${isPast ? 'text-tg-hint' : 'text-white/80'}`}>
+                                            <p className={`text-xs mt-1 font-medium ${isPast ? 'text-tg-hint' : 'text-tg-text/80'}`}>
                                               {lesson.employees.map(e => `${e.lastName} ${e.firstName?.[0] || ''}.${e.middleName ? ` ${e.middleName[0]}.` : ''}`).join(', ')}
                                             </p>
                                           ) : null}
                                         </div>
-
                                         {/* Metadata */}
                                         <div className={`grid gap-2 text-[13px] pt-3 border-t border-opacity-10 ${isPast ? 'border-[var(--tg-theme-hint-color)]' : 'border-white/20'}`}>
                                           <div className="flex items-start gap-2 justify-between w-full">
                                             {lesson.auditories && lesson.auditories.length > 0 && (
-                                              <div className={`flex items-center gap-2 ${isPast ? 'text-tg-hint' : 'text-white/80'}`}>
+                                              <div className={`flex items-center gap-2 ${isPast ? 'text-tg-hint' : 'text-tg-text/80'}`}>
                                                 <MapPin size={14} className="shrink-0 opacity-70" />
                                                 <span className="font-medium">{lesson.auditories.join(', ')}</span>
                                               </div>
                                             )}
                                             {lesson.note && (
-                                              <span className={`text-[10px] px-1.5 py-0.5 rounded truncate max-w-[120px] ${isPast ? 'bg-[var(--tg-theme-bg-color)] text-tg-hint' : 'bg-white/20 text-white'}`}>
+                                              <span className={`text-[10px] px-1.5 py-0.5 rounded truncate max-w-[120px] ${isPast ? 'bg-[var(--tg-theme-bg-color)] text-tg-hint' : 'bg-white/40 text-tg-text'}`}>
                                                 {lesson.note}
                                               </span>
                                             )}
@@ -824,20 +823,20 @@ export default function University() {
                                     
                                     {/* Card */}
                                     <div 
-                                      className={`w-[calc(100%-3rem)] md:w-[calc(50%-2.5rem)] rounded-2xl p-4 shadow-sm border border-opacity-10 relative overflow-hidden transition-all hover:shadow-md hover:-translate-y-1 ${isPast ? 'bg-tg-secondaryBg border-[var(--tg-theme-hint-color)] opacity-60' : `${colors.bg} border-white/10 shadow-lg scale-[1.01]`}`}
+                                      className={`w-[calc(100%-3rem)] md:w-[calc(50%-2.5rem)] rounded-2xl p-4 shadow-sm border border-opacity-10 relative overflow-hidden transition-all hover:shadow-md hover:-translate-y-1 ${isPast ? 'bg-tg-secondaryBg border-[var(--tg-theme-hint-color)] opacity-60' : `${colors.light} ${colors.border} shadow-lg scale-[1.01]`}`}
                                     >
                                       {/* Progress fill overlay */}
                                       {isActive && (
                                         <div 
-                                          className={`absolute bottom-0 left-0 right-0 ${colors.bg} opacity-[0.08] transition-all duration-1000 ease-linear`}
+                                          className="absolute top-0 left-0 right-0 bg-black opacity-[0.07] transition-all duration-1000 ease-linear"
                                           style={{ height: `${progressPct}%` }}
                                         />
                                       )}
                                       {isPast && (
-                                        <div className="absolute inset-0 bg-[var(--tg-theme-hint-color)] opacity-[0.04]" />
+                                        <div className="absolute inset-0 bg-black opacity-[0.05]" />
                                       )}
                                       {/* Lesson Type Banner */}
-                                      <div className={`absolute top-0 right-0 px-3 py-1 rounded-bl-xl font-black text-[10px] tracking-widest uppercase ${colors.bg} text-tg-buttonText shadow-sm z-10`}>
+                                      <div className={`absolute top-0 right-0 px-3 py-1 rounded-bl-xl font-black text-[10px] tracking-widest uppercase ${isPast ? colors.bg : 'bg-white/40'} ${isPast ? 'text-white' : colors.text} shadow-sm z-10`}>
                                         {lesson.lessonTypeAbbrev}
                                       </div>
 
@@ -850,21 +849,21 @@ export default function University() {
 
                                       <div className="flex flex-col gap-3">
                                         {/* Time */}
-                                        <div className={`flex items-center gap-1.5 font-bold text-sm ${isPast ? colors.text : 'text-white'} ${isPast ? colors.light : 'bg-white/10'} w-max px-2 py-1 rounded-lg`}>
+                                        <div className={`flex items-center gap-1.5 font-bold text-sm ${isPast ? colors.text : colors.text} ${isPast ? colors.light : 'bg-white/40'} w-max px-2 py-1 rounded-lg`}>
                                           <Clock size={14} />
                                           {lesson.startLessonTime} <span className="opacity-50 mx-0.5">-</span> {lesson.endLessonTime}
                                         </div>
 
                                         {/* Subject */}
                                         <div className="pr-4">
-                                          <h3 className={`font-bold text-[15px] leading-tight ${isPast ? 'text-tg-text' : 'text-white'}`}>
+                                          <h3 className={`font-bold text-[15px] leading-tight ${isPast ? 'text-tg-text' : 'text-tg-text'}`}>
                                             {lesson.subject}
                                           </h3>
                                           {lesson.subjectFullName && lesson.subjectFullName !== lesson.subject && (
-                                            <p className={`text-xs mt-1 line-clamp-1 ${isPast ? 'text-tg-hint' : 'text-white/70'}`}>{lesson.subjectFullName}</p>
+                                            <p className={`text-xs mt-1 line-clamp-1 ${isPast ? 'text-tg-hint' : 'text-tg-text/70'}`}>{lesson.subjectFullName}</p>
                                           )}
                                           {lesson.employees && lesson.employees.length > 0 && (
-                                            <p className={`text-xs mt-1 font-medium ${isPast ? 'text-tg-hint' : 'text-white/80'}`}>
+                                            <p className={`text-xs mt-1 font-medium ${isPast ? 'text-tg-hint' : 'text-tg-text/80'}`}>
                                               {lesson.employees.map(e => `${e.lastName} ${e.firstName?.[0] || ''}.${e.middleName ? ` ${e.middleName[0]}.` : ''}`).join(', ')}
                                             </p>
                                           )}
@@ -874,13 +873,13 @@ export default function University() {
                                         <div className={`grid gap-2 text-[13px] pt-3 border-t border-opacity-10 ${isPast ? 'border-[var(--tg-theme-hint-color)]' : 'border-white/20'}`}>
                                           <div className="flex items-start gap-2 justify-between w-full">
                                             {lesson.auditories && lesson.auditories.length > 0 && (
-                                              <div className={`flex items-center gap-2 ${isPast ? 'text-tg-hint' : 'text-white/80'}`}>
+                                              <div className={`flex items-center gap-2 ${isPast ? 'text-tg-hint' : 'text-tg-text/80'}`}>
                                                 <MapPin size={14} className="shrink-0 opacity-70" />
                                                 <span className="font-medium">{lesson.auditories.join(', ')}</span>
                                               </div>
                                             )}
                                             {lesson.note && (
-                                              <span className={`text-[10px] px-1.5 py-0.5 rounded truncate max-w-[120px] ${isPast ? 'bg-[var(--tg-theme-bg-color)] text-tg-hint' : 'bg-white/20 text-white'}`}>
+                                              <span className={`text-[10px] px-1.5 py-0.5 rounded truncate max-w-[120px] ${isPast ? 'bg-[var(--tg-theme-bg-color)] text-tg-hint' : 'bg-white/40 text-tg-text'}`}>
                                                 {lesson.note}
                                               </span>
                                             )}

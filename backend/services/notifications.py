@@ -80,8 +80,21 @@ class NotificationService:
             if not target_dt:
                 continue
                 
-            # If the task is already past the target_dt, don't remind
+            # If the task is already past the target_dt, don't remind of start, but notify if overdue
             if now > target_dt:
+                if not task.overdue_notified:
+                    msg = (
+                        f"⚠️ <b>Задача просрочена!</b>\n\n"
+                        f"📌 {task.title}"
+                    )
+                    if task.subject:
+                        msg += f"\n📚 Предмет: {task.subject}"
+                    
+                    try:
+                        await bot.send_message(user.telegram_id, msg)
+                        task.overdue_notified = True
+                    except Exception as e:
+                        logger.error(f"Failed to send overdue notification to {user.telegram_id}: {e}")
                 continue
 
             # Parse reminders array [15, 60] etc. or fallback to user.notification_offset
