@@ -12,6 +12,9 @@ try {
   try {
     WebApp.ready();
     WebApp.expand();
+    if (WebApp.requestFullscreen) {
+      WebApp.requestFullscreen();
+    }
   } catch (e) {
     console.error('WebApp.ready() failed:', e);
   }
