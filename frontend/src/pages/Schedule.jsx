@@ -877,7 +877,6 @@ export default function Schedule() {
                         onTouchMove={handleEventTouchMove}
                         onTouchEnd={handleEventTouchEnd}
                         className={`w-[calc(100%-3rem)] md:w-[calc(50%-2.5rem)] rounded-2xl p-4 shadow-sm border border-opacity-10 relative overflow-hidden select-none transition-all cursor-pointer hover:shadow-md hover:-translate-y-1 backdrop-blur-md ${isPast ? 'bg-tg-secondaryBg border-[var(--tg-theme-hint-color)] opacity-60' : `${colors.bg} bg-opacity-10 ${colors.border} shadow-lg scale-[1.01]`}`}
-                        style={{ border: '5px solid red' }}
                       >
                       {/* Progress fill overlay */}
                       {isActive && (

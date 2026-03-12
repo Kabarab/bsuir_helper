@@ -235,7 +235,7 @@ export default function Study() {
                         <div className="flex flex-col text-right">
                           <span className="text-[10px] uppercase font-bold text-tg-hint tracking-wider">Средний балл</span>
                           <div className="flex items-baseline justify-end gap-1 mt-0.5">
-                            <span className="text-xl font-black text-tg-button">{ratingData.average.toFixed(1)}</span>
+                            <span className="text-xl font-black text-tg-button">{ratingData.average?.toFixed(1) || '0.0'}</span>
                             <Star size={14} className="text-tg-button fill-tg-button opacity-20 mb-0.5" />
                           </div>
                         </div>
