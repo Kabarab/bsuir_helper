@@ -13,6 +13,7 @@ html, body {
   overflow: hidden;
   height: 100vh;
   overscroll-behavior-y: none;
+  touch-action: manipulation;
 }
 
 /* Custom scrollbar */
