@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { BookOpen, Star, GraduationCap, Settings, Info, Search, Trophy, Loader2 } from 'lucide-react';
 import { useUser } from '../contexts/UserContext';
@@ -33,6 +33,22 @@ export default function Study() {
   });
   const [loadingRating, setLoadingRating] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Calculate display average (official from rating info OR local from xmlMarks)
+  const displayAverage = useMemo(() => {
+    // Priority 1: Official rating average
+    if (ratingData?.student?.average) return parseFloat(ratingData.student.average);
+    
+    // Priority 2: Local calculation from xmlMarks
+    if (xmlMarks && xmlMarks.length > 0) {
+      const allMarks = xmlMarks.flatMap(m => m.marks || []);
+      if (allMarks.length > 0) {
+        return allMarks.reduce((a, b) => a + b, 0) / allMarks.length;
+      }
+    }
+    
+    return 0;
+  }, [ratingData, xmlMarks]);
 
   useEffect(() => {
     // Получаем реальные оценки через API рейтинга (Legacy JSON proxy)
@@ -235,7 +251,7 @@ export default function Study() {
                         <div className="flex flex-col text-right">
                           <span className="text-[10px] uppercase font-bold text-tg-hint tracking-wider">Средний балл</span>
                           <div className="flex items-baseline justify-end gap-1 mt-0.5">
-                            <span className="text-xl font-black text-tg-button">{ratingData.average?.toFixed(1) || '0.0'}</span>
+                            <span className="text-xl font-black text-tg-button">{displayAverage > 0 ? displayAverage.toFixed(1) : '0.0'}</span>
                             <Star size={14} className="text-tg-button fill-tg-button opacity-20 mb-0.5" />
                           </div>
                         </div>
