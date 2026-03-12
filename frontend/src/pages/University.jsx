@@ -15,7 +15,7 @@ const COLOR_PRESETS = {
 
 import axios from 'axios';
 import { Search, Users, Building, GraduationCap, MapPin, Trophy, ChevronRight, X, Info, Pin } from 'lucide-react';
-import { getFaculties, getSpecialities, getActiveSpecialities, getCourses, getRating, getStudentGrades } from '../utils/bsuirApi';
+import { getFaculties, getSpecialities, getActiveSpecialities, getCourses, getRating, getStudentGrades, fetchStudentRating } from '../utils/bsuirApi';
 
 export default function University() {
   const [activeTab, setActiveTab] = useState('teachers'); // teachers, faculties, groups, rating
@@ -191,6 +191,25 @@ export default function University() {
   const [refreshingRating, setRefreshingRating] = useState(false);
 
   const [loading, setLoading] = useState(false);
+  const [ratingSearch, setRatingSearch] = useState('');
+  const [searchResult, setSearchResult] = useState(null);
+  const [isSearchingRating, setIsSearchingRating] = useState(false);
+
+  const handleRatingSearch = async (e) => {
+    e?.preventDefault();
+    if (!ratingSearch.trim()) return;
+    
+    setIsSearchingRating(true);
+    setSearchResult(null);
+    try {
+      const result = await fetchStudentRating(ratingSearch);
+      setSearchResult(result);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsSearchingRating(false);
+    }
+  };
 
   useEffect(() => {
     // Fetch initial data based on tab
@@ -915,6 +934,66 @@ export default function University() {
           {/* RATING TAB (Task 2) */}
           {activeTab === 'rating' && (
             <div className="space-y-5">
+              {/* Search by Student Card */}
+              <div className="bg-tg-secondaryBg p-4 rounded-2xl shadow-sm border border-tg-hint border-opacity-5 space-y-3">
+                <label className="text-[10px] uppercase font-bold text-tg-hint ml-1 tracking-wider">Поиск по зачетке</label>
+                <form onSubmit={handleRatingSearch} className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-tg-hint" size={16} />
+                    <input 
+                      type="text" 
+                      placeholder="Номер зачетки..." 
+                      value={ratingSearch}
+                      onChange={e => setRatingSearch(e.target.value)}
+                      className="w-full bg-tg-bg text-tg-text pl-9 pr-4 py-2.5 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-tg-button border border-tg-hint border-opacity-10"
+                    />
+                  </div>
+                  <button 
+                    type="submit"
+                    disabled={isSearchingRating}
+                    className="bg-tg-button text-tg-buttonText px-4 py-2.5 rounded-xl text-sm font-bold shadow-sm active:scale-95 transition-all disabled:opacity-50"
+                  >
+                    {isSearchingRating ? '...' : 'Найти'}
+                  </button>
+                </form>
+
+                {searchResult && (
+                  <div className="mt-4 p-4 bg-tg-bg rounded-xl border border-tg-button border-opacity-20 animate-in fade-in slide-in-from-top-2 duration-300">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-tg-button/10 flex items-center justify-center text-tg-button font-black text-xs border border-tg-button/20">
+                          #{searchResult.rank}
+                        </div>
+                        <div>
+                          <div className="font-bold text-sm text-tg-text">{searchResult.student.fio}</div>
+                          <div className="text-[10px] text-tg-hint">{searchResult.specName || 'Специальность определена'}</div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-black text-lg text-tg-button">{searchResult.student.average.toFixed(2)}</div>
+                        <div className="text-[9px] text-tg-hint uppercase font-bold">средний балл</div>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => fetchStudentMarks(searchResult.student)}
+                      className="w-full py-2 bg-tg-button/10 text-tg-button rounded-lg text-xs font-bold hover:bg-tg-button hover:text-tg-buttonText transition-colors"
+                    >
+                      Посмотреть оценки
+                    </button>
+                  </div>
+                )}
+                
+                {searchResult === null && !isSearchingRating && ratingSearch && (
+                   <div className="text-[10px] text-center text-red-500 font-medium">Студент не найден. Проверьте номер зачетки.</div>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 px-1">
+                <div className="h-px flex-1 bg-tg-hint opacity-10"></div>
+                <span className="text-[10px] uppercase font-bold text-tg-hint tracking-widest px-2">Или выберите группу</span>
+                <div className="h-px flex-1 bg-tg-hint opacity-10"></div>
+              </div>
+
               <div className="grid gap-4 bg-tg-secondaryBg p-4 rounded-2xl shadow-sm border border-tg-hint border-opacity-5">
                 <div className="space-y-1.5">
                   <label className="text-[10px] uppercase font-bold text-tg-hint ml-1 tracking-wider">Факультет</label>

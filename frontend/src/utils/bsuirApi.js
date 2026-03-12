@@ -401,7 +401,7 @@ function findStudentInLeaderboard(leaderboard, cardClean) {
       || (sCard && sCard.includes(cardClean));
   });
   if (idx === -1) return null;
-  return { rank: idx + 1, total: leaderboard.length, average: leaderboard[idx].average };
+  return { rank: idx + 1, total: leaderboard.length, student: leaderboard[idx] };
 }
 
 export async function fetchStudentRating(cardNumber) {
