@@ -15,6 +15,9 @@ try {
     if (WebApp.requestFullscreen) {
       WebApp.requestFullscreen();
     }
+    if (WebApp.disableVerticalSwipes) {
+      WebApp.disableVerticalSwipes();
+    }
   } catch (e) {
     console.error('WebApp.ready() failed:', e);
   }

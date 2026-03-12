@@ -31,17 +31,19 @@ function App() {
   return (
     <UserProvider>
       <Router>
-        <div className="pb-16 min-h-screen bg-tg-bg text-tg-text">
+        <div className="h-screen overflow-y-auto bg-tg-bg text-tg-text overscroll-none">
           <AuthWrapper>
-            <Routes>
-              <Route path="/" element={<Planner />} />
-              <Route path="/study" element={<Study />} />
-              <Route path="/schedule" element={<Schedule />} />
-              <Route path="/university" element={<University />} />
+            <div className="pb-24">
+              <Routes>
+                <Route path="/" element={<Planner />} />
+                <Route path="/study" element={<Study />} />
+                <Route path="/schedule" element={<Schedule />} />
+                <Route path="/university" element={<University />} />
 
-              <Route path="/settings" element={<Settings />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
+                <Route path="/settings" element={<Settings />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </div>
             <BottomNav />
           </AuthWrapper>
         </div>
