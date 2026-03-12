@@ -30,14 +30,11 @@ async function getCachedGroups() {
 }
 
 /**
- * Fetches raw content (XML) via backend proxy.
+ * Fetches raw content via backend proxy.
+ * Support both JSON and XML depending on backend response.
  */
 export async function fetchRaw(url) {
-  // Use proxy and force text response to prevent axios from trying to parse JSON if content-type is liar
-  const response = await axios.get(`/api/bsuir/proxy?url=${encodeURIComponent(url)}`, {
-    responseType: 'text',
-    transformResponse: [(data) => data] // Prevent any automatic parsing
-  });
+  const response = await axios.get(`/api/bsuir/proxy?url=${encodeURIComponent(url)}`);
   return response.data;
 }
 
@@ -66,15 +63,14 @@ function parseXml(xmlString) {
 export async function getStudentGrades(studentCardNumber) {
   const url = `https://iis.bsuir.by/api/v1/rating/studentRating?studentCardNumber=${studentCardNumber}`;
   console.log("Fetching marks for card:", studentCardNumber);
-  const rawText = await fetchRaw(url);
+  const data = await fetchRaw(url);
   
-  if (!rawText) return [];
+  if (!data) return [];
   const processedIds = new Set();
   
-  // 1. Try JSON parsing first if it looks like JSON
-  if (rawText.trim().startsWith('{') || rawText.trim().startsWith('[')) {
+  // 1. If we already have an object (Axios parsed JSON), use it
+  if (typeof data === 'object' && !Array.isArray(data)) {
     try {
-      const data = JSON.parse(rawText);
       const lessons = data.lessons || [];
       const resMap = {};
       
@@ -90,8 +86,8 @@ export async function getStudentGrades(studentCardNumber) {
           });
         } else if (typeof marksObj === 'object') {
           Object.entries(marksObj).forEach(([key, val]) => {
-            if (key.toLowerCase() === 'id') return; // skip IDs explicitly
-            if (key.toLowerCase().includes('id') && typeof val !== 'object') return; // skip other ID-like fields
+            if (key.toLowerCase() === 'id') return;
+            if (key.toLowerCase().includes('id') && typeof val !== 'object') return;
             if (typeof val === 'number') found.push(val);
             else if (typeof val === 'string' && /^\d+$/.test(val)) found.push(parseInt(val, 10));
             else if (typeof val === 'object') found = found.concat(extractMarks(val));
@@ -101,7 +97,6 @@ export async function getStudentGrades(studentCardNumber) {
       };
 
       lessons.forEach(l => {
-        // A valid lesson MUST have an ID and shouldn't be a container if possible
         if (!l.id || processedIds.has(l.id)) return;
         processedIds.add(l.id);
 
@@ -114,11 +109,12 @@ export async function getStudentGrades(studentCardNumber) {
       });
       return Object.entries(resMap).map(([subject, marks]) => ({ subject, marks }));
     } catch(e) {
-      console.warn("Attempted JSON parse failed, falling back to XML", e);
+      console.error("JSON processing error in getStudentGrades:", e);
     }
   }
 
-  // 2. Fallback or primary XML parsing
+  // 2. Fallback to XML parsing if it's a string
+  const rawText = typeof data === 'string' ? data : JSON.stringify(data);
   const xml = parseXml(rawText);
   
   // To avoid catching the ROOT <lessons> container, we look for tags that have an <id> child.
@@ -199,9 +195,19 @@ export async function getStudentGrades(studentCardNumber) {
  */
 export async function getFaculties() {
   const url = 'https://iis.bsuir.by/api/v1/faculties';
-  const xmlText = await fetchRaw(url);
-  const xml = parseXml(xmlText);
+  const data = await fetchRaw(url);
   
+  // If JSON (Array of objects)
+  if (Array.isArray(data)) {
+    return data.map(f => ({
+      id: f.id,
+      name: f.name,
+      abbrev: f.abbrev
+    }));
+  }
+
+  // Fallback to XML
+  const xml = parseXml(typeof data === 'string' ? data : JSON.stringify(data));
   const items = xml.getElementsByTagNameNS('*', 'item');
   return Array.from(items).map(item => ({
     id: item.getElementsByTagNameNS('*', 'id')[0]?.textContent,
@@ -215,9 +221,19 @@ export async function getFaculties() {
  */
 export async function getSpecialities(facultyId) {
   const url = `https://iis.bsuir.by/api/v1/specialities?facultyId=${facultyId}`;
-  const xmlText = await fetchRaw(url);
-  const xml = parseXml(xmlText);
+  const data = await fetchRaw(url);
   
+  if (Array.isArray(data)) {
+    return data.map(s => ({
+      id: s.id,
+      name: s.name,
+      abbrev: s.abbrev,
+      facultyId: s.facultyId,
+      educationForm: s.educationForm
+    }));
+  }
+
+  const xml = parseXml(typeof data === 'string' ? data : JSON.stringify(data));
   const items = xml.getElementsByTagNameNS('*', 'item');
   return Array.from(items).map(item => ({
     id: item.getElementsByTagNameNS('*', 'id')[0]?.textContent, // This IS the sdef
@@ -277,17 +293,26 @@ export async function getRating(sdef, course) {
   if (cached) return cached;
 
   const url = `https://iis.bsuir.by/api/v1/rating?sdef=${sdef}&course=${course}`;
-  const xmlText = await fetchRaw(url);
-  const xml = parseXml(xmlText);
+  const data = await fetchRaw(url);
   
-  const items = xml.getElementsByTagNameNS('*', 'item');
-  const students = Array.from(items).map(item => ({
-    fio: item.getElementsByTagNameNS('*', 'fio')[0]?.textContent,
-    average: parseFloat(item.getElementsByTagNameNS('*', 'average')[0]?.textContent || '0'),
-    studentCardNumber: item.getElementsByTagNameNS('*', 'studentCardNumber')[0]?.textContent,
-  }));
+  let result = [];
+  if (Array.isArray(data)) {
+    result = data.map(s => ({
+      fio: s.fio,
+      average: parseFloat(s.average || '0'),
+      studentCardNumber: s.studentCardNumber
+    }));
+  } else {
+    const xml = parseXml(typeof data === 'string' ? data : JSON.stringify(data));
+    const items = xml.getElementsByTagNameNS('*', 'item');
+    result = Array.from(items).map(item => ({
+      fio: item.getElementsByTagNameNS('*', 'fio')[0]?.textContent,
+      average: parseFloat(item.getElementsByTagNameNS('*', 'average')[0]?.textContent || '0'),
+      studentCardNumber: item.getElementsByTagNameNS('*', 'studentCardNumber')[0]?.textContent,
+    }));
+  }
   
-  const result = students.sort((a, b) => b.average - a.average);
+  result.sort((a, b) => b.average - a.average);
   cacheSet(cacheKey, result);
   return result;
 }

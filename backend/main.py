@@ -13,7 +13,7 @@ from services.bsuir_api import (
     fetch_schedule, get_mock_grades, fetch_current_week,
     fetch_all_employees, fetch_employee_schedule,
     fetch_student_groups, fetch_faculties, fetch_specialities,
-    fetch_group_rating
+    fetch_group_rating, get_group_info
 )
 from services.rating import rating_service
 from services.notifications import notification_service
@@ -400,12 +400,8 @@ async def grades(telegram_id: int, db: AsyncSession = Depends(get_db)):
     if not user or not user.bsuir_id or not user.bsuir_group:
         return get_mock_grades() # Fallback to mock if no ID or group
     
-    # 1. Get all groups to find sdef and course for the user's group
-    groups_data = await fetch_student_groups()
-    if isinstance(groups_data, dict) and "error" in groups_data:
-        return get_mock_grades()
-
-    user_group_info = next((g for g in groups_data if g.get("name") == user.bsuir_group), None)
+    # 1. Use high-speed indexed group lookup
+    user_group_info = await get_group_info(user.bsuir_group)
     if not user_group_info:
         return get_mock_grades()
 
@@ -414,16 +410,20 @@ async def grades(telegram_id: int, db: AsyncSession = Depends(get_db)):
     if not sdef or not course:
         return get_mock_grades()
 
-    # 2. Fetch the rating list for this group
-    rating_list = await fetch_group_rating(sdef, course)
+    # 2. Parallelize: rating list AND student's own marks structure
+    rating_task = fetch_group_rating(sdef, course)
+    marks_task = rating_service.fetch_student_rating(user.bsuir_id)
+    
+    rating_list, subjects_data = await asyncio.gather(rating_task, marks_task)
+
     if isinstance(rating_list, dict) and "error" in rating_list:
         return get_mock_grades()
     
-    # rating_list should be a list of dicts. Sort by average descending.
+    # 3. Find ranking
     if isinstance(rating_list, list):
+        # The API usually returns them unsorted or partially sorted. Sort for accuracy.
         rating_list.sort(key=lambda x: x.get("average", 0), reverse=True)
 
-    # 3. Find the user's average and ranking
     average = 0.0
     ranking = 0
     for idx, student in enumerate(rating_list):
@@ -432,10 +432,8 @@ async def grades(telegram_id: int, db: AsyncSession = Depends(get_db)):
             ranking = idx + 1
             break
 
-    # 4. Fetch the subjects and marks for the user
-    subjects_data = await rating_service.fetch_student_rating(user.bsuir_id)
+    # 4. Process subjects
     subjects = []
-    
     if subjects_data.get("success") and isinstance(subjects_data.get("data"), list):
         seen_subjects = set()
         for lesson in subjects_data["data"]:
@@ -516,13 +514,18 @@ async def bsuir_proxy(url: str):
     """Proxy for BSUIR API using authenticated session from RatingService."""
     try:
         session = await rating_service.get_session()
-        async with session.get(url, headers={"Accept": "application/xml"}) as response:
-            # text() automatically handles decompression and decoding
+        # Prefer JSON, but accept anything. JSON is much faster to parse than XML.
+        headers = {"Accept": "application/json, text/xml, */*"}
+        async with session.get(url, headers=headers) as response:
+            content_type = response.headers.get("Content-Type", "")
             content = await response.text()
-            print(f"PROXY SUCCESS: {url} | Content length: {len(content)}")
-            print(f"CONTENT SNIPPET: {content[:500]}")
-            # Force text/xml to help frontend parsers, even if BSUIR says application/json
-            return Response(content=content, media_type="text/xml")
+            
+            # If BSUIR returns JSON, keep it as is (application/json)
+            # If it's XML, stay compatible with frontend expectation
+            media_type = "application/json" if "json" in content_type.lower() else "text/xml"
+            
+            print(f"PROXY SUCCESS: {url} | Type: {media_type} | Length: {len(content)}")
+            return Response(content=content, media_type=media_type)
     except Exception as e:
         print(f"PROXY ERROR FOR {url}: {e}")
         raise HTTPException(status_code=502, detail=f"Failed to fetch from BSUIR: {str(e)}")
