@@ -223,10 +223,11 @@ def get_mock_grades():
         "average": 9.2,
         "rating": 10,
         "subjects": [
-            {"name": "ОАиП", "mark": 9},
-            {"name": "КСиС", "mark": 10},
-            {"name": "ОТИ", "mark": 9},
-            {"name": "Физика", "mark": 8},
-            {"name": "Математика", "mark": 10},
+            {"subject": "ОАиП", "marks": [{"val": 9, "date": "10.02.2026"}]},
+            {"subject": "КСиС", "marks": [{"val": 10, "date": "12.02.2026"}]},
+            {"subject": "ОТИ", "marks": [{"val": 9, "date": "15.02.2026"}]},
+            {"subject": "Физика", "marks": [{"val": 8, "date": "20.02.2026"}]},
+            {"subject": "Математика", "marks": [{"val": 10, "date": "25.02.2026"}]},
         ]
     }
+

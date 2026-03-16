@@ -42,15 +42,16 @@ export default function Study() {
     if (ratingData?.student?.average) return parseFloat(ratingData.student.average);
     
     // Priority 2: Local calculation from xmlMarks
-    if (xmlMarks && xmlMarks.length > 0) {
-      const allMarks = xmlMarks.flatMap(m => m.marks || [])
-        .map(m => typeof m === 'object' ? m.val : m)
-        .filter(n => typeof n === 'number');
+    if (Array.isArray(xmlMarks) && xmlMarks.length > 0) {
+      const allValues = xmlMarks.flatMap(m => m.marks || [])
+        .map(m => (m && typeof m === 'object') ? m.val : m)
+        .filter(v => typeof v === 'number' && !isNaN(v));
         
-      if (allMarks.length > 0) {
-        return allMarks.reduce((a, b) => a + b, 0) / allMarks.length;
+      if (allValues.length > 0) {
+        return allValues.reduce((a, b) => a + b, 0) / allValues.length;
       }
     }
+
 
     
     return 0;
@@ -64,23 +65,24 @@ export default function Study() {
         setGrades(data);
         localStorage.setItem('study_grades', JSON.stringify(data));
         
-        // Если бэкенд вернул реальные данные для текущего студента, используем их
-        if (data.is_real && data.subjects && (!studentId || data.studentId === studentId)) {
-          if (data.subjects.length > 0) {
-            setXmlMarks(data.subjects);
-            localStorage.setItem(`study_xmlMarks_${studentId}`, JSON.stringify(data.subjects));
-          }
+        // Update display data if subjects are present
+        if (data.subjects && Array.isArray(data.subjects)) {
+          setXmlMarks(data.subjects);
+          const marksKey = studentId ? `study_xmlMarks_${studentId}` : 'study_xmlMarks';
+          localStorage.setItem(marksKey, JSON.stringify(data.subjects));
+          
           if (data.average) {
-            // Обновляем ratingData, сохраняя общее количество студентов (total), если оно уже есть
             setRatingData(prev => ({
               ...prev,
-              rank: data.rating,
+              rank: data.rating || prev?.rank || '-',
               total: prev?.total || '-',
               student: { ...prev?.student, average: data.average },
               specName: data.specName || prev?.specName
             }));
           }
         }
+
+
       })
       .catch(err => console.error("Backend grades fetch error:", err));
   }, [telegramId, studentId]);
@@ -295,16 +297,19 @@ export default function Study() {
                   {xmlMarks.map((m, idx) => (
                     <div key={idx} className="flex justify-between items-center p-3 bg-tg-bg rounded-xl border border-tg-hint border-opacity-10">
                       <span className="text-sm font-medium">{m.subject}</span>
-                      <div className="flex gap-1.5 overflow-x-auto max-w-[55%] justify-end hide-scrollbar">
-                        {m.marks.length > 0 ? m.marks.map((mark, midx) => {
-                          const val = typeof mark === 'object' ? mark.val : mark;
-                          const date = typeof mark === 'object' ? mark.date : null;
+                      <div className="flex gap-1.5 overflow-x-auto max-w-[60%] justify-end hide-scrollbar">
+                        {m.marks && m.marks.length > 0 ? m.marks.map((mark, midx) => {
+                          if (mark === null || mark === undefined) return null;
+                          const val = (typeof mark === 'object' && mark !== null) ? mark.val : mark;
+                          const date = (typeof mark === 'object' && mark !== null) ? mark.date : null;
+                          if (val === undefined || val === null) return null;
+
                           return (
                             <div key={midx} className="flex flex-col items-center gap-1">
                               <span 
                                 title={date ? `Выставлена: ${date}` : ''}
-                                onClick={() => date && WebApp.showConfirm(`Оценка ${val} выставлена ${date}`)}
-                                className={`w-9 h-9 flex items-center justify-center rounded-xl text-xs font-black border transition-all active:scale-90 ${
+                                onClick={() => date && WebApp.showAlert(`Оценка ${val} выставлена ${date}`)}
+                                className={`w-9 h-9 flex items-center justify-center rounded-xl text-xs font-black border transition-all active:scale-95 ${
                                   val >= 8 ? 'bg-green-500/10 text-green-600 border-green-500/20' : 
                                   val >= 4 ? 'bg-tg-button/10 text-tg-button border-tg-button/20' : 
                                   'bg-red-500/10 text-red-600 border-red-500/20'
@@ -312,14 +317,15 @@ export default function Study() {
                               >
                                 {val}
                               </span>
-                              {date && (
+                              {date && typeof date === 'string' && (
                                 <span className="text-[7px] text-tg-hint opacity-60 font-medium whitespace-nowrap">
-                                  {date.split('.').slice(0, 2).join('.')}
+                                  {date.includes('.') ? date.split('.').slice(0, 2).join('.') : date}
                                 </span>
                               )}
                             </div>
                           );
                         }) : (
+
 
                           <span className="text-[10px] text-tg-hint italic">нет оценок</span>
                         )}
