@@ -295,9 +295,17 @@ export default function Study() {
               ) : xmlMarks.length > 0 ? (
                 <div className="space-y-3">
                   {xmlMarks.map((m, idx) => (
-                    <div key={idx} className="flex justify-between items-center p-3 bg-tg-bg rounded-xl border border-tg-hint border-opacity-10">
-                      <span className="text-sm font-medium">{m.subject}</span>
-                      <div className="flex gap-1.5 overflow-x-auto max-w-[60%] justify-end hide-scrollbar">
+                    <div key={idx} className="p-4 bg-tg-bg rounded-2xl border border-tg-hint border-opacity-10 space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-bold text-tg-hint uppercase tracking-tight">{m.subject}</span>
+                        {m.marks && m.marks.length > 3 && (
+                          <span className="text-[10px] text-tg-hint opacity-50 px-2 py-0.5 bg-tg-secondaryBg rounded-full border border-tg-hint border-opacity-10">
+                            {m.marks.length} оц.
+                          </span>
+                        )}
+                      </div>
+                      
+                      <div className="flex flex-wrap gap-2.5">
                         {m.marks && m.marks.length > 0 ? m.marks.map((mark, midx) => {
                           if (mark === null || mark === undefined) return null;
                           const val = (typeof mark === 'object' && mark !== null) ? mark.val : mark;
@@ -305,11 +313,11 @@ export default function Study() {
                           if (val === undefined || val === null) return null;
 
                           return (
-                            <div key={midx} className="flex flex-col items-center gap-1">
+                            <div key={midx} className="flex flex-col items-center gap-1.5">
                               <span 
                                 title={date ? `Выставлена: ${date}` : ''}
                                 onClick={() => date && WebApp.showAlert(`Оценка ${val} выставлена ${date}`)}
-                                className={`w-9 h-9 flex items-center justify-center rounded-xl text-xs font-black border transition-all active:scale-95 ${
+                                className={`w-10 h-10 flex items-center justify-center rounded-xl text-sm font-black border shadow-sm transition-all active:scale-90 ${
                                   val >= 8 ? 'bg-green-500/10 text-green-600 border-green-500/20' : 
                                   val >= 4 ? 'bg-tg-button/10 text-tg-button border-tg-button/20' : 
                                   'bg-red-500/10 text-red-600 border-red-500/20'
@@ -318,20 +326,19 @@ export default function Study() {
                                 {val}
                               </span>
                               {date && typeof date === 'string' && (
-                                <span className="text-[7px] text-tg-hint opacity-60 font-medium whitespace-nowrap">
+                                <span className="text-[8px] text-tg-hint opacity-70 font-bold bg-tg-secondaryBg/30 px-1.5 py-0.5 rounded-md border border-tg-hint border-opacity-5">
                                   {date.includes('.') ? date.split('.').slice(0, 2).join('.') : date}
                                 </span>
                               )}
                             </div>
                           );
                         }) : (
-
-
-                          <span className="text-[10px] text-tg-hint italic">нет оценок</span>
+                          <span className="text-xs text-tg-hint italic opacity-60">Оценок пока нет</span>
                         )}
                       </div>
                     </div>
                   ))}
+
                 </div>
               ) : (
                 <div className="text-center py-4 text-tg-hint text-sm">Оценок пока нет</div>
