@@ -82,8 +82,8 @@ export default function Settings() {
       isTeacherLocal ? null : inputStudentId.trim(),
       isTeacherLocal,
       isTeacherLocal ? (selectedTeacher?.urlId || teacherUrlId) : null,
-      selectedEnglishTeacher?.urlId || englishTeacherId,
-      selectedEnglishTeacher?.fio || englishTeacherFio
+      isTeacherLocal ? null : (selectedEnglishTeacher?.urlId || englishTeacherId),
+      isTeacherLocal ? null : (selectedEnglishTeacher?.fio || englishTeacherFio)
     );
     setIsSaving(false);
     if (success) {
@@ -94,7 +94,7 @@ export default function Settings() {
   const hasChanges = () => {
     if (isTeacherLocal !== isTeacher) return true;
     if (isTeacherLocal) {
-      return (selectedTeacher && selectedTeacher.urlId !== teacherUrlId) || (selectedEnglishTeacher && selectedEnglishTeacher.urlId !== englishTeacherId);
+      return (selectedTeacher && selectedTeacher.urlId !== teacherUrlId);
     }
     return inputGroup !== (group || '') || inputSubgroup !== (subgroup || 0) || inputStudentId !== (studentId || '') || (selectedEnglishTeacher && selectedEnglishTeacher.urlId !== englishTeacherId);
   };
@@ -223,77 +223,79 @@ export default function Settings() {
         )}
       </div>
 
-      <div className="bg-tg-secondaryBg p-5 rounded-3xl shadow-sm border border-tg-hint/10 mb-6">
-        <h2 className="text-lg font-bold mb-4">Преподаватель английского</h2>
-        <p className="text-xs text-tg-hint mb-4 ml-1">Выберите преподавателя, чтобы в расписании не показывались занятия других групп по английскому.</p>
-        
-        <div className="space-y-4">
-          <div>
-            <label className="block text-xs font-semibold uppercase text-tg-hint mb-1.5 ml-1">
-              Поиск преподавателя английского
-            </label>
-            <div className="relative">
-              <input 
-                type="text" 
-                value={englishTeacherSearch}
-                onChange={(e) => handleSearchEnglishTeachers(e.target.value)}
-                placeholder="Введите ФИО..." 
-                className="w-full px-4 py-3.5 rounded-2xl bg-tg-bg text-tg-text focus:outline-none ring-2 ring-transparent focus:ring-tg-button/30 border border-tg-hint/10 transition-all font-bold"
-              />
-              {englishTeachers.length > 0 && (
-                <div className="absolute top-full left-0 right-0 bg-tg-secondaryBg border border-tg-button/20 rounded-2xl mt-2 overflow-hidden shadow-2xl z-50">
-                  {englishTeachers.map(t => (
-                    <div 
-                      key={t.id}
-                      onClick={() => {
-                        setSelectedEnglishTeacher(t);
-                        setEnglishTeacherSearch(t.fio);
-                        setEnglishTeachers([]);
-                      }}
-                      className="p-4 hover:bg-tg-button hover:text-tg-buttonText cursor-pointer font-bold border-b border-tg-hint/10 last:border-0"
-                    >
-                      {t.fio}
-                    </div>
-                  ))}
-                </div>
-              )}
+      {!isTeacherLocal && (
+        <div className="bg-tg-secondaryBg p-5 rounded-3xl shadow-sm border border-tg-hint/10 mb-6">
+          <h2 className="text-lg font-bold mb-4">Преподаватель английского</h2>
+          <p className="text-xs text-tg-hint mb-4 ml-1">Выберите преподавателя, чтобы в расписании не показывались занятия других групп по английскому.</p>
+          
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-semibold uppercase text-tg-hint mb-1.5 ml-1">
+                Поиск преподавателя английского
+              </label>
+              <div className="relative">
+                <input 
+                  type="text" 
+                  value={englishTeacherSearch}
+                  onChange={(e) => handleSearchEnglishTeachers(e.target.value)}
+                  placeholder="Введите ФИО..." 
+                  className="w-full px-4 py-3.5 rounded-2xl bg-tg-bg text-tg-text focus:outline-none ring-2 ring-transparent focus:ring-tg-button/30 border border-tg-hint/10 transition-all font-bold"
+                />
+                {englishTeachers.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 bg-tg-secondaryBg border border-tg-button/20 rounded-2xl mt-2 overflow-hidden shadow-2xl z-50">
+                    {englishTeachers.map(t => (
+                      <div 
+                        key={t.id}
+                        onClick={() => {
+                          setSelectedEnglishTeacher(t);
+                          setEnglishTeacherSearch(t.fio);
+                          setEnglishTeachers([]);
+                        }}
+                        className="p-4 hover:bg-tg-button hover:text-tg-buttonText cursor-pointer font-bold border-b border-tg-hint/10 last:border-0"
+                      >
+                        {t.fio}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
+            {selectedEnglishTeacher ? (
+              <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center gap-3">
+                 <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center text-white">✓</div>
+                 <div className="text-sm font-bold text-tg-text">Выбран: {selectedEnglishTeacher.fio}</div>
+                 <button 
+                   onClick={() => {
+                     setSelectedEnglishTeacher(null);
+                     setEnglishTeacherSearch('');
+                   }}
+                   className="ml-auto text-xs text-tg-hint font-bold"
+                 >
+                   Сбросить
+                 </button>
+              </div>
+            ) : englishTeacherId && !englishTeacherSearch && (
+              <div className="p-3 bg-tg-button/5 border border-tg-button/10 rounded-xl flex items-center gap-3">
+                 <div className="w-8 h-8 rounded-full bg-tg-button/20 flex items-center justify-center text-tg-button">✓</div>
+                 <div className="text-sm font-bold text-tg-text">Выбран: {englishTeacherFio || "Преподаватель"}</div>
+                 <button 
+                   onClick={() => {
+                     setEnglishTeacherSearch(' '); 
+                     handleSearchEnglishTeachers('');
+                   }}
+                   className="ml-auto text-xs text-tg-hint font-bold"
+                 >
+                   Изменить
+                 </button>
+              </div>
+            )}
           </div>
-          {selectedEnglishTeacher ? (
-            <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center gap-3">
-               <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center text-white">✓</div>
-               <div className="text-sm font-bold text-tg-text">Выбран: {selectedEnglishTeacher.fio}</div>
-               <button 
-                 onClick={() => {
-                   setSelectedEnglishTeacher(null);
-                   setEnglishTeacherSearch('');
-                 }}
-                 className="ml-auto text-xs text-tg-hint font-bold"
-               >
-                 Сбросить
-               </button>
-            </div>
-          ) : englishTeacherId && !englishTeacherSearch && (
-            <div className="p-3 bg-tg-button/5 border border-tg-button/10 rounded-xl flex items-center gap-3">
-               <div className="w-8 h-8 rounded-full bg-tg-button/20 flex items-center justify-center text-tg-button">✓</div>
-               <div className="text-sm font-bold text-tg-text">Выбран: {englishTeacherFio || "Преподаватель"}</div>
-               <button 
-                 onClick={() => {
-                   setEnglishTeacherSearch(' '); 
-                   handleSearchEnglishTeachers('');
-                 }}
-                 className="ml-auto text-xs text-tg-hint font-bold"
-               >
-                 Изменить
-               </button>
-            </div>
-          )}
         </div>
-      </div>
+      )}
 
       <button 
         onClick={handleSave}
-        disabled={isSaving || !hasChanges() || (!isTeacherLocal && !inputGroup.trim()) || (isTeacherLocal && !selectedTeacher && !teacherUrlId && !selectedTeacher)}
+        disabled={isSaving || !hasChanges() || (!isTeacherLocal && !inputGroup.trim()) || (isTeacherLocal && !selectedTeacher && !teacherUrlId)}
         className="w-full py-4 bg-tg-button text-tg-buttonText font-bold rounded-2xl mt-auto active:scale-[0.98] transition-all shadow-lg shadow-tg-button/30 text-base flex justify-center items-center gap-2 disabled:opacity-50 disabled:shadow-none"
       >
         {isSaving ? (
