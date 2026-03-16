@@ -2,7 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
-html, body {
+html,
+body {
   background-color: var(--tg-theme-bg-color, #ffffff);
   color: var(--tg-theme-text-color, #000000);
   font-family:
@@ -19,8 +20,10 @@ html, body {
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 5px;
-  height: 0px; /* Скрыть горизонтальный скролл */
+  height: 0px;
+  /* Скрыть горизонтальный скролл */
 }
+
 ::-webkit-scrollbar-thumb {
   background: var(--tg-theme-hint-color, #cccccc);
   border-radius: 10px;
@@ -38,8 +41,13 @@ html, body {
 }
 
 @keyframes slide-up {
-  from { transform: translateY(100%); }
-  to { transform: translateY(0); }
+  from {
+    transform: translateY(100%);
+  }
+
+  to {
+    transform: translateY(0);
+  }
 }
 
 .animate-slide-up {
