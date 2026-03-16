@@ -972,7 +972,16 @@ export default function Schedule() {
                                     <span className="text-[10px] font-black uppercase text-tg-hint tracking-wider">Преподаватели</span>
                                     <div className="flex flex-col gap-2">
                                       {lesson.employees.map((emp, i) => (
-                                        <div key={i} className="flex items-center gap-2.5 bg-tg-bg/50 p-2 rounded-xl border border-[var(--tg-theme-hint-color)] border-opacity-5">
+                                        <div 
+                                          key={i} 
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (emp.urlId) {
+                                              navigate('/university', { state: { teacherUrlId: emp.urlId } });
+                                            }
+                                          }}
+                                          className="flex items-center gap-2.5 bg-tg-bg/50 p-2 rounded-xl border border-[var(--tg-theme-hint-color)] border-opacity-5 cursor-pointer hover:bg-tg-bg transition-colors active:scale-[0.98]"
+                                        >
                                           {emp.photoLink ? (
                                             <img src={emp.photoLink} alt="Avatar" className="w-8 h-8 rounded-full object-cover shrink-0" onError={(e) => { e.target.onerror = null; e.target.src = 'https://ui-avatars.com/api/?name=' + emp.lastName + '&background=random'; }} />
                                           ) : (
@@ -980,16 +989,40 @@ export default function Schedule() {
                                               {emp.lastName?.[0] || '?'}
                                             </div>
                                           )}
-                                          <div className="flex flex-col">
+                                          <div className="flex flex-col flex-1">
                                             <span className="text-xs font-bold text-tg-text">{emp.lastName} {emp.firstName} {emp.middleName}</span>
                                             {emp.degree && <span className="text-[10px] text-tg-hint leading-tight">{emp.degree}</span>}
                                           </div>
+                                          <ChevronRight size={14} className="text-tg-hint opacity-50" />
                                         </div>
                                       ))}
                                     </div>
                                   </div>
                                 )}
                                 
+                                {/* Groups Info (for teachers or shared lectures) */}
+                                {lesson.studentGroups && lesson.studentGroups.length > 0 && (
+                                  <div className="flex flex-col gap-2">
+                                    <span className="text-[10px] font-black uppercase text-tg-hint tracking-wider">Группы</span>
+                                    <div className="flex flex-wrap gap-2">
+                                      {lesson.studentGroups.map((g, i) => (
+                                        <div 
+                                          key={i} 
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            navigate('/university', { state: { groupName: g.name } });
+                                          }}
+                                          className="flex items-center gap-2 bg-tg-bg/50 px-3 py-2 rounded-xl border border-[var(--tg-theme-hint-color)] border-opacity-5 cursor-pointer hover:bg-tg-bg transition-colors active:scale-[0.98]"
+                                        >
+                                          <Users size={14} className="text-tg-button opacity-70" />
+                                          <span className="text-xs font-bold text-tg-text">{g.name}</span>
+                                          <ChevronRight size={12} className="text-tg-hint opacity-40" />
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+
                                 {/* Prev / Next occurrences */}
                                 {(() => {
                                   const renderOccurrence = (occ, label) => {

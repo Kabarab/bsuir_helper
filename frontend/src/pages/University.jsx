@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
+import { useLocation } from 'react-router-dom';
 import { CalendarDays, ChevronLeft, Clock, Calendar as CalendarIcon, List } from 'lucide-react';
 import { format, addDays, isSameDay, getDay, differenceInCalendarWeeks } from 'date-fns';
 import { ru } from 'date-fns/locale';
@@ -20,6 +21,7 @@ import { useUser } from '../contexts/UserContext';
 
 export default function University() {
   const { group: userGroup } = useUser();
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState('teachers'); // teachers, faculties, groups, rating
   
   // Teachers data
@@ -269,6 +271,33 @@ export default function University() {
       }).catch(console.error).finally(() => setLoading(false));
     }
   }, [activeTab]);
+
+  // Handle incoming teacher selection from navigation state
+  useEffect(() => {
+    if (location.state?.teacherUrlId && teachers.length > 0) {
+      const targetId = location.state.teacherUrlId;
+      setActiveTab('teachers');
+      
+      const teacher = teachers.find(t => t.urlId === targetId);
+      if (teacher) {
+        setSelectedTeacher(teacher);
+        loadTeacherSchedule(teacher.urlId);
+        // Clear the state so it doesn't re-trigger on every render/navigation
+        // We use window.history.replaceState to avoid navigate loop or state persistence issues
+        window.history.replaceState({}, document.title);
+      }
+    } else if (location.state?.groupName) {
+      const gName = location.state.groupName;
+      setActiveTab('groups');
+      setSelectedGroup({ name: gName });
+      loadGroupSchedule(gName);
+      window.history.replaceState({}, document.title);
+    } else if (location.state?.teacherUrlId && activeTab !== 'teachers') {
+      // If we have a teacher to select but they aren't loaded yet,
+      // just ensure we're on the right tab so they get loaded.
+      setActiveTab('teachers');
+    }
+  }, [location.state, teachers, activeTab]);
 
   // Helper to persist rating selections to localStorage
   const saveRatingCache = (patch) => {
