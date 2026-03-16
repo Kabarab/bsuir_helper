@@ -457,7 +457,7 @@ async def grades(telegram_id: int, db: AsyncSession = Depends(get_db)):
             
             raw_marks = lesson.get("marks", [])
             if not isinstance(raw_marks, list):
-                raw_marks = [raw_marks] if raw_marks else []
+                raw_marks = [raw_marks] if raw_marks is not None else []
             
             # Extract numeric marks from mark objects
             marks_with_dates = []
