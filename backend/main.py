@@ -475,8 +475,9 @@ async def grades(telegram_id: int, db: AsyncSession = Depends(get_db)):
                         if is_str and not clean_val.isdigit():
                             continue
                         num = int(clean_val)
-                        if 1 <= num <= 10:
+                        if 0 <= num <= 10:
                             marks_with_dates.append({"val": num, "date": date_str})
+
                     except (ValueError, TypeError):
                         continue
             

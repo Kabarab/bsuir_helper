@@ -183,8 +183,9 @@ export async function getStudentGrades(studentCardNumber) {
         const text = mNode.textContent?.trim();
         if (text && /^\d+$/.test(text) && text.length <= 2) {
           const val = parseInt(text, 10);
-          if (!isNaN(val)) rawMarksList.push(val);
+          if (!isNaN(val) && val >= 0 && val <= 10) rawMarksList.push(val);
         }
+
       } else {
         // Recurse into nested <marks>
         Array.from(mNode.childNodes).forEach(child => {
