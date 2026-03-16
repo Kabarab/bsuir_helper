@@ -35,13 +35,14 @@ function App() {
           <AuthWrapper>
             <div className="pb-24">
               <Routes>
-                <Route path="/" element={<Planner />} />
+                <Route path="/" element={<Navigate to="/schedule" replace />} />
+                <Route path="/planner" element={<Planner />} />
                 <Route path="/study" element={<Study />} />
                 <Route path="/schedule" element={<Schedule />} />
                 <Route path="/university" element={<University />} />
 
                 <Route path="/settings" element={<Settings />} />
-                <Route path="*" element={<Navigate to="/" replace />} />
+                <Route path="*" element={<Navigate to="/schedule" replace />} />
               </Routes>
             </div>
             <BottomNav />

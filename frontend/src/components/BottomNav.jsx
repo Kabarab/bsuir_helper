@@ -10,7 +10,7 @@ export default function BottomNav() {
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-tg-secondaryBg border-t border-[var(--tg-theme-hint-color)] border-opacity-20 pb-safe z-50">
       <div className="flex justify-around items-center h-16">
-        <NavLink to="/" className={linkClass}>
+        <NavLink to="/planner" className={linkClass}>
           <CheckSquare size={24} />
           <span className="text-xs font-medium">Планер</span>
         </NavLink>
