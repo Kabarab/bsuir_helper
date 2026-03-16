@@ -518,7 +518,7 @@ export default function University() {
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-tg-button"></div>
         </div>
       ) : (
-        <div className="flex-1 overflow-y-auto overflow-x-hidden overscroll-x-none" onScroll={handleScroll}>
+        <div className="flex-1 overflow-y-auto overflow-x-hidden overscroll-x-none hide-scrollbar pb-20" onScroll={handleScroll}>
           {/* TEACHERS TAB */}
           {activeTab === 'teachers' && (
             <div className="space-y-4">
@@ -617,7 +617,7 @@ export default function University() {
                   ) : teacherSchedule?.schedules ? (
                     <div className="space-y-4">
                       {/* DATE STRIP */}
-                      <div className="-mx-4 px-4 mb-4">
+                      <div className="sticky top-0 z-30 bg-[var(--tg-theme-bg-color)] -mx-4 px-4 py-2 border-b border-[var(--tg-theme-hint-color)] border-opacity-10 shadow-sm mb-4">
                         <div 
                           ref={daysRef}
                           className="flex overflow-x-auto gap-2 pb-2 hide-scrollbar snap-x snap-mandatory px-4 md:px-0"
@@ -667,8 +667,9 @@ export default function University() {
                             return true;
                           }).sort((a,b) => a.startLessonTime.localeCompare(b.startLessonTime));
                         }
-
                         return activeLessons.length > 0 ? (
+                          <div className="space-y-4 mt-2">
+                            <h2 className="font-bold text-lg text-tg-text capitalize">{format(selectedDate, 'EEEE, d MMMM', { locale: ru })}</h2>
                             <div className="space-y-3 relative touch-pan-y before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-[var(--tg-theme-hint-color)] before:to-transparent before:opacity-20">
                               {activeLessons.map((lesson, idx) => {
                                 const colors = getLessonColor(lesson);
@@ -823,6 +824,7 @@ export default function University() {
                                 );
                               })}
                             </div>
+                          </div>
                         ) : (
                           <div className="flex flex-col items-center justify-center py-16 text-tg-hint bg-tg-secondaryBg rounded-3xl border border-dashed border-[var(--tg-theme-hint-color)] border-opacity-30">
                             <div className="w-16 h-16 bg-[var(--tg-theme-bg-color)] rounded-full flex items-center justify-center mb-4 shadow-inner">
@@ -966,7 +968,7 @@ export default function University() {
                   ) : groupSchedule?.schedules ? (
                     <div className="space-y-4">
                       {/* DATE STRIP */}
-                      <div className="-mx-4 px-4 mb-4">
+                      <div className="sticky top-0 z-30 bg-[var(--tg-theme-bg-color)] -mx-4 px-4 py-2 border-b border-[var(--tg-theme-hint-color)] border-opacity-10 shadow-sm mb-4">
                         <div 
                           ref={daysRef}
                           className="flex overflow-x-auto gap-2 pb-2 hide-scrollbar snap-x snap-mandatory px-4 md:px-0"
@@ -1019,6 +1021,8 @@ export default function University() {
                         }
 
                         return activeLessons.length > 0 ? (
+                          <div className="space-y-4 mt-2">
+                            <h2 className="font-bold text-lg text-tg-text capitalize">{format(selectedDate, 'EEEE, d MMMM', { locale: ru })}</h2>
                             <div className="space-y-3 relative touch-pan-y before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-[var(--tg-theme-hint-color)] before:to-transparent before:opacity-20">
                               {activeLessons.map((lesson, idx) => {
                                 const colors = getLessonColor(lesson);
@@ -1174,6 +1178,7 @@ export default function University() {
                                 );
                               })}
                             </div>
+                          </div>
                         ) : (
                           <div className="flex flex-col items-center justify-center py-16 text-tg-hint bg-tg-secondaryBg rounded-3xl border border-dashed border-[var(--tg-theme-hint-color)] border-opacity-30">
                             <div className="w-16 h-16 bg-[var(--tg-theme-bg-color)] rounded-full flex items-center justify-center mb-4 shadow-inner">
