@@ -75,7 +75,7 @@ export async function getStudentGrades(studentCardNumber) {
       const resMap = {};
       
       const extractMarks = (marksObj) => {
-        if (marksObj === null || marksObj === undefined) return [];
+        if (!marksObj) return [];
         if (typeof marksObj === 'number') return [marksObj];
         if (typeof marksObj === 'string') {
           const trimmed = marksObj.trim();

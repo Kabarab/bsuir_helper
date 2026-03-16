@@ -512,7 +512,7 @@ export default function University() {
                         ) : (
                           <Filter size={12} fill={filterByGroup ? "currentColor" : "none"} />
                         )}
-                        {selectedGroup ? `УЧИТЕЛЯ ГРУППЫ ${selectedGroup.name}` : `МОИ УЧИТЕЛЯ (${userGroup})`}
+                        {selectedGroup ? `ПРЕПОДАВАТЕЛИ ГРУППЫ ${selectedGroup.name}` : `МОИ ПРЕПОДАВАТЕЛИ (${userGroup})`}
                       </button>
                     </div>
                   )}

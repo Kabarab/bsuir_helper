@@ -454,7 +454,7 @@ async def grades(telegram_id: int, db: AsyncSession = Depends(get_db)):
                 else:
                     val = m
                 
-                if val is not None:
+                if val:
                     try:
                         # Handle potential strings with spaces
                         is_str = isinstance(val, str)
@@ -462,7 +462,7 @@ async def grades(telegram_id: int, db: AsyncSession = Depends(get_db)):
                         if is_str and not clean_val.isdigit():
                             continue
                         num = int(clean_val)
-                        if 0 <= num <= 10:
+                        if 1 <= num <= 10:
                             marks_list.append(num)
                     except (ValueError, TypeError):
                         continue
