@@ -1006,7 +1006,7 @@ export default function Schedule() {
                                 )}
                                 
                                 {/* Groups Info (for teachers or shared lectures) */}
-                                {lesson.studentGroups && lesson.studentGroups.length > 0 && (
+                                {isTeacher && lesson.studentGroups && lesson.studentGroups.length > 0 && (
                                   <div className="flex flex-col gap-2">
                                     <span className="text-[10px] font-black uppercase text-tg-hint tracking-wider">Группы</span>
                                     <div className="flex flex-wrap gap-2">

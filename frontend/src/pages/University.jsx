@@ -20,7 +20,7 @@ import { getFaculties, getSpecialities, getActiveSpecialities, getCourses, getRa
 import { useUser } from '../contexts/UserContext';
 
 export default function University() {
-  const { group: userGroup, subgroup: userSubgroup } = useUser();
+  const { group: userGroup, subgroup: userSubgroup, isTeacher } = useUser();
   const location = useLocation();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('teachers'); // teachers, faculties, groups, rating
@@ -726,7 +726,7 @@ export default function University() {
                                           {lesson.subjectFullName && lesson.subjectFullName !== lesson.subject && (
                                             <p className={`text-xs mt-1 line-clamp-1 ${isPast ? 'text-tg-hint' : 'text-tg-text/70'}`}>{lesson.subjectFullName}</p>
                                           )}
-                                          {lesson.studentGroups && lesson.studentGroups.length > 0 ? (
+                                          {isTeacher && lesson.studentGroups && lesson.studentGroups.length > 0 ? (
                                             <p className={`text-xs mt-1 font-medium ${isPast ? 'text-tg-hint' : 'text-tg-text/80'}`}>
                                               {lesson.studentGroups.map(g => g.name).join(', ')}
                                             </p>
@@ -758,7 +758,7 @@ export default function University() {
                                           <div className="overflow-hidden">
                                             <div className="flex flex-col gap-3 pt-3 border-t border-[var(--tg-theme-hint-color)] border-opacity-10">
                                               {/* Groups Info (for teachers) */}
-                                              {lesson.studentGroups && lesson.studentGroups.length > 0 && (
+                                              {isTeacher && lesson.studentGroups && lesson.studentGroups.length > 0 && (
                                                 <div className="flex flex-col gap-2">
                                                   <span className="text-[10px] font-black uppercase text-tg-hint tracking-wider">Группы</span>
                                                   <div className="flex flex-wrap gap-2">
