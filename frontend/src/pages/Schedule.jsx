@@ -855,7 +855,7 @@ export default function Schedule() {
           </div>
         ) : viewMode === 'list' ? (
           activeLessons.length > 0 ? (
-            <div className="space-y-3 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-[var(--tg-theme-hint-color)] before:to-transparent before:opacity-20">
+            <div className="space-y-3 relative touch-pan-y before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-[var(--tg-theme-hint-color)] before:to-transparent before:opacity-20">
               {activeLessons.map((lesson, idx) => {
                 const colors = getLessonColor(lesson);
                 const progress = getLessonProgress(lesson);

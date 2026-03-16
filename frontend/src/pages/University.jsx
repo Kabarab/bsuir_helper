@@ -481,7 +481,7 @@ export default function University() {
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-tg-button"></div>
         </div>
       ) : (
-        <div className="flex-1 overflow-y-auto" onScroll={handleScroll}>
+        <div className="flex-1 overflow-y-auto overflow-x-hidden overscroll-x-none" onScroll={handleScroll}>
           {/* TEACHERS TAB */}
           {activeTab === 'teachers' && (
             <div className="space-y-4">
@@ -632,7 +632,7 @@ export default function University() {
                         }
 
                         return activeLessons.length > 0 ? (
-                            <div className="space-y-3 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-[var(--tg-theme-hint-color)] before:to-transparent before:opacity-20">
+                            <div className="space-y-3 relative touch-pan-y before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-[var(--tg-theme-hint-color)] before:to-transparent before:opacity-20">
                               {activeLessons.map((lesson, idx) => {
                                 const colors = getLessonColor(lesson);
                                 const progress = getLessonProgress(lesson);
@@ -915,7 +915,7 @@ export default function University() {
                         }
 
                         return activeLessons.length > 0 ? (
-                            <div className="space-y-3 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-[var(--tg-theme-hint-color)] before:to-transparent before:opacity-20">
+                            <div className="space-y-3 relative touch-pan-y before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-[var(--tg-theme-hint-color)] before:to-transparent before:opacity-20">
                               {activeLessons.map((lesson, idx) => {
                                 const colors = getLessonColor(lesson);
                                 const progress = getLessonProgress(lesson);
