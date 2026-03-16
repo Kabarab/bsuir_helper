@@ -435,24 +435,54 @@ async def grades(telegram_id: int, db: AsyncSession = Depends(get_db)):
     # 4. Process subjects
     subjects = []
     if subjects_data.get("success") and isinstance(subjects_data.get("data"), list):
-        seen_subjects = set()
+        seen_subjects = {} # subj_name -> list of marks
         for lesson in subjects_data["data"]:
-            subj_name = lesson.get("lessonNameAbbrev")
-            marks_list = lesson.get("marks", [])
+            subj_name = (lesson.get("lessonNameAbbrev") or 
+                         lesson.get("subject") or 
+                         lesson.get("subjectAbbrev") or 
+                         "Unknown")
             
-            if subj_name and marks_list and subj_name not in seen_subjects:
-                best_mark = max([m.get("mark", 0) for m in marks_list] + [0])
-                if best_mark > 0:
-                    subjects.append({
-                        "name": subj_name,
-                        "mark": best_mark
-                    })
-                    seen_subjects.add(subj_name)
+            raw_marks = lesson.get("marks", [])
+            if not isinstance(raw_marks, list):
+                raw_marks = [raw_marks] if raw_marks else []
+            
+            # Extract numeric marks from mark objects
+            marks_list = []
+            for m in raw_marks:
+                if isinstance(m, dict):
+                    val = m.get("mark")
+                else:
+                    val = m
+                
+                if val:
+                    try:
+                        # Handle potential strings with spaces
+                        is_str = isinstance(val, str)
+                        clean_val = val.strip() if is_str else val
+                        if is_str and not clean_val.isdigit():
+                            continue
+                        num = int(clean_val)
+                        if 1 <= num <= 10:
+                            marks_list.append(num)
+                    except (ValueError, TypeError):
+                        continue
+            
+            if subj_name and marks_list:
+                if subj_name not in seen_subjects:
+                    seen_subjects[subj_name] = []
+                seen_subjects[subj_name].extend(marks_list)
+
+        for name, marks in seen_subjects.items():
+            subjects.append({
+                "subject": name,
+                "marks": sorted(marks, reverse=True)
+            })
 
     grades_data = {
         "average": average,
         "rating": ranking,
         "subjects": subjects,
+        "studentId": user.bsuir_id,
         "is_real": True
     }
     # Cache the result

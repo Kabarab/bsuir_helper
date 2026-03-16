@@ -68,16 +68,20 @@ export async function getStudentGrades(studentCardNumber) {
   if (!data) return [];
   const processedIds = new Set();
   
-  // 1. If we already have an object (Axios parsed JSON), use it
-  if (typeof data === 'object' && !Array.isArray(data)) {
+  // 1. If we already have an object or array (Axios parsed JSON), use it
+  if (typeof data === 'object' && data !== null) {
     try {
-      const lessons = data.lessons || [];
+      const lessons = Array.isArray(data) ? data : (data.lessons || []);
       const resMap = {};
       
       const extractMarks = (marksObj) => {
         if (!marksObj) return [];
         if (typeof marksObj === 'number') return [marksObj];
-        if (typeof marksObj === 'string' && /^\d+$/.test(marksObj)) return [parseInt(marksObj, 10)];
+        if (typeof marksObj === 'string') {
+          const trimmed = marksObj.trim();
+          if (/^\d+$/.test(trimmed)) return [parseInt(trimmed, 10)];
+          return [];
+        }
         
         let found = [];
         if (Array.isArray(marksObj)) {
@@ -89,7 +93,11 @@ export async function getStudentGrades(studentCardNumber) {
             if (key.toLowerCase() === 'id') return;
             if (key.toLowerCase().includes('id') && typeof val !== 'object') return;
             if (typeof val === 'number') found.push(val);
-            else if (typeof val === 'string' && /^\d+$/.test(val)) found.push(parseInt(val, 10));
+            else if (typeof val === 'string') {
+              const trimmed = val.trim();
+              if (/^\d+$/.test(trimmed)) found.push(parseInt(trimmed, 10));
+              else if (typeof val === 'object') found = found.concat(extractMarks(val));
+            }
             else if (typeof val === 'object') found = found.concat(extractMarks(val));
           });
         }
@@ -107,7 +115,10 @@ export async function getStudentGrades(studentCardNumber) {
           resMap[sub].push(...ms);
         }
       });
-      return Object.entries(resMap).map(([subject, marks]) => ({ subject, marks }));
+      
+      if (Object.keys(resMap).length > 0) {
+        return Object.entries(resMap).map(([subject, marks]) => ({ subject, marks }));
+      }
     } catch(e) {
       console.error("JSON processing error in getStudentGrades:", e);
     }

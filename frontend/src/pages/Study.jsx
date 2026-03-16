@@ -51,14 +51,33 @@ export default function Study() {
   }, [ratingData, xmlMarks]);
 
   useEffect(() => {
-    // Получаем реальные оценки через API рейтинга (Legacy JSON proxy)
+    // Получаем реальные оценки через наш бэкенд (он сам делает авторизацию в IIS)
     axios.get(`/api/bsuir/grades/${telegramId}`)
       .then(res => {
-        setGrades(res.data);
-        localStorage.setItem('study_grades', JSON.stringify(res.data));
+        const data = res.data;
+        setGrades(data);
+        localStorage.setItem('study_grades', JSON.stringify(data));
+        
+        // Если бэкенд вернул реальные данные для текущего студента, используем их
+        if (data.is_real && data.subjects && (!studentId || data.studentId === studentId)) {
+          if (data.subjects.length > 0) {
+            setXmlMarks(data.subjects);
+            localStorage.setItem(`study_xmlMarks_${studentId}`, JSON.stringify(data.subjects));
+          }
+          if (data.average) {
+            // Обновляем ratingData, сохраняя общее количество студентов (total), если оно уже есть
+            setRatingData(prev => ({
+              ...prev,
+              rank: data.rating,
+              total: prev?.total || '-',
+              student: { ...prev?.student, average: data.average },
+              specName: data.specName || prev?.specName
+            }));
+          }
+        }
       })
-      .catch(err => console.error(err));
-  }, [telegramId]);
+      .catch(err => console.error("Backend grades fetch error:", err));
+  }, [telegramId, studentId]);
 
   useEffect(() => {
     console.log("Study mount/update - studentId:", studentId);
