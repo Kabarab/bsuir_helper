@@ -14,10 +14,12 @@ const COLOR_PRESETS = {
 };
 
 import axios from 'axios';
-import { Search, Users, Building, GraduationCap, MapPin, Trophy, ChevronRight, X, Info, Pin } from 'lucide-react';
+import { Search, Users, Building, GraduationCap, MapPin, Trophy, ChevronRight, X, Info, Pin, Filter } from 'lucide-react';
 import { getFaculties, getSpecialities, getActiveSpecialities, getCourses, getRating, getStudentGrades, fetchStudentRating } from '../utils/bsuirApi';
+import { useUser } from '../contexts/UserContext';
 
 export default function University() {
+  const { group: userGroup } = useUser();
   const [activeTab, setActiveTab] = useState('teachers'); // teachers, faculties, groups, rating
   
   // Teachers data
@@ -26,6 +28,8 @@ export default function University() {
   const [selectedTeacher, setSelectedTeacher] = useState(null);
   const [teacherSchedule, setTeacherSchedule] = useState(null);
   const [visibleTeachersCount, setVisibleTeachersCount] = useState(30);
+  const [filterByGroup, setFilterByGroup] = useState(false);
+  const [groupTeacherUrlIds, setGroupTeacherUrlIds] = useState(new Set());
   
   // Faculties / Specialities (JSON API)
   const [faculties, setFaculties] = useState([]);
@@ -344,10 +348,47 @@ export default function University() {
       .finally(() => setLoading(false));
   };
 
-  const filteredTeachers = teachers.filter(t => 
-    t.fio?.toLowerCase().includes(teacherSearch.toLowerCase()) || 
-    t.lastName?.toLowerCase().includes(teacherSearch.toLowerCase())
-  ).slice(0, visibleTeachersCount);
+  useEffect(() => {
+    if (filterByGroup) {
+      const targetGroup = selectedGroup?.name || userGroup;
+      if (targetGroup) {
+        setLoading(true);
+        axios.get(`/api/bsuir/schedule/${targetGroup}`)
+          .then(res => {
+            const urlIds = new Set();
+            if (res.data.schedules) {
+              Object.values(res.data.schedules).forEach(dayLessons => {
+                dayLessons.forEach(lesson => {
+                  if (lesson.employees) {
+                    lesson.employees.forEach(emp => {
+                      if (emp.urlId) urlIds.add(emp.urlId);
+                    });
+                  }
+                });
+              });
+            }
+            setGroupTeacherUrlIds(urlIds);
+          })
+          .catch(console.error)
+          .finally(() => setLoading(false));
+      }
+    } else {
+      setGroupTeacherUrlIds(new Set());
+    }
+  }, [filterByGroup, selectedGroup, userGroup]);
+
+  const filteredTeachers = teachers.filter(t => {
+    const matchesSearch = t.fio?.toLowerCase().includes(teacherSearch.toLowerCase()) || 
+                          t.lastName?.toLowerCase().includes(teacherSearch.toLowerCase());
+    
+    if (!matchesSearch) return false;
+    
+    if (filterByGroup) {
+      return groupTeacherUrlIds.has(t.urlId);
+    }
+    
+    return true;
+  }).slice(0, visibleTeachersCount);
 
   const filteredGroups = groups.filter(g => 
     g.name?.includes(groupSearch)
@@ -427,6 +468,25 @@ export default function University() {
                       className="w-full bg-tg-secondaryBg text-tg-text pl-10 pr-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-tg-button"
                     />
                   </div>
+                  {(selectedGroup || userGroup) && (
+                    <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1 hide-scrollbar">
+                      <button
+                        onClick={() => setFilterByGroup(!filterByGroup)}
+                        className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold transition-all border ${
+                          filterByGroup 
+                            ? 'bg-tg-button text-tg-buttonText border-tg-button shadow-sm' 
+                            : 'bg-tg-secondaryBg text-tg-hint border-[var(--tg-theme-hint-color)] border-opacity-20 hover:text-tg-text'
+                        }`}
+                      >
+                        {loading && filterByGroup ? (
+                          <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-current"></div>
+                        ) : (
+                          <Filter size={12} fill={filterByGroup ? "currentColor" : "none"} />
+                        )}
+                        {selectedGroup ? `УЧИТЕЛЯ ГРУППЫ ${selectedGroup.name}` : `МОИ УЧИТЕЛЯ (${userGroup})`}
+                      </button>
+                    </div>
+                  )}
                   
                   <div className="grid gap-3">
                     {filteredTeachers.map(t => (
@@ -452,7 +512,7 @@ export default function University() {
                         </div>
                       </div>
                     ))}
-                    {filteredTeachers.length === 0 && teacherSearch && (
+                    {filteredTeachers.length === 0 && (teacherSearch || filterByGroup) && (
                       <div className="text-center text-tg-hint py-8">Ничего не найдено</div>
                     )}
                   </div>
