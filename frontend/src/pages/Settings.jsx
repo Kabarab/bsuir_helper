@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useUser } from '../contexts/UserContext';
-import { Settings as SettingsIcon, Save, ChevronLeft, GraduationCap, Search } from 'lucide-react';
+import { Settings as SettingsIcon, Save, ChevronLeft, GraduationCap, Search, Check } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import WebApp from '@twa-dev/sdk';
 
 export default function Settings() {
   const { group, subgroup, studentId, isTeacher, teacherUrlId, englishTeacherId: savedEngId, englishTeacherFio: savedEngFio, updatePreferences } = useUser();
@@ -75,6 +76,7 @@ export default function Settings() {
     if (!isTeacherLocal && !inputGroup.trim()) return;
 
     setIsSaving(true);
+    WebApp.MainButton.showProgress();
     const success = await updatePreferences(
       isTeacherLocal ? null : inputGroup.trim(), 
       isTeacherLocal ? 0 : Number(inputSubgroup), 
@@ -85,7 +87,9 @@ export default function Settings() {
       isTeacherLocal ? null : (selectedEnglishTeacher?.fio || englishTeacherFio)
     );
     setIsSaving(false);
+    WebApp.MainButton.hideProgress();
     if (success) {
+      WebApp.MainButton.hide();
       navigate(-1);
     }
   };
@@ -98,6 +102,29 @@ export default function Settings() {
     return inputGroup !== (group || '') || inputSubgroup !== (subgroup || 0) || inputStudentId !== (studentId || '') || (selectedEnglishTeacher && selectedEnglishTeacher.urlId !== englishTeacherId);
   };
 
+  useEffect(() => {
+    if (hasChanges() && !isSaving) {
+      WebApp.MainButton.setText('СОХРАНИТЬ ИЗМЕНЕНИЯ');
+      WebApp.MainButton.setParams({
+        is_visible: true,
+        is_active: true,
+        color: '#31b545', // Emerald/Green color for save
+        text_color: '#ffffff'
+      });
+    } else {
+      WebApp.MainButton.hide();
+    }
+  }, [isTeacherLocal, selectedTeacher, inputGroup, inputSubgroup, inputStudentId, selectedEnglishTeacher, isSaving]);
+
+  useEffect(() => {
+    const callback = () => handleSave();
+    WebApp.MainButton.onClick(callback);
+    return () => {
+      WebApp.MainButton.offClick(callback);
+      WebApp.MainButton.hide();
+    };
+  }, [handleSave]);
+
   return (
     <div className="p-4 relative min-h-[calc(100vh-4rem)] flex flex-col bg-tg-bg text-tg-text">
       <div className="flex items-center gap-3 mb-6">
@@ -107,10 +134,26 @@ export default function Settings() {
         >
           <ChevronLeft size={24} />
         </button>
-        <h1 className="text-2xl font-bold flex items-center gap-2">
+        <h1 className="text-2xl font-bold flex items-center gap-2 flex-1">
           <SettingsIcon size={28} className="text-tg-button" />
           Настройки
         </h1>
+        {hasChanges() && (
+          <button 
+            onClick={handleSave}
+            disabled={isSaving}
+            className="p-2.5 bg-emerald-500 text-white rounded-xl shadow-lg active:scale-95 transition-all flex items-center gap-2 font-bold text-sm"
+          >
+            {isSaving ? (
+              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+            ) : (
+              <>
+                <Check size={20} />
+                Сохранить
+              </>
+            )}
+          </button>
+        )}
       </div>
 
       <div className="bg-tg-secondaryBg p-5 rounded-3xl shadow-sm border border-tg-hint/10 mb-6">
