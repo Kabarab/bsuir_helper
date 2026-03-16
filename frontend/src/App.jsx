@@ -31,7 +31,7 @@ function App() {
   return (
     <UserProvider>
       <Router>
-        <div className="h-screen overflow-y-auto bg-tg-bg text-tg-text overscroll-none">
+        <div className="h-screen overflow-y-auto overflow-x-hidden bg-tg-bg text-tg-text overscroll-none">
           <AuthWrapper>
             <div className="pb-24">
               <Routes>
