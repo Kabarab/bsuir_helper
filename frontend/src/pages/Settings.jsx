@@ -73,7 +73,6 @@ export default function Settings() {
 
   const handleSave = async () => {
     if (!isTeacherLocal && !inputGroup.trim()) return;
-    if (isTeacherLocal && !selectedTeacher && !teacherUrlId) return;
 
     setIsSaving(true);
     const success = await updatePreferences(
@@ -295,7 +294,7 @@ export default function Settings() {
 
       <button 
         onClick={handleSave}
-        disabled={isSaving || !hasChanges() || (!isTeacherLocal && !inputGroup.trim()) || (isTeacherLocal && !selectedTeacher && !teacherUrlId)}
+        disabled={isSaving || !hasChanges() || (!isTeacherLocal && !inputGroup.trim())}
         className="w-full py-4 bg-tg-button text-tg-buttonText font-bold rounded-2xl mt-auto active:scale-[0.98] transition-all shadow-lg shadow-tg-button/30 text-base flex justify-center items-center gap-2 disabled:opacity-50 disabled:shadow-none"
       >
         {isSaving ? (

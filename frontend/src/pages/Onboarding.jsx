@@ -16,11 +16,10 @@ export default function Onboarding() {
 
   const handleSave = async () => {
     if (!isTeacher && !inputGroup.trim()) return;
-    if (isTeacher && !selectedTeacher) return;
 
     setIsLoading(true);
     if (isTeacher) {
-      await updatePreferences(null, 0, null, true, selectedTeacher.urlId);
+      await updatePreferences(null, 0, null, true, selectedTeacher?.urlId || null);
     } else {
       await updatePreferences(inputGroup.trim(), 0, inputStudentId.trim(), false, null);
     }
@@ -167,7 +166,7 @@ export default function Onboarding() {
 
           <button 
             onClick={handleSave}
-            disabled={(isTeacher ? !selectedTeacher : !inputGroup.trim()) || isLoading}
+            disabled={(!isTeacher && !inputGroup.trim()) || isLoading}
             className="w-full bg-tg-button text-tg-buttonText p-4 rounded-2xl font-bold text-lg flex justify-center items-center gap-2 shadow-lg hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 disabled:active:scale-100"
           >
             {isLoading ? (
