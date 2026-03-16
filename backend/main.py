@@ -468,7 +468,8 @@ async def grades(telegram_id: int, db: AsyncSession = Depends(get_db)):
                 else:
                     val = m
                 
-                if val:
+                if val is not None:
+
                     try:
                         is_str = isinstance(val, str)
                         clean_val = val.strip() if is_str else val
