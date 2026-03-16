@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { CalendarDays, ChevronLeft, Clock, Calendar as CalendarIcon, List } from 'lucide-react';
-import { format, addDays, isSameDay, getDay, differenceInCalendarWeeks } from 'date-fns';
+import { format, addDays, subDays, isSameDay, getDay, differenceInCalendarWeeks } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { getMinskNow } from '../utils/minskTime';
 
@@ -20,8 +20,9 @@ import { getFaculties, getSpecialities, getActiveSpecialities, getCourses, getRa
 import { useUser } from '../contexts/UserContext';
 
 export default function University() {
-  const { group: userGroup } = useUser();
+  const { group: userGroup, subgroup: userSubgroup } = useUser();
   const location = useLocation();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('teachers'); // teachers, faculties, groups, rating
   
   // Teachers data
@@ -51,6 +52,42 @@ export default function University() {
   const [selectedSubgroup, setSelectedSubgroup] = useState(0); // 0 = all, 1 = first, 2 = second
   const daysRef = useRef(null);
   const scrollContainerRef = useRef(null);
+  const [expandedLessonId, setExpandedLessonId] = useState(null);
+
+  // Helper to find next/prev occurrence in schedule
+  const findOccurrence = (direction, subjectTitle, typeAbbrev, fromDate, targetSchedule, targetGroups = []) => {
+    if (!targetSchedule?.schedules) return null;
+    
+    let currentDate = direction === 'next' ? addDays(fromDate, 1) : subDays(fromDate, 1);
+    const maxSearchDays = 30;
+    
+    for (let i = 0; i < maxSearchDays; i++) {
+        const dayIndex = getDay(currentDate);
+        const dayName = ["Воскресенье", "Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота"][dayIndex];
+        const weekNum = getWeekNumberForDate(currentDate);
+        
+        if (targetSchedule.schedules[dayName]) {
+          const foundLesson = targetSchedule.schedules[dayName].find(l => {
+             // If we have target groups (teacher view), match at least one group
+             if (targetGroups.length > 0) {
+               const lessonGroupNames = l.studentGroups?.map(sg => sg.name) || [];
+               if (!targetGroups.some(tg => lessonGroupNames.includes(tg))) return false;
+             }
+             
+             return l.subject === subjectTitle && l.lessonTypeAbbrev === typeAbbrev;
+          });
+          
+          if (foundLesson) {
+            return {
+              date: currentDate,
+              lesson: foundLesson
+            };
+          }
+        }
+        currentDate = direction === 'next' ? addDays(currentDate, 1) : subDays(currentDate, 1);
+    }
+    return null;
+  };
 
   useEffect(() => {
     const timer = setInterval(() => setNow(getMinskNow()), 60000);
@@ -648,7 +685,8 @@ export default function University() {
                                     
                                     {/* Card */}
                                     <div 
-                                      className={`w-[calc(100%-3rem)] md:w-[calc(50%-2.5rem)] rounded-2xl p-4 shadow-sm border border-opacity-10 relative overflow-hidden transition-all hover:shadow-md hover:-translate-y-1 backdrop-blur-md ${isPast ? 'bg-tg-secondaryBg border-[var(--tg-theme-hint-color)] opacity-60' : `${colors.bg} bg-opacity-10 ${colors.border} shadow-lg scale-[1.01]`}`}
+                                      onClick={() => setExpandedLessonId(expandedLessonId === (lesson.pseudoId || idx) ? null : (lesson.pseudoId || idx))}
+                                      className={`w-[calc(100%-3rem)] md:w-[calc(50%-2.5rem)] rounded-2xl p-4 shadow-sm border border-opacity-10 relative overflow-hidden transition-all cursor-pointer hover:shadow-md hover:-translate-y-1 backdrop-blur-md ${isPast ? 'bg-tg-secondaryBg border-[var(--tg-theme-hint-color)] opacity-60' : `${colors.bg} bg-opacity-10 ${colors.border} shadow-lg scale-[1.01]`}`}
                                     >
                                       {/* Progress fill overlay */}
                                       {isActive && (
@@ -711,6 +749,72 @@ export default function University() {
                                                 {lesson.note}
                                               </span>
                                             )}
+                                          </div>
+                                        </div>
+                                        
+                                        {/* Expanded details */}
+                                        <div className={`grid transition-all duration-300 ease-in-out ${expandedLessonId === (lesson.pseudoId || idx) ? 'grid-rows-[1fr] opacity-100 mt-2' : 'grid-rows-[0fr] opacity-0 mt-0 pointer-events-none'}`}>
+                                          <div className="overflow-hidden">
+                                            <div className="flex flex-col gap-3 pt-3 border-t border-[var(--tg-theme-hint-color)] border-opacity-10">
+                                              {/* Groups Info (for teachers) */}
+                                              {lesson.studentGroups && lesson.studentGroups.length > 0 && (
+                                                <div className="flex flex-col gap-2">
+                                                  <span className="text-[10px] font-black uppercase text-tg-hint tracking-wider">Группы</span>
+                                                  <div className="flex flex-wrap gap-2">
+                                                    {lesson.studentGroups.map((g, i) => (
+                                                      <div 
+                                                        key={i} 
+                                                        onClick={(e) => {
+                                                          e.stopPropagation();
+                                                          // Reset selections and navigate to group tab
+                                                          setActiveTab('groups');
+                                                          setSelectedGroup({ name: g.name });
+                                                          loadGroupSchedule(g.name);
+                                                        }}
+                                                        className="flex items-center gap-2 bg-tg-bg/50 px-3 py-2 rounded-xl border border-[var(--tg-theme-hint-color)] border-opacity-5 cursor-pointer hover:bg-tg-bg transition-colors active:scale-[0.98]"
+                                                      >
+                                                        <Users size={14} className="text-tg-button opacity-70" />
+                                                        <span className="text-xs font-bold text-tg-text">{g.name}</span>
+                                                        <ChevronRight size={12} className="text-tg-hint opacity-40" />
+                                                      </div>
+                                                    ))}
+                                                  </div>
+                                                </div>
+                                              )}
+
+                                              {/* Prev / Next occurrences */}
+                                              {(() => {
+                                                const renderOccurrence = (occ, label) => {
+                                                  if (!occ) return (
+                                                    <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-tg-bg/30 border border-tg-hint/10 flex-1">
+                                                       <span className="text-[9px] uppercase font-black text-tg-hint/70 mb-0.5 text-center">{label}</span>
+                                                       <span className="text-xs font-medium text-tg-hint">Нет данных</span>
+                                                    </div>
+                                                  );
+                                                  return (
+                                                    <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-tg-bg/50 border border-tg-hint/10 flex-1 cursor-pointer hover:bg-tg-bg transition-colors"
+                                                         onClick={(e) => { e.stopPropagation(); setSelectedDate(occ.date); }}>
+                                                       <span className="text-[9px] uppercase font-black text-tg-hint mb-0.5 text-center">{label}</span>
+                                                       <span className="text-xs font-bold text-tg-text">{format(occ.date, 'd MMM', { locale: ru })}</span>
+                                                       <span className="text-[10px] font-medium text-tg-hint">{occ.lesson.startLessonTime}</span>
+                                                    </div>
+                                                  );
+                                                };
+                                                
+                                                const isExpanded = expandedLessonId === (lesson.pseudoId || idx);
+                                                // Compute only when expanded
+                                                const groupNames = lesson.studentGroups?.map(g => g.name) || [];
+                                                const prevOcc = isExpanded ? findOccurrence('prev', lesson.subject, lesson.lessonTypeAbbrev, selectedDate, teacherSchedule, groupNames) : null;
+                                                const nextOcc = isExpanded ? findOccurrence('next', lesson.subject, lesson.lessonTypeAbbrev, selectedDate, teacherSchedule, groupNames) : null;
+                                                
+                                                return (
+                                                  <div className="flex items-stretch gap-2 mt-1">
+                                                     {renderOccurrence(prevOcc, "Прошлая")}
+                                                     {renderOccurrence(nextOcc, "Следующая")}
+                                                  </div>
+                                                );
+                                              })()}
+                                            </div>
                                           </div>
                                         </div>
                                       </div>
@@ -931,7 +1035,8 @@ export default function University() {
                                     
                                     {/* Card */}
                                     <div 
-                                      className={`w-[calc(100%-3rem)] md:w-[calc(50%-2.5rem)] rounded-2xl p-4 shadow-sm border border-opacity-10 relative overflow-hidden transition-all hover:shadow-md hover:-translate-y-1 backdrop-blur-md ${isPast ? 'bg-tg-secondaryBg border-[var(--tg-theme-hint-color)] opacity-60' : `${colors.bg} bg-opacity-10 ${colors.border} shadow-lg scale-[1.01]`}`}
+                                      onClick={() => setExpandedLessonId(expandedLessonId === (lesson.pseudoId || idx) ? null : (lesson.pseudoId || idx))}
+                                      className={`w-[calc(100%-3rem)] md:w-[calc(50%-2.5rem)] rounded-2xl p-4 shadow-sm border border-opacity-10 relative overflow-hidden transition-all cursor-pointer hover:shadow-md hover:-translate-y-1 backdrop-blur-md ${isPast ? 'bg-tg-secondaryBg border-[var(--tg-theme-hint-color)] opacity-60' : `${colors.bg} bg-opacity-10 ${colors.border} shadow-lg scale-[1.01]`}`}
                                     >
                                       {/* Progress fill overlay */}
                                       {isActive && (
@@ -991,6 +1096,76 @@ export default function University() {
                                                 {lesson.note}
                                               </span>
                                             )}
+                                          </div>
+                                        </div>
+                                        
+                                        {/* Expanded details */}
+                                        <div className={`grid transition-all duration-300 ease-in-out ${expandedLessonId === (lesson.pseudoId || idx) ? 'grid-rows-[1fr] opacity-100 mt-2' : 'grid-rows-[0fr] opacity-0 mt-0 pointer-events-none'}`}>
+                                          <div className="overflow-hidden">
+                                            <div className="flex flex-col gap-3 pt-3 border-t border-[var(--tg-theme-hint-color)] border-opacity-10">
+                                              {/* Teachers Info */}
+                                              {lesson.employees && lesson.employees.length > 0 && (
+                                                <div className="flex flex-col gap-2">
+                                                  <span className="text-[10px] font-black uppercase text-tg-hint tracking-wider">Преподаватели</span>
+                                                  <div className="flex flex-col gap-2">
+                                                    {lesson.employees.map((emp, i) => (
+                                                      <div 
+                                                        key={i} 
+                                                        onClick={(e) => {
+                                                          e.stopPropagation();
+                                                          if (emp.urlId) {
+                                                            setActiveTab('teachers');
+                                                            setSelectedTeacher(emp);
+                                                            loadTeacherSchedule(emp.urlId);
+                                                            setExpandedLessonId(null);
+                                                          }
+                                                        }}
+                                                        className="flex items-center gap-2.5 bg-tg-bg/50 p-2 rounded-xl border border-[var(--tg-theme-hint-color)] border-opacity-5 cursor-pointer hover:bg-tg-bg transition-colors active:scale-[0.98]"
+                                                      >
+                                                        <div className="w-8 h-8 rounded-full bg-tg-button/20 text-tg-button flex items-center justify-center font-bold text-xs shrink-0">
+                                                          {emp.lastName?.[0] || '?'}
+                                                        </div>
+                                                        <div className="flex flex-col flex-1">
+                                                          <span className="text-xs font-bold text-tg-text">{emp.lastName} {emp.firstName} {emp.middleName}</span>
+                                                        </div>
+                                                        <ChevronRight size={14} className="text-tg-hint opacity-50" />
+                                                      </div>
+                                                    ))}
+                                                  </div>
+                                                </div>
+                                              )}
+
+                                              {/* Prev / Next occurrences */}
+                                              {(() => {
+                                                const renderOccurrence = (occ, label) => {
+                                                  if (!occ) return (
+                                                    <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-tg-bg/30 border border-tg-hint/10 flex-1">
+                                                       <span className="text-[9px] uppercase font-black text-tg-hint/70 mb-0.5 text-center">{label}</span>
+                                                       <span className="text-xs font-medium text-tg-hint">Нет данных</span>
+                                                    </div>
+                                                  );
+                                                  return (
+                                                    <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-tg-bg/50 border border-tg-hint/10 flex-1 cursor-pointer hover:bg-tg-bg transition-colors"
+                                                         onClick={(e) => { e.stopPropagation(); setSelectedDate(occ.date); }}>
+                                                       <span className="text-[9px] uppercase font-black text-tg-hint mb-0.5 text-center">{label}</span>
+                                                       <span className="text-xs font-bold text-tg-text">{format(occ.date, 'd MMM', { locale: ru })}</span>
+                                                       <span className="text-[10px] font-medium text-tg-hint">{occ.lesson.startLessonTime}</span>
+                                                    </div>
+                                                  );
+                                                };
+                                                
+                                                const isExpanded = expandedLessonId === (lesson.pseudoId || idx);
+                                                const prevOcc = isExpanded ? findOccurrence('prev', lesson.subject, lesson.lessonTypeAbbrev, selectedDate, groupSchedule) : null;
+                                                const nextOcc = isExpanded ? findOccurrence('next', lesson.subject, lesson.lessonTypeAbbrev, selectedDate, groupSchedule) : null;
+                                                
+                                                return (
+                                                  <div className="flex items-stretch gap-2 mt-1">
+                                                     {renderOccurrence(prevOcc, "Прошлая")}
+                                                     {renderOccurrence(nextOcc, "Следующая")}
+                                                  </div>
+                                                );
+                                              })()}
+                                            </div>
                                           </div>
                                         </div>
                                       </div>

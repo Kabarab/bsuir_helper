@@ -141,7 +141,7 @@ export default function Schedule() {
   };
   
   // Helpers to find next/prev occurrence in schedule
-  const findOccurrence = (direction, subjectTitle, typeAbbrev, fromDate) => {
+  const findOccurrence = (direction, subjectTitle, typeAbbrev, fromDate, targetGroups = []) => {
     if (!schedule?.schedules) return null;
     
     // We'll search up to 30 days in the specified direction
@@ -159,6 +159,11 @@ export default function Schedule() {
             if (subgroup !== 0 && l.numSubgroup !== 0 && l.numSubgroup !== subgroup) return false;
             // Check week match
             if (l.weekNumber && l.weekNumber.length > 0 && !l.weekNumber.includes(weekNum)) return false;
+            // Check group match if in teacher mode
+            if (isTeacher && targetGroups.length > 0) {
+               const lessonGroupNames = l.studentGroups?.map(g => g.name) || [];
+               if (!targetGroups.some(tg => lessonGroupNames.includes(tg))) return false;
+            }
             
             return l.subject === subjectTitle && l.lessonTypeAbbrev === typeAbbrev;
          });
@@ -1044,8 +1049,9 @@ export default function Schedule() {
                                   
                                   const isExpanded = expandedLessonId === (lesson.pseudoId || idx);
                                   // Compute only when expanded
-                                  const prevOcc = isExpanded ? findOccurrence('prev', lesson.subject, lesson.lessonTypeAbbrev, selectedDate) : null;
-                                  const nextOcc = isExpanded ? findOccurrence('next', lesson.subject, lesson.lessonTypeAbbrev, selectedDate) : null;
+                                  const currentGroups = lesson.studentGroups?.map(g => g.name) || [];
+                                  const prevOcc = isExpanded ? findOccurrence('prev', lesson.subject, lesson.lessonTypeAbbrev, selectedDate, currentGroups) : null;
+                                  const nextOcc = isExpanded ? findOccurrence('next', lesson.subject, lesson.lessonTypeAbbrev, selectedDate, currentGroups) : null;
                                   
                                   return (
                                     <div className="flex items-stretch gap-2 mt-1">
