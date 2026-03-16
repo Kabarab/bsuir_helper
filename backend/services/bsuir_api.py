@@ -228,6 +228,7 @@ def get_mock_grades():
             {"subject": "ОТИ", "marks": [{"val": 9, "date": "15.02.2026"}]},
             {"subject": "Физика", "marks": [{"val": 8, "date": "20.02.2026"}]},
             {"subject": "Математика", "marks": [{"val": 10, "date": "25.02.2026"}]},
-        ]
+        ],
+        "is_real": False
     }
 

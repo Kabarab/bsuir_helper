@@ -400,15 +400,15 @@ async def grades(telegram_id: int, db: AsyncSession = Depends(get_db)):
     if not user or not user.bsuir_id or not user.bsuir_group:
         return get_mock_grades() # Fallback to mock if no ID or group
     
-    # 1. Use high-speed indexed group lookup
     user_group_info = await get_group_info(user.bsuir_group)
     if not user_group_info:
-        return get_mock_grades()
+        # If user has ID but no group info found, don't show mock data
+        return {"average": 0, "rating": 0, "subjects": [], "is_real": False, "error": "Group info not found"}
 
     sdef = user_group_info.get("specialityDepartmentEducationFormId")
     course = user_group_info.get("course")
     if not sdef or not course:
-        return get_mock_grades()
+        return {"average": 0, "rating": 0, "subjects": [], "is_real": False, "error": "Incomplete group info"}
 
     # 2. Parallelize: rating list AND student's own marks structure
     rating_task = fetch_group_rating(sdef, course)
@@ -417,7 +417,7 @@ async def grades(telegram_id: int, db: AsyncSession = Depends(get_db)):
     rating_list, subjects_data = await asyncio.gather(rating_task, marks_task)
 
     if isinstance(rating_list, dict) and "error" in rating_list:
-        return get_mock_grades()
+        return {"average": 0, "rating": 0, "subjects": [], "is_real": False, "error": rating_list["error"]}
     
     # 3. Find ranking
     if isinstance(rating_list, list):

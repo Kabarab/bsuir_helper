@@ -62,6 +62,13 @@ export default function Study() {
     axios.get(`/api/bsuir/grades/${telegramId}`)
       .then(res => {
         const data = res.data;
+        
+        // Don't overwrite real data with mock fallback from backend
+        if (!data.is_real) {
+          console.log("Backend returned mock data, skipping UI update.");
+          return;
+        }
+
         setGrades(data);
         localStorage.setItem('study_grades', JSON.stringify(data));
         
