@@ -434,21 +434,35 @@ async def grades(telegram_id: int, db: AsyncSession = Depends(get_db)):
 
     # 4. Process subjects
     subjects = []
-    if subjects_data.get("success") and isinstance(subjects_data.get("data"), list):
-        seen_subjects = {} # subj_name -> list of marks
-        for lesson in subjects_data["data"]:
+    raw_data = subjects_data.get("data")
+    lessons_list = []
+    if isinstance(raw_data, list):
+        lessons_list = raw_data
+    elif isinstance(raw_data, dict):
+        lessons_list = raw_data.get("lessons", [])
+        if not lessons_list and raw_data: # If it's a single object that's not a list but holds the data
+            lessons_list = [raw_data]
+
+    if subjects_data.get("success") and lessons_list:
+        seen_subjects = {} # subj_name -> list of {val, date}
+        for lesson in lessons_list:
+            if not isinstance(lesson, dict): continue
+            
             subj_name = (lesson.get("lessonNameAbbrev") or 
                          lesson.get("subject") or 
                          lesson.get("subjectAbbrev") or 
                          "Unknown")
+            
+            date_str = lesson.get("dateString")
             
             raw_marks = lesson.get("marks", [])
             if not isinstance(raw_marks, list):
                 raw_marks = [raw_marks] if raw_marks else []
             
             # Extract numeric marks from mark objects
-            marks_list = []
+            marks_with_dates = []
             for m in raw_marks:
+                val = None
                 if isinstance(m, dict):
                     val = m.get("mark")
                 else:
@@ -456,27 +470,29 @@ async def grades(telegram_id: int, db: AsyncSession = Depends(get_db)):
                 
                 if val:
                     try:
-                        # Handle potential strings with spaces
                         is_str = isinstance(val, str)
                         clean_val = val.strip() if is_str else val
                         if is_str and not clean_val.isdigit():
                             continue
                         num = int(clean_val)
                         if 1 <= num <= 10:
-                            marks_list.append(num)
+                            marks_with_dates.append({"val": num, "date": date_str})
                     except (ValueError, TypeError):
                         continue
             
-            if subj_name and marks_list:
+            if subj_name and marks_with_dates:
                 if subj_name not in seen_subjects:
                     seen_subjects[subj_name] = []
-                seen_subjects[subj_name].extend(marks_list)
+                seen_subjects[subj_name].extend(marks_with_dates)
 
-        for name, marks in seen_subjects.items():
+        for name, marks_in_subj in seen_subjects.items():
+            # Sort marks by value descending
+            sorted_marks = sorted(marks_in_subj, key=lambda x: x["val"], reverse=True)
             subjects.append({
                 "subject": name,
-                "marks": sorted(marks, reverse=True)
+                "marks": sorted_marks
             })
+
 
     grades_data = {
         "average": average,

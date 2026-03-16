@@ -109,10 +109,14 @@ export async function getStudentGrades(studentCardNumber) {
         processedIds.add(l.id);
 
         const sub = l.lessonNameAbbrev || l.subject || l.subjectAbbrev || l.name || 'Unknown';
+        const date = l.dateString || null;
         const ms = extractMarks(l.marks);
+        
         if (ms.length > 0) {
           if (!resMap[sub]) resMap[sub] = [];
-          resMap[sub].push(...ms);
+          // Wrap marks in objects with date
+          const marksWithDates = ms.map(val => ({ val, date }));
+          resMap[sub].push(...marksWithDates);
         }
       });
       
@@ -162,12 +166,16 @@ export async function getStudentGrades(studentCardNumber) {
                       
     const subject = subjectNode?.textContent?.trim() || 'Unknown';
     
+    const dateNode = node.getElementsByTagNameNS('*', 'dateString')[0] ||
+                   node.getElementsByTagName('dateString')[0];
+    const date = dateNode?.textContent?.trim() || null;
+    
     // Find marks tags strictly within this node's immediate children to avoid aggregation
     const marksNodes = Array.from(node.childNodes).filter(child => 
       child.nodeType === 1 && (child.localName === 'marks' || child.nodeName === 'marks')
     );
     
-    const marksList = [];
+    const rawMarksList = [];
     
     const collectLeafMarks = (mNode) => {
       // If it's a leaf node with text content, it's a mark
@@ -175,7 +183,7 @@ export async function getStudentGrades(studentCardNumber) {
         const text = mNode.textContent?.trim();
         if (text && /^\d+$/.test(text) && text.length <= 2) {
           const val = parseInt(text, 10);
-          if (!isNaN(val)) marksList.push(val);
+          if (!isNaN(val)) rawMarksList.push(val);
         }
       } else {
         // Recurse into nested <marks>
@@ -189,15 +197,17 @@ export async function getStudentGrades(studentCardNumber) {
 
     marksNodes.forEach(collectLeafMarks);
     
-    if (marksList.length > 0) {
+    if (rawMarksList.length > 0) {
       if (!resultsMap[subject]) resultsMap[subject] = [];
-      resultsMap[subject].push(...marksList);
+      const marksWithDates = rawMarksList.map(val => ({ val, date }));
+      resultsMap[subject].push(...marksWithDates);
     }
+
   }
   
   return Object.entries(resultsMap).map(([subject, marks]) => ({
     subject,
-    marks
+    marks: Array.isArray(marks) && typeof marks[0] === 'object' ? marks : marks.map(m => ({ val: m, date: null }))
   }));
 }
 

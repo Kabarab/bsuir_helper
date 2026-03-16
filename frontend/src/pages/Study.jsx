@@ -4,6 +4,8 @@ import { BookOpen, Star, GraduationCap, Settings, Info, Search, Trophy, Loader2 
 import { useUser } from '../contexts/UserContext';
 import { useNavigate } from 'react-router-dom';
 import { getStudentGrades, fetchStudentRating } from '../utils/bsuirApi';
+import WebApp from '@twa-dev/sdk';
+
 
 export default function Study() {
   const { group, telegramId, studentId, isTeacher, updatePreferences } = useUser();
@@ -41,11 +43,15 @@ export default function Study() {
     
     // Priority 2: Local calculation from xmlMarks
     if (xmlMarks && xmlMarks.length > 0) {
-      const allMarks = xmlMarks.flatMap(m => m.marks || []);
+      const allMarks = xmlMarks.flatMap(m => m.marks || [])
+        .map(m => typeof m === 'object' ? m.val : m)
+        .filter(n => typeof n === 'number');
+        
       if (allMarks.length > 0) {
         return allMarks.reduce((a, b) => a + b, 0) / allMarks.length;
       }
     }
+
     
     return 0;
   }, [ratingData, xmlMarks]);
@@ -289,16 +295,32 @@ export default function Study() {
                   {xmlMarks.map((m, idx) => (
                     <div key={idx} className="flex justify-between items-center p-3 bg-tg-bg rounded-xl border border-tg-hint border-opacity-10">
                       <span className="text-sm font-medium">{m.subject}</span>
-                      <div className="flex gap-1.5 overflow-x-auto max-w-[50%] justify-end">
-                        {m.marks.length > 0 ? m.marks.map((mark, midx) => (
-                          <span key={midx} className={`w-8 h-8 flex items-center justify-center rounded-lg text-xs font-bold border ${
-                            mark >= 8 ? 'bg-green-500/10 text-green-600 border-green-500/20' : 
-                            mark >= 4 ? 'bg-tg-button/10 text-tg-button border-tg-button/20' : 
-                            'bg-red-500/10 text-red-600 border-red-500/20'
-                          }`}>
-                            {mark}
-                          </span>
-                        )) : (
+                      <div className="flex gap-1.5 overflow-x-auto max-w-[55%] justify-end hide-scrollbar">
+                        {m.marks.length > 0 ? m.marks.map((mark, midx) => {
+                          const val = typeof mark === 'object' ? mark.val : mark;
+                          const date = typeof mark === 'object' ? mark.date : null;
+                          return (
+                            <div key={midx} className="flex flex-col items-center gap-1">
+                              <span 
+                                title={date ? `Выставлена: ${date}` : ''}
+                                onClick={() => date && WebApp.showConfirm(`Оценка ${val} выставлена ${date}`)}
+                                className={`w-9 h-9 flex items-center justify-center rounded-xl text-xs font-black border transition-all active:scale-90 ${
+                                  val >= 8 ? 'bg-green-500/10 text-green-600 border-green-500/20' : 
+                                  val >= 4 ? 'bg-tg-button/10 text-tg-button border-tg-button/20' : 
+                                  'bg-red-500/10 text-red-600 border-red-500/20'
+                                }`}
+                              >
+                                {val}
+                              </span>
+                              {date && (
+                                <span className="text-[7px] text-tg-hint opacity-60 font-medium whitespace-nowrap">
+                                  {date.split('.').slice(0, 2).join('.')}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        }) : (
+
                           <span className="text-[10px] text-tg-hint italic">нет оценок</span>
                         )}
                       </div>
