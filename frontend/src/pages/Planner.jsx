@@ -25,7 +25,7 @@ export default function Planner() {
 
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [currentTask, setCurrentTask] = useState({ id: null, title: '', description: '', priority: 'medium', dueDate: '', linkedEventId: null, reminders: [] });
+  const [currentTask, setCurrentTask] = useState({ id: null, title: '', description: '', priority: 'medium', due_date: '', linkedEventId: null, reminders: [] });
 
   const fetchEventsForDate = (dateStr) => {
     if (!dateStr) return;
@@ -63,10 +63,10 @@ export default function Planner() {
   }, [telegramId, group]);
 
   useEffect(() => {
-    if (currentTask.dueDate) {
-      fetchEventsForDate(currentTask.dueDate);
+    if (currentTask.due_date) {
+      fetchEventsForDate(currentTask.due_date);
     }
-  }, [currentTask.dueDate]);
+  }, [currentTask.due_date]);
 
   const handleOpenModal = (task = null) => {
     if (task) {
@@ -80,7 +80,7 @@ export default function Planner() {
       }
       setCurrentTask({ ...task, reminders: Array.isArray(reminders) ? reminders : [] });
     } else {
-      setCurrentTask({ id: null, title: '', description: '', priority: 'medium', dueDate: '', linkedEventId: null, reminders: [] });
+      setCurrentTask({ id: null, title: '', description: '', priority: 'medium', due_date: '', linkedEventId: null, reminders: [] });
     }
     setIsModalOpen(true);
   };
@@ -138,12 +138,12 @@ export default function Planner() {
     if (filter === 'completed') return task.is_completed;
     return true;
   }).sort((a, b) => {
-    if (sort === 'oldest') return (a.created_at || a.createdAt || 0) - (b.created_at || b.createdAt || 0);
+    if (sort === 'oldest') return (a.created_at || 0) - (b.created_at || 0);
     if (sort === 'priority') {
       const pMap = { high: 3, medium: 2, low: 1 };
       return (pMap[b.priority] || 0) - (pMap[a.priority] || 0);
     }
-    return (b.created_at || b.createdAt || 0) - (a.created_at || a.createdAt || 0); // newest default
+    return (b.created_at || 0) - (a.created_at || 0); // newest default
   });
 
   const getPriorityColor = (priority) => {
@@ -215,9 +215,9 @@ export default function Planner() {
                     )}
                     <div className="flex items-center gap-2 mt-2 flex-wrap">
                       <PriorityBadge priority={task.priority} />
-                      {task.dueDate && (
+                      {task.due_date && (
                         <div className="flex items-center gap-1 text-[11px] text-tg-hint bg-tg-bg px-2 py-0.5 rounded-md border border-tg-hint/20">
-                          <Calendar size={12} /> {task.dueDate}
+                          <Calendar size={12} /> {task.due_date}
                         </div>
                       )}
                       {task.linkedEventId && (
@@ -311,15 +311,15 @@ export default function Planner() {
                     <label className="block text-xs font-semibold uppercase text-tg-hint mb-1 flex items-center gap-1"><Calendar size={12}/> Дедлайн</label>
                     <input 
                       type="date"
-                      value={currentTask.dueDate}
-                      onChange={(e) => setCurrentTask({...currentTask, dueDate: e.target.value})}
+                      value={currentTask.due_date || ''}
+                      onChange={(e) => setCurrentTask({...currentTask, due_date: e.target.value})}
                       className="w-full px-3 py-2.5 rounded-xl bg-tg-bg text-tg-text focus:outline-none focus:ring-2 focus:ring-tg-button border border-transparent min-h-[44px]"
                     />
                   </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold uppercase text-tg-hint mb-1">Привязать к паре ({currentTask.dueDate || 'Сегодня'})</label>
+                <label className="block text-xs font-semibold uppercase text-tg-hint mb-1">Привязать к паре ({currentTask.due_date || 'Сегодня'})</label>
                 <select 
                   value={currentTask.linkedEventId || ''}
                   onChange={(e) => setCurrentTask({...currentTask, linkedEventId: e.target.value || null})}
@@ -327,7 +327,7 @@ export default function Planner() {
                 >
                   <option value="">Не привязано</option>
                   {scheduleEvents.map((event, i) => {
-                    const datePart = currentTask.dueDate || getMinskNow().toISOString().split('T')[0];
+                    const datePart = currentTask.due_date || getMinskNow().toISOString().split('T')[0];
                     const id = `${datePart}_${event.startLessonTime}_${event.subject}`;
                     return (
                       <option key={i} value={id}>
