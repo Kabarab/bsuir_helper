@@ -51,14 +51,35 @@ export default function Planner() {
   }, [tasks]);
 
   useEffect(() => {
+    const handleStorage = (e) => {
+      if (e.key === 'bsuir_tasks') {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          setTasks(Array.isArray(parsed) ? parsed : []);
+        } catch (err) { console.error(err); }
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
+
+  const refreshTasks = () => {
     if (!telegramId) return;
-    
     axios.get(`/api/tasks/${telegramId}`)
       .then(res => {
-        setTasks(Array.isArray(res.data) ? res.data : []);
+        const data = Array.isArray(res.data) ? res.data : [];
+        setTasks(data);
+        localStorage.setItem('bsuir_tasks', JSON.stringify(data));
       })
-      .catch(console.error);
+      .catch(err => {
+        console.error(err);
+        if (window.Telegram?.WebApp) window.Telegram.WebApp.showAlert("Ошибка при обновлении задач");
+      });
+  };
 
+  useEffect(() => {
+    if (!telegramId) return;
+    refreshTasks();
     fetchEventsForDate(getMinskNow().toISOString().split('T')[0]);
   }, [telegramId, group]);
 
@@ -101,17 +122,24 @@ export default function Planner() {
       axios.put(`/api/tasks/${currentTask.id}`, taskPayload)
         .then(res => {
           setTasks(prev => prev.map(t => t.id == currentTask.id ? res.data : t));
+          handleCloseModal();
         })
-        .catch(console.error);
+        .catch(err => {
+          console.error(err);
+          if (window.Telegram?.WebApp) window.Telegram.WebApp.showAlert("Не удалось сохранить изменения");
+        });
     } else {
       const taskToCreate = { ...taskPayload, created_at: Date.now() };
       axios.post(`/api/tasks/${telegramId}`, taskToCreate)
         .then(res => {
           setTasks(prev => [res.data, ...prev]);
+          handleCloseModal();
         })
-        .catch(console.error);
+        .catch(err => {
+          console.error(err);
+          if (window.Telegram?.WebApp) window.Telegram.WebApp.showAlert("Не удалось добавить задачу");
+        });
     }
-    handleCloseModal();
   };
 
   const toggleTask = (id) => {
@@ -122,15 +150,31 @@ export default function Planner() {
       .then(res => {
         setTasks(prev => prev.map(t => t.id == id ? res.data : t));
       })
-      .catch(console.error);
+      .catch(err => {
+        console.error(err);
+        if (window.Telegram?.WebApp) window.Telegram.WebApp.showAlert("Не удалось обновить статус");
+      });
   };
 
   const deleteTask = (id) => {
+    if (window.Telegram?.WebApp) {
+      window.Telegram.WebApp.showConfirm("Удалить задачу?", (confirmed) => {
+        if (confirmed) performDelete(id);
+      });
+    } else {
+      if (window.confirm("Удалить задачу?")) performDelete(id);
+    }
+  };
+
+  const performDelete = (id) => {
     axios.delete(`/api/tasks/${id}`)
       .then(() => {
         setTasks(prev => prev.filter(t => t.id != id));
       })
-      .catch(console.error);
+      .catch(err => {
+        console.error(err);
+        if (window.Telegram?.WebApp) window.Telegram.WebApp.showAlert("Не удалось удалить задачу");
+      });
   };
 
   const filteredTasks = (Array.isArray(tasks) ? tasks : []).filter(task => {
@@ -164,7 +208,15 @@ export default function Planner() {
   return (
     <div className="p-4 relative min-h-[calc(100vh-4rem)] bg-tg-bg">
       <div className="sticky top-0 z-10 bg-tg-bg/90 backdrop-blur-md pt-2 pb-4">
-        <h1 className="text-2xl font-bold mb-4 text-tg-text">Ваши задачи</h1>
+        <div className="flex justify-between items-center mb-4">
+          <h1 className="text-2xl font-bold text-tg-text">Ваши задачи</h1>
+          <button 
+            onClick={refreshTasks}
+            className="p-2 bg-tg-secondaryBg text-tg-button rounded-xl border border-tg-button/10 active:scale-95 transition-all"
+          >
+            <PlusCircle size={20} className="rotate-45" /> 
+          </button>
+        </div>
         
         {/* Controls */}
         <div className="flex flex-col gap-3">

@@ -535,14 +535,25 @@ export default function Schedule() {
     axios.post(`/api/tasks/${telegramId}`, taskToCreate)
       .then(res => {
         setPlannerTasks(prev => [res.data, ...(prev || [])]);
-        // Also update localStorage for cross-page sync
-        const currentTasks = Array.isArray(plannerTasks) ? plannerTasks : [];
-        const updated = [res.data, ...currentTasks];
+        
+        // Sync with localStorage
+        const saved = localStorage.getItem('bsuir_tasks');
+        let currentTasks = [];
+        try { currentTasks = JSON.parse(saved) || []; } catch(e){}
+        const updated = [res.data, ...currentTasks.filter(t => t.id != res.data.id)];
         localStorage.setItem('bsuir_tasks', JSON.stringify(updated));
+        
+        // Trigger storage event for other tabs
+        window.dispatchEvent(new Event('storage'));
+
         setIsTaskModalOpen(false);
         setNewTask({ title: '', description: '', priority: 'medium', linkedEventId: null, linkedEventLabel: '', reminders: [] });
+        if (window.Telegram?.WebApp) window.Telegram.WebApp.showAlert("Задача добавлена в планер");
       })
-      .catch(console.error);
+      .catch(err => {
+        console.error(err);
+        if (window.Telegram?.WebApp) window.Telegram.WebApp.showAlert("Не удалось добавить задачу");
+      });
   };
 
   const handleEditEvent = (lesson) => {
