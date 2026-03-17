@@ -10,6 +10,7 @@ from database.core import SessionLocal
 from database.models import User, Task
 from bot.bot import bot
 from services.bsuir_api import fetch_schedule, fetch_current_week
+from services.time_machine import time_machine
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -45,7 +46,7 @@ class NotificationService:
 
     async def process_user_tasks(self, db: AsyncSession, user: User):
         import json
-        now = datetime.now(MINSK_TZ).replace(tzinfo=None)
+        now = time_machine.now(MINSK_TZ).replace(tzinfo=None)
         
         # Find all incomplete tasks for the user instead of querying by threshold in DB
         result = await db.execute(
@@ -134,7 +135,7 @@ class NotificationService:
                         logger.error(f"Failed to send task notification to {user.telegram_id}: {e}")
 
     async def process_user_schedule(self, user: User, current_week: int):
-        now = datetime.now(MINSK_TZ).replace(tzinfo=None)
+        now = time_machine.now(MINSK_TZ).replace(tzinfo=None)
         weekday_map = {0: "Понедельник", 1: "Вторник", 2: "Среда", 3: "Четверг", 4: "Пятница", 5: "Суббота", 6: "Воскресенье"}
         today_name = weekday_map[now.weekday()]
         

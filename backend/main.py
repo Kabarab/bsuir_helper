@@ -23,6 +23,7 @@ import time
 import os
 from datetime import datetime as dt_datetime
 from zoneinfo import ZoneInfo
+from services.time_machine import time_machine
 
 MINSK_TZ = ZoneInfo("Europe/Minsk")
 
@@ -34,8 +35,16 @@ async def health():
 
 @app.get("/api/time")
 async def server_time():
-    now = dt_datetime.now(MINSK_TZ)
+    now = time_machine.now(MINSK_TZ)
     return {"iso": now.isoformat(), "timestamp": now.timestamp()}
+
+@app.post("/api/debug/time")
+async def set_debug_time(data: dict):
+    # Expects {"iso": "2026-03-17T10:00:00"} or {"iso": null} to reset
+    iso_str = data.get("iso")
+    time_machine.set_time(iso_str)
+    now = time_machine.now(MINSK_TZ)
+    return {"status": "ok", "new_time": now.isoformat()}
 
 # --- In-memory grades cache ---
 _grades_cache = {}
