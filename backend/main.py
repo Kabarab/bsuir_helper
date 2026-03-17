@@ -61,6 +61,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.middleware("http")
+async def log_requests(request, call_next):
+    start_time = time.time()
+    response = await call_next(request)
+    duration = time.time() - start_time
+    print(f"DEBUG: {request.method} {request.url.path} | Status: {response.status_code} | Duration: {duration:.3f}s", flush=True)
+    return response
+
 @app.on_event("startup")
 async def startup_event():
     print(f"STARTUP: PORT env = {os.getenv('PORT', 'NOT SET')}", flush=True)

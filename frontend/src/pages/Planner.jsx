@@ -73,8 +73,9 @@ export default function Planner() {
       })
       .catch(err => {
         console.error("Refresh tasks error:", err);
+        const url = err.config?.url || 'unknown url';
         const msg = err.response?.data?.detail || err.message || "Неизвестная ошибка";
-        if (window.Telegram?.WebApp) window.Telegram.WebApp.showAlert(`Ошибка при обновлении задач: ${msg}`);
+        if (window.Telegram?.WebApp) window.Telegram.WebApp.showAlert(`Ошибка [GET ${url}]: ${msg}`);
       });
   };
 
@@ -126,8 +127,9 @@ export default function Planner() {
         })
         .catch(err => {
           console.error(err);
+          const url = err.config?.url || 'unknown url';
           const msg = err.response?.data?.detail || err.message || "Сервер не ответил";
-          if (window.Telegram?.WebApp) window.Telegram.WebApp.showAlert(`Не удалось сохранить изменения: ${msg}`);
+          if (window.Telegram?.WebApp) window.Telegram.WebApp.showAlert(`Ошибка [PUT ${url}]: ${msg}`);
         });
     } else {
       const taskToCreate = { ...taskPayload, created_at: Date.now() };
@@ -138,8 +140,9 @@ export default function Planner() {
         })
         .catch(err => {
           console.error(err);
+          const url = err.config?.url || 'unknown url';
           const msg = err.response?.data?.detail || err.message || "Сервер не ответил";
-          if (window.Telegram?.WebApp) window.Telegram.WebApp.showAlert(`Не удалось добавить задачу: ${msg}`);
+          if (window.Telegram?.WebApp) window.Telegram.WebApp.showAlert(`Ошибка [POST ${url}]: ${msg}`);
         });
     }
   };
