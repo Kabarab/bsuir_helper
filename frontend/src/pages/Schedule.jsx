@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import axios from 'axios';
-import { CalendarDays, ChevronLeft, ChevronRight, Clock, MapPin, Users, Plus, X, List, Calendar as CalendarIcon, Trash2, Settings, Edit2, ClipboardList, MoreVertical, CheckCircle2, Bell } from 'lucide-react';
-import { format, addDays, subDays, startOfWeek, isSameDay, getDay, differenceInCalendarWeeks, parse, addMinutes, startOfDay, endOfDay, differenceInHours, differenceInMonths, differenceInYears } from 'date-fns';
+import { CalendarDays, ChevronLeft, ChevronRight, Clock, MapPin, Users, Plus, X, List, Calendar as CalendarIcon, Trash2, Settings, Edit2, ClipboardList, MoreVertical, CheckCircle2, Bell, LayoutGrid } from 'lucide-react';
+import { format, addDays, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, getDay, differenceInCalendarWeeks, parse, addMinutes, startOfDay, endOfDay, differenceInHours, differenceInMonths, differenceInYears } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
@@ -40,6 +40,14 @@ export default function Schedule() {
     return () => clearInterval(timer);
   }, []);
   const [viewMode, setViewMode] = useState('list'); // 'list' or 'calendar'
+  const [isMonthPickerOpen, setIsMonthPickerOpen] = useState(false);
+  const [viewMonth, setViewMonth] = useState(startOfMonth(getMinskNow()));
+
+  const monthDays = useMemo(() => {
+    const start = startOfWeek(startOfMonth(viewMonth), { weekStartsOn: 1 });
+    const end = endOfWeek(endOfMonth(viewMonth), { weekStartsOn: 1 });
+    return eachDayOfInterval({ start, end });
+  }, [viewMonth]);
 
   const [customPlans, setCustomPlans] = useState(() => {
     try {
@@ -203,7 +211,8 @@ export default function Schedule() {
   const dateStrip = useMemo(() => {
     const dates = [];
     const today = getMinskNow();
-    for (let i = -7; i <= 21; i++) {
+    // Large range to cover most of the semester
+    for (let i = -45; i <= 180; i++) {
        dates.push(addDays(today, i));
     }
     return dates;
@@ -214,11 +223,13 @@ export default function Schedule() {
     const timer = setTimeout(() => {
       if (daysRef.current) {
          const activeEl = daysRef.current.querySelector('.active-date');
-         if (activeEl) activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+         if (activeEl) {
+           activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+         }
       }
     }, 100);
     return () => clearTimeout(timer);
-  }, [dateStrip]);
+  }, [selectedDate, dateStrip]);
 
   // Auto-scroll calendar grid to current time
   useEffect(() => {
@@ -784,7 +795,19 @@ export default function Schedule() {
               onClick={() => setViewMode('calendar')}
               className={`p-1.5 rounded-lg transition-all ${viewMode === 'calendar' ? 'bg-[var(--tg-theme-bg-color)] text-tg-button shadow-sm' : 'text-tg-hint hover:text-tg-text'}`}
             >
-              <CalendarIcon size={18} />
+              <LayoutGrid size={18} />
+            </button>
+            
+            <div className="w-px h-4 bg-[var(--tg-theme-hint-color)] opacity-20 mx-1" />
+            
+            <button 
+              onClick={() => {
+                setViewMonth(startOfMonth(selectedDate));
+                setIsMonthPickerOpen(true);
+              }}
+              className="p-1.5 rounded-lg text-tg-hint hover:text-tg-button transition-all"
+            >
+              <CalendarDays size={18} />
             </button>
           </div>
 
@@ -1588,6 +1611,83 @@ export default function Schedule() {
                   Добавить задачу
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* MONTH PICKER MODAL (календарик) */}
+      {isMonthPickerOpen && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-md" onClick={() => setIsMonthPickerOpen(false)} />
+          <div className="relative bg-tg-secondaryBg w-full max-w-sm rounded-[32px] shadow-2xl overflow-hidden animate-fade-in border border-white/10">
+            {/* Header */}
+            <div className="p-6 pb-4 flex items-center justify-between">
+              <div className="flex flex-col">
+                <span className="text-xs font-black text-tg-button uppercase tracking-widest">{format(viewMonth, 'yyyy')}</span>
+                <h2 className="text-xl font-black text-tg-text capitalize">{format(viewMonth, 'LLLL', { locale: ru })}</h2>
+              </div>
+              <div className="flex gap-1">
+                <button type="button" onClick={() => setViewMonth(prev => subDays(startOfMonth(prev), 1))} className="p-2 hover:bg-tg-bg rounded-full text-tg-text transition-colors"><ChevronLeft size={20} /></button>
+                <button type="button" onClick={() => setViewMonth(prev => addDays(endOfMonth(prev), 1))} className="p-2 hover:bg-tg-bg rounded-full text-tg-text transition-colors"><ChevronRight size={20} /></button>
+              </div>
+            </div>
+
+            {/* Grid */}
+            <div className="px-4 pb-6">
+              <div className="grid grid-cols-7 mb-2">
+                {['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].map(d => (
+                  <div key={d} className="text-center text-[10px] font-black text-tg-hint uppercase py-2">{d}</div>
+                ))}
+              </div>
+              <div className="grid grid-cols-7 gap-1">
+                {monthDays.map((day, i) => {
+                  const isCurrentMonth = isSameMonth(day, viewMonth);
+                  const isSelected = isSameDay(day, selectedDate);
+                  const isToday = isSameDay(day, now);
+                  
+                  return (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => {
+                        setSelectedDate(day);
+                        setIsMonthPickerOpen(false);
+                      }}
+                      className={`relative aspect-square flex items-center justify-center rounded-2xl text-sm font-bold transition-all ${
+                        isSelected 
+                          ? 'bg-tg-button text-tg-buttonText shadow-lg shadow-tg-button/30 scale-110 z-10' 
+                          : isToday
+                            ? 'bg-tg-button/10 text-tg-button border border-tg-button/20'
+                            : isCurrentMonth
+                              ? 'text-tg-text hover:bg-tg-bg text-[14px]'
+                              : 'text-tg-hint opacity-20 text-[12px]'
+                      }`}
+                    >
+                      {format(day, 'd')}
+                      {isToday && !isSelected && <div className="absolute bottom-1.5 w-1 h-1 rounded-full bg-tg-button" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            
+            {/* Footer */}
+            <div className="px-6 py-4 bg-tg-bg/50 border-t border-white/5 flex gap-3">
+               <button 
+                 type="button"
+                 onClick={() => { setSelectedDate(getMinskNow()); setIsMonthPickerOpen(false); }}
+                 className="flex-1 py-3 px-4 bg-tg-bg border border-white/5 rounded-2xl text-[11px] font-bold text-tg-text hover:bg-tg-secondaryBg transition-all uppercase tracking-wider"
+               >
+                 Сегодня
+               </button>
+               <button 
+                 type="button"
+                 onClick={() => setIsMonthPickerOpen(false)}
+                 className="flex-1 py-3 px-4 bg-tg-button text-tg-buttonText rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-lg shadow-tg-button/20 active:scale-95 transition-all"
+               >
+                 Закрыть
+               </button>
             </div>
           </div>
         </div>
