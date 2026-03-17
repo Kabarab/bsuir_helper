@@ -72,8 +72,9 @@ export default function Planner() {
         localStorage.setItem('bsuir_tasks', JSON.stringify(data));
       })
       .catch(err => {
-        console.error(err);
-        if (window.Telegram?.WebApp) window.Telegram.WebApp.showAlert("Ошибка при обновлении задач");
+        console.error("Refresh tasks error:", err);
+        const msg = err.response?.data?.detail || err.message || "Неизвестная ошибка";
+        if (window.Telegram?.WebApp) window.Telegram.WebApp.showAlert(`Ошибка при обновлении задач: ${msg}`);
       });
   };
 
@@ -117,7 +118,6 @@ export default function Planner() {
       ...currentTask,
       reminders: (currentTask.reminders || []).length > 0 ? JSON.stringify(currentTask.reminders) : null
     };
-
     if (currentTask.id) {
       axios.put(`/api/tasks/${currentTask.id}`, taskPayload)
         .then(res => {
@@ -126,7 +126,8 @@ export default function Planner() {
         })
         .catch(err => {
           console.error(err);
-          if (window.Telegram?.WebApp) window.Telegram.WebApp.showAlert("Не удалось сохранить изменения");
+          const msg = err.response?.data?.detail || err.message || "Сервер не ответил";
+          if (window.Telegram?.WebApp) window.Telegram.WebApp.showAlert(`Не удалось сохранить изменения: ${msg}`);
         });
     } else {
       const taskToCreate = { ...taskPayload, created_at: Date.now() };
@@ -137,7 +138,8 @@ export default function Planner() {
         })
         .catch(err => {
           console.error(err);
-          if (window.Telegram?.WebApp) window.Telegram.WebApp.showAlert("Не удалось добавить задачу");
+          const msg = err.response?.data?.detail || err.message || "Сервер не ответил";
+          if (window.Telegram?.WebApp) window.Telegram.WebApp.showAlert(`Не удалось добавить задачу: ${msg}`);
         });
     }
   };
@@ -152,7 +154,8 @@ export default function Planner() {
       })
       .catch(err => {
         console.error(err);
-        if (window.Telegram?.WebApp) window.Telegram.WebApp.showAlert("Не удалось обновить статус");
+        const msg = err.response?.data?.detail || err.message || "Сервер не ответил";
+        if (window.Telegram?.WebApp) window.Telegram.WebApp.showAlert(`Не удалось обновить статус: ${msg}`);
       });
   };
 
@@ -173,7 +176,8 @@ export default function Planner() {
       })
       .catch(err => {
         console.error(err);
-        if (window.Telegram?.WebApp) window.Telegram.WebApp.showAlert("Не удалось удалить задачу");
+        const msg = err.response?.data?.detail || err.message || "Сервер не ответил";
+        if (window.Telegram?.WebApp) window.Telegram.WebApp.showAlert(`Не удалось удалить задачу: ${msg}`);
       });
   };
 
