@@ -51,10 +51,6 @@ export default function Planner() {
   }, [tasks]);
 
   useEffect(() => {
-    localStorage.setItem('bsuir_tasks', JSON.stringify(tasks));
-  }, [tasks]);
-
-  useEffect(() => {
     if (!telegramId) return;
     
     axios.get(`/api/tasks/${telegramId}`)
@@ -103,29 +99,37 @@ export default function Planner() {
 
     if (currentTask.id) {
       axios.put(`/api/tasks/${currentTask.id}`, taskPayload)
-        .then(res => setTasks(tasks.map(t => t.id === currentTask.id ? res.data : t)))
+        .then(res => {
+          setTasks(prev => prev.map(t => t.id == currentTask.id ? res.data : t));
+        })
         .catch(console.error);
     } else {
       const taskToCreate = { ...taskPayload, created_at: Date.now() };
       axios.post(`/api/tasks/${telegramId}`, taskToCreate)
-        .then(res => setTasks([res.data, ...tasks]))
+        .then(res => {
+          setTasks(prev => [res.data, ...prev]);
+        })
         .catch(console.error);
     }
     handleCloseModal();
   };
 
   const toggleTask = (id) => {
-    const task = tasks.find(t => t.id === id);
+    const task = tasks.find(t => t.id == id);
     if (!task) return;
     
     axios.put(`/api/tasks/${id}`, { is_completed: !task.is_completed })
-      .then(res => setTasks(tasks.map(t => t.id === id ? res.data : t)))
+      .then(res => {
+        setTasks(prev => prev.map(t => t.id == id ? res.data : t));
+      })
       .catch(console.error);
   };
 
   const deleteTask = (id) => {
     axios.delete(`/api/tasks/${id}`)
-      .then(() => setTasks(tasks.filter(t => t.id !== id)))
+      .then(() => {
+        setTasks(prev => prev.filter(t => t.id != id));
+      })
       .catch(console.error);
   };
 
@@ -195,8 +199,11 @@ export default function Planner() {
       <div className="space-y-3 pb-24 mt-2">
         {filteredTasks.map(task => (
              <div key={task.id} className={`flex flex-col gap-2 p-4 bg-tg-secondaryBg rounded-2xl shadow-sm transition-opacity ${task.is_completed ? 'opacity-60' : 'opacity-100'}`}>
-                <div className="flex items-start gap-3">
-                  <button onClick={() => toggleTask(task.id)} className="text-tg-button mt-0.5 flex-shrink-0">
+                <div className="flex items-start gap-4">
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); toggleTask(task.id); }} 
+                    className="text-tg-button mt-0.5 flex-shrink-0 p-1 -m-1"
+                  >
                     {task.is_completed ? <CheckCircle2 size={24} /> : <Circle size={24} />}
                   </button>
                   <div className="flex-1 min-w-0" onClick={() => handleOpenModal(task)}>
@@ -220,7 +227,7 @@ export default function Planner() {
                       )}
                     </div>
                   </div>
-                  <div className="flex flex-col gap-2 flex-shrink-0 items-center justify-center h-full">
+                  <div className="flex flex-col gap-2 flex-shrink-0 items-center justify-start h-full">
                      <button onClick={(e) => { e.stopPropagation(); handleOpenModal(task); }} className="text-tg-hint hover:text-tg-button p-1">
                         <Edit2 size={16} />
                      </button>
