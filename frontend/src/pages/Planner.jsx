@@ -162,9 +162,7 @@ export default function Planner() {
 
   const refreshTasks = () => {
     if (!telegramId) return;
-    axios.get(`/api/tasks/${telegramId}`, {
-      headers: { 'ngrok-skip-browser-warning': 'true' }
-    })
+    axios.get(`/api/tasks/${telegramId}`)
       .then(res => {
         const data = Array.isArray(res.data) ? res.data : [];
         setTasks(data);
@@ -239,11 +237,7 @@ export default function Planner() {
       reminders: (currentTask.reminders || []).length > 0 ? JSON.stringify(currentTask.reminders) : null
     };
 
-    const config = {
-      headers: {
-        'ngrok-skip-browser-warning': 'true'
-      }
-    };
+    const config = {};
 
     if (currentTask.id) {
       axios.put(`/api/tasks/${currentTask.id}`, taskPayload, config)
@@ -292,9 +286,7 @@ export default function Planner() {
     setTasks(updatedTasks);
     syncToLocalStorage(updatedTasks);
     
-    axios.put(`/api/tasks/${id}`, { is_completed: !task.is_completed }, {
-      headers: { 'ngrok-skip-browser-warning': 'true' }
-    })
+    axios.put(`/api/tasks/${id}`, { is_completed: !task.is_completed })
       .then(res => {
         setTasks(prev => prev.map(t => t.id == id ? res.data : t));
       })
@@ -320,9 +312,7 @@ export default function Planner() {
     setTasks(updatedTasks);
     syncToLocalStorage(updatedTasks);
     
-    axios.delete(`/api/tasks/${id}`, {
-      headers: { 'ngrok-skip-browser-warning': 'true' }
-    })
+    axios.delete(`/api/tasks/${id}`)
       .catch(err => {
         console.error(err);
         // Task already removed locally, no need to block UI
