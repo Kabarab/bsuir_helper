@@ -208,7 +208,23 @@ export default function Planner() {
   };
 
   const handleSaveTask = () => {
-    if (!currentTask.title.trim()) return;
+    if (!currentTask.title.trim()) {
+      if (window.Telegram?.WebApp) {
+        window.Telegram.WebApp.showAlert("Пожалуйста, введите название задачи");
+      } else {
+        alert("Пожалуйста, введите название задачи");
+      }
+      return;
+    }
+
+    if (!telegramId) {
+      if (window.Telegram?.WebApp) {
+        window.Telegram.WebApp.showAlert("Ошибка: ID пользователя не найден. Перезапустите приложение.");
+      } else {
+        alert("Ошибка: ID пользователя не найден.");
+      }
+      return;
+    }
     
     const taskPayload = {
       ...currentTask,
@@ -437,9 +453,10 @@ export default function Planner() {
                    type="text"
                    value={currentTask.title}
                    onChange={(e) => setCurrentTask({...currentTask, title: e.target.value})}
-                   placeholder="Что нужно сделать?"
-                   className="w-full px-4 h-[48px] rounded-xl bg-tg-bg text-tg-text focus:outline-none focus:ring-2 focus:ring-tg-button border border-transparent shadow-inner font-medium appearance-none"
+                   placeholder="Название задачи..."
+                   className="w-full px-4 h-[48px] rounded-xl bg-tg-bg text-tg-text focus:outline-none focus:ring-2 focus:ring-tg-button border border-transparent shadow-inner font-semibold appearance-none"
                    autoFocus
+                   required
                  />
               </div>
               
