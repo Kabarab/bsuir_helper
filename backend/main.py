@@ -68,14 +68,13 @@ async def log_requests(request, call_next):
         response = await call_next(request)
     except Exception as e:
         import traceback
-        error_msg = str(e)
-        print(f"ERROR: {request.method} {request.url.path} | Unhandled Exception: {error_msg}", flush=True)
-        traceback.print_exc()
+        error_traceback = traceback.format_exc()
+        print(f"ERROR: {request.method} {request.url.path} | Unhandled Exception:\n{error_traceback}", flush=True)
         # Ensure error still returned as JSON to client
         from fastapi.responses import JSONResponse
         return JSONResponse(
             status_code=500,
-            content={"detail": f"Internal Server Error: {error_msg}"},
+            content={"detail": f"SERVER ERROR:\n{error_traceback}"},
             headers={"Access-Control-Allow-Origin": "*" }
         )
     
