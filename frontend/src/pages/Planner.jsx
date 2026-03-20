@@ -237,10 +237,15 @@ export default function Planner() {
           handleCloseModal();
         })
         .catch(err => {
-          console.error(err);
+          console.error("PUT Task Error:", err, err.response);
           const url = err.config?.url || 'unknown url';
+          const status = err.response?.status || 'No Status';
           const msg = err.response?.data?.detail || err.message || "Сервер не ответил";
-          if (window.Telegram?.WebApp) window.Telegram.WebApp.showAlert(`Ошибка [PUT ${url}]: ${msg}`);
+          if (window.Telegram?.WebApp) {
+            window.Telegram.WebApp.showAlert(`Ошибка [PUT ${url}] (Status: ${status}): ${msg}`);
+          } else {
+            alert(`Ошибка [PUT ${url}] (Status: ${status}): ${msg}`);
+          }
         });
     } else {
       const taskToCreate = { ...taskPayload, created_at: Date.now() };
@@ -250,10 +255,15 @@ export default function Planner() {
           handleCloseModal();
         })
         .catch(err => {
-          console.error(err);
+          console.error("POST Task Error:", err, err.response);
           const url = err.config?.url || 'unknown url';
+          const status = err.response?.status || 'No Status';
           const msg = err.response?.data?.detail || err.message || "Сервер не ответил";
-          if (window.Telegram?.WebApp) window.Telegram.WebApp.showAlert(`Ошибка [POST ${url}]: ${msg}`);
+          if (window.Telegram?.WebApp) {
+            window.Telegram.WebApp.showAlert(`Ошибка [POST ${url}] (Status: ${status}): ${msg}`);
+          } else {
+            alert(`Ошибка [POST ${url}] (Status: ${status}): ${msg}`);
+          }
         });
     }
   };
