@@ -172,7 +172,13 @@ export default function Planner() {
       })
       .catch(err => {
         console.error("Refresh tasks error:", err);
-        // Don't show error on initial load if we have localStorage data
+        const url = err.config?.url || 'unknown url';
+        const status = err.response?.status || 'No Status';
+        const msg = err.response?.data?.detail || err.message || "Сервер не ответил";
+        if (window.Telegram?.WebApp) {
+           // Silently log or simple toast? Let's show alert for diagnostics
+           window.Telegram.WebApp.showAlert(`Ошибка загрузки [GET ${url}] (Status: ${status}): ${msg}`);
+        }
       });
   };
 

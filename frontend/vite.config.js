@@ -18,7 +18,7 @@ export default defineConfig({
     },
     proxy: {
       "/api": {
-        target: "http://127.0.0.1:8000",
+        target: "http://0.0.0.0:8000",
         changeOrigin: true,
         secure: false,
         timeout: 10000,
@@ -31,6 +31,10 @@ export default defineConfig({
           });
           proxy.on('proxyRes', (proxyRes, req, res) => {
             console.log('Received Response from the Target:', proxyRes.statusCode, req.url);
+            // In case of issues over tunnels, force CORS headers on proxy level if needed
+            proxyRes.headers['Access-Control-Allow-Origin'] = '*';
+            proxyRes.headers['Access-Control-Allow-Methods'] = '*';
+            proxyRes.headers['Access-Control-Allow-Headers'] = '*';
           });
         },
       },
