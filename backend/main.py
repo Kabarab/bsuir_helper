@@ -55,8 +55,8 @@ WEBHOOK_URL = os.getenv("BACKEND_URL", "") + WEBHOOK_PATH
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # Упрощение для разработки
-    allow_credentials=True,
+    allow_origins=["*"], 
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
