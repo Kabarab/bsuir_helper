@@ -162,7 +162,9 @@ export default function Planner() {
 
   const refreshTasks = () => {
     if (!telegramId) return;
-    axios.get(`/api/tasks/${telegramId}`)
+    axios.get(`/api/tasks/${telegramId}`, {
+      headers: { 'ngrok-skip-browser-warning': 'true' }
+    })
       .then(res => {
         const data = Array.isArray(res.data) ? res.data : [];
         setTasks(data);
@@ -230,8 +232,15 @@ export default function Planner() {
       ...currentTask,
       reminders: (currentTask.reminders || []).length > 0 ? JSON.stringify(currentTask.reminders) : null
     };
+
+    const config = {
+      headers: {
+        'ngrok-skip-browser-warning': 'true'
+      }
+    };
+
     if (currentTask.id) {
-      axios.put(`/api/tasks/${currentTask.id}`, taskPayload)
+      axios.put(`/api/tasks/${currentTask.id}`, taskPayload, config)
         .then(res => {
           setTasks(prev => prev.map(t => t.id == currentTask.id ? res.data : t));
           handleCloseModal();
@@ -249,7 +258,7 @@ export default function Planner() {
         });
     } else {
       const taskToCreate = { ...taskPayload, created_at: Date.now() };
-      axios.post(`/api/tasks/${telegramId}`, taskToCreate)
+      axios.post(`/api/tasks/${telegramId}`, taskToCreate, config)
         .then(res => {
           setTasks(prev => [res.data, ...prev]);
           handleCloseModal();
@@ -277,7 +286,9 @@ export default function Planner() {
     setTasks(updatedTasks);
     syncToLocalStorage(updatedTasks);
     
-    axios.put(`/api/tasks/${id}`, { is_completed: !task.is_completed })
+    axios.put(`/api/tasks/${id}`, { is_completed: !task.is_completed }, {
+      headers: { 'ngrok-skip-browser-warning': 'true' }
+    })
       .then(res => {
         setTasks(prev => prev.map(t => t.id == id ? res.data : t));
       })
@@ -303,7 +314,9 @@ export default function Planner() {
     setTasks(updatedTasks);
     syncToLocalStorage(updatedTasks);
     
-    axios.delete(`/api/tasks/${id}`)
+    axios.delete(`/api/tasks/${id}`, {
+      headers: { 'ngrok-skip-browser-warning': 'true' }
+    })
       .catch(err => {
         console.error(err);
         // Task already removed locally, no need to block UI

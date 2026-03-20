@@ -9,6 +9,7 @@ export default defineConfig({
     allowedHosts: true,
     headers: {
       "Bypass-Tunnel-Reminder": "true",
+      "ngrok-skip-browser-warning": "true",
       "X-Content-Type-Options": "nosniff"
     },
     hmr: {
