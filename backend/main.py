@@ -180,6 +180,40 @@ class CustomEventBase(BaseModel):
 class CustomEventCreate(CustomEventBase):
     pass
 
+class TaskResponse(BaseModel):
+    id: int
+    user_id: int
+    title: str
+    description: Optional[str] = None
+    priority: str = "medium"
+    is_completed: bool = False
+    due_date: Optional[str] = None
+    due_time: Optional[str] = None
+    subject: Optional[str] = None
+    linkedEventId: Optional[str] = None
+    created_at: Optional[int] = None
+    reminders: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+class CustomEventResponse(BaseModel):
+    id: int
+    user_id: int
+    title: str
+    startTime: str
+    endTime: str
+    type: str = "CUSTOM"
+    color: str = "blue"
+    date: Optional[str] = None
+    is_recurring: bool = False
+    recurrence_type: Optional[str] = None
+    recurrence_end_date: Optional[str] = None
+    recurrence_interval: int = 1
+
+    class Config:
+        from_attributes = True
+
 class CustomEventUpdate(BaseModel):
     title: Optional[str] = None
     startTime: Optional[str] = None
@@ -214,7 +248,7 @@ class UserResponse(BaseModel):
 
 
 # --- Routes - Tasks ---
-@app.get("/api/tasks/{telegram_id}")
+@app.get("/api/tasks/{telegram_id}", response_model=list[TaskResponse])
 async def get_tasks(telegram_id: int, db: AsyncSession = Depends(get_db)):
     # Авторегистрация или получение пользователя
     user_result = await db.execute(select(User).where(User.telegram_id == telegram_id))
@@ -228,7 +262,7 @@ async def get_tasks(telegram_id: int, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Task).where(Task.user_id == user.id))
     return result.scalars().all()
 
-@app.post("/api/tasks/{telegram_id}")
+@app.post("/api/tasks/{telegram_id}", response_model=TaskResponse)
 async def create_task(telegram_id: int, task: TaskCreate, db: AsyncSession = Depends(get_db)):
     user_result = await db.execute(select(User).where(User.telegram_id == telegram_id))
     user = user_result.scalars().first()
@@ -255,7 +289,7 @@ async def create_task(telegram_id: int, task: TaskCreate, db: AsyncSession = Dep
     await db.refresh(new_task)
     return new_task
 
-@app.put("/api/tasks/{task_id}")
+@app.put("/api/tasks/{task_id}", response_model=TaskResponse)
 async def update_task(task_id: int, task_update: TaskUpdate, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Task).where(Task.id == task_id))
     task = result.scalars().first()
@@ -337,7 +371,7 @@ async def update_user_preferences(telegram_id: int, user_update: UserUpdate, db:
     return user
 
 # --- Routes - Custom Events ---
-@app.get("/api/events/{telegram_id}")
+@app.get("/api/events/{telegram_id}", response_model=list[CustomEventResponse])
 async def get_events(telegram_id: int, db: AsyncSession = Depends(get_db)):
     user_result = await db.execute(select(User).where(User.telegram_id == telegram_id))
     user = user_result.scalars().first()
@@ -346,7 +380,7 @@ async def get_events(telegram_id: int, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(CustomEvent).where(CustomEvent.user_id == user.id))
     return result.scalars().all()
 
-@app.post("/api/events/{telegram_id}")
+@app.post("/api/events/{telegram_id}", response_model=CustomEventResponse)
 async def create_event(telegram_id: int, event: CustomEventCreate, db: AsyncSession = Depends(get_db)):
     user_result = await db.execute(select(User).where(User.telegram_id == telegram_id))
     user = user_result.scalars().first()
@@ -374,7 +408,7 @@ async def create_event(telegram_id: int, event: CustomEventCreate, db: AsyncSess
     await db.refresh(new_event)
     return new_event
 
-@app.put("/api/events/{event_id}")
+@app.put("/api/events/{event_id}", response_model=CustomEventResponse)
 async def update_event(event_id: int, event_update: CustomEventUpdate, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(CustomEvent).where(CustomEvent.id == event_id))
     event = result.scalars().first()
@@ -600,4 +634,4 @@ async def bsuir_proxy(url: str):
         raise HTTPException(status_code=502, detail=f"Failed to fetch from BSUIR: {str(e)}")
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
