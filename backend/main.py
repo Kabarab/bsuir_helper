@@ -64,7 +64,20 @@ app.add_middleware(
 @app.middleware("http")
 async def log_requests(request, call_next):
     start_time = time.time()
-    response = await call_next(request)
+    try:
+        response = await call_next(request)
+    except Exception as e:
+        import traceback
+        print(f"ERROR: {request.method} {request.url.path} | Unhandled Exception: {str(e)}", flush=True)
+        traceback.print_exc()
+        # Ensure error still returned as JSON to client
+        from fastapi.responses import JSONResponse
+        return JSONResponse(
+            status_code=500,
+            content={"detail": "Internal Server Error", "error": str(e)},
+            headers={"Access-Control-Allow-Origin": "*"}
+        )
+    
     duration = time.time() - start_time
     print(f"DEBUG: {request.method} {request.url.path} | Status: {response.status_code} | Duration: {duration:.3f}s", flush=True)
     return response
@@ -634,4 +647,5 @@ async def bsuir_proxy(url: str):
         raise HTTPException(status_code=502, detail=f"Failed to fetch from BSUIR: {str(e)}")
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
