@@ -29,6 +29,7 @@ class Task(Base):
     priority = Column(String, default="medium")
     is_completed = Column(Boolean, default=False)
     due_date = Column(String, nullable=True) # YYYY-MM-DD
+    due_time = Column(String, nullable=True) # HH:MM
     subject = Column(String, nullable=True)
     linkedEventId = Column(String, nullable=True)
     created_at = Column(BigInteger, nullable=True) # Date.now() timestamp

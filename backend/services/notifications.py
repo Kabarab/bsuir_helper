@@ -71,10 +71,13 @@ class NotificationService:
                     except ValueError:
                         pass
             
-            # Fallback to due_date + end of day
+            # Fallback to due_date + due_time (or end of day)
             if not target_dt and task.due_date:
                 try:
-                    target_dt = datetime.strptime(task.due_date, "%Y-%m-%d").replace(hour=23, minute=59)
+                    if task.due_time:
+                        target_dt = datetime.strptime(f"{task.due_date} {task.due_time}", "%Y-%m-%d %H:%M")
+                    else:
+                        target_dt = datetime.strptime(task.due_date, "%Y-%m-%d").replace(hour=23, minute=59)
                 except ValueError:
                     pass
             

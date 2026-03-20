@@ -1,8 +1,100 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
-import { Circle, CheckCircle2, Calendar, Edit2, Trash2, PlusCircle, X, Check, Bell } from 'lucide-react';
+import { Circle, CheckCircle2, Calendar, Edit2, Trash2, PlusCircle, X, Check, Bell, Clock } from 'lucide-react';
 import { useUser } from '../contexts/UserContext';
 import { getMinskNow } from '../utils/minskTime';
+
+/* ── Segmented Date Input (DD / MM / YYYY) with auto‑jump ── */
+function SegmentedDateInput({ value, onChange }) {
+  // value is "YYYY-MM-DD" or ""
+  const dayRef = useRef(null);
+  const monthRef = useRef(null);
+  const yearRef = useRef(null);
+
+  const parse = (v) => {
+    if (!v) return { dd: '', mm: '', yyyy: '' };
+    const [y, m, d] = v.split('-');
+    return { dd: d || '', mm: m || '', yyyy: y || '' };
+  };
+
+  const [seg, setSeg] = useState(() => parse(value));
+
+  useEffect(() => {
+    setSeg(parse(value));
+  }, [value]);
+
+  const emit = useCallback((next) => {
+    const { dd, mm, yyyy } = next;
+    if (dd && mm && yyyy && dd.length === 2 && mm.length === 2 && yyyy.length === 4) {
+      onChange(`${yyyy}-${mm}-${dd}`);
+    } else if (!dd && !mm && !yyyy) {
+      onChange('');
+    }
+  }, [onChange]);
+
+  const handleChange = (field, raw, maxLen, nextRef) => {
+    let v = raw.replace(/\D/g, '').slice(0, maxLen);
+    const next = { ...seg, [field]: v };
+    setSeg(next);
+    emit(next);
+    if (v.length === maxLen && nextRef?.current) {
+      nextRef.current.focus();
+      nextRef.current.select();
+    }
+  };
+
+  const handleKeyDown = (field, e, prevRef) => {
+    if (e.key === 'Backspace' && seg[field] === '' && prevRef?.current) {
+      prevRef.current.focus();
+    }
+  };
+
+  const inputCls = 'bg-transparent text-center text-tg-text font-semibold outline-none';
+  const separatorCls = 'text-tg-hint font-bold select-none';
+
+  return (
+    <div className="flex items-center gap-0 w-full px-3 py-2.5 rounded-xl bg-tg-bg focus-within:ring-2 focus-within:ring-tg-button border border-transparent min-h-[44px]">
+      <input
+        ref={dayRef}
+        type="text"
+        inputMode="numeric"
+        placeholder="ДД"
+        maxLength={2}
+        value={seg.dd}
+        onChange={(e) => handleChange('dd', e.target.value, 2, monthRef)}
+        onKeyDown={(e) => handleKeyDown('dd', e, null)}
+        onFocus={(e) => e.target.select()}
+        className={`${inputCls} w-[28px]`}
+      />
+      <span className={separatorCls}>/</span>
+      <input
+        ref={monthRef}
+        type="text"
+        inputMode="numeric"
+        placeholder="ММ"
+        maxLength={2}
+        value={seg.mm}
+        onChange={(e) => handleChange('mm', e.target.value, 2, yearRef)}
+        onKeyDown={(e) => handleKeyDown('mm', e, dayRef)}
+        onFocus={(e) => e.target.select()}
+        className={`${inputCls} w-[28px]`}
+      />
+      <span className={separatorCls}>/</span>
+      <input
+        ref={yearRef}
+        type="text"
+        inputMode="numeric"
+        placeholder="ГГГГ"
+        maxLength={4}
+        value={seg.yyyy}
+        onChange={(e) => handleChange('yyyy', e.target.value, 4, null)}
+        onKeyDown={(e) => handleKeyDown('yyyy', e, monthRef)}
+        onFocus={(e) => e.target.select()}
+        className={`${inputCls} w-[44px]`}
+      />
+    </div>
+  );
+}
 
 export default function Planner() {
   const { group, telegramId, isTeacher, teacherUrlId } = useUser();
@@ -25,7 +117,7 @@ export default function Planner() {
 
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [currentTask, setCurrentTask] = useState({ id: null, title: '', description: '', priority: 'medium', due_date: '', linkedEventId: null, reminders: [] });
+  const [currentTask, setCurrentTask] = useState({ id: null, title: '', description: '', priority: 'medium', due_date: '', due_time: '', linkedEventId: null, reminders: [] });
 
   const fetchEventsForDate = (dateStr) => {
     if (!dateStr) return;
@@ -104,9 +196,9 @@ export default function Planner() {
           console.error('Failed to parse reminders:', e);
         }
       }
-      setCurrentTask({ ...task, reminders: Array.isArray(reminders) ? reminders : [] });
+      setCurrentTask({ ...task, due_time: task.due_time || '', reminders: Array.isArray(reminders) ? reminders : [] });
     } else {
-      setCurrentTask({ id: null, title: '', description: '', priority: 'medium', due_date: '', linkedEventId: null, reminders: [] });
+      setCurrentTask({ id: null, title: '', description: '', priority: 'medium', due_date: '', due_time: '', linkedEventId: null, reminders: [] });
     }
     setIsModalOpen(true);
   };
@@ -284,7 +376,7 @@ export default function Planner() {
                       <PriorityBadge priority={task.priority} />
                       {task.due_date && (
                         <div className="flex items-center gap-1 text-[11px] text-tg-hint bg-tg-bg px-2 py-0.5 rounded-md border border-tg-hint/20">
-                          <Calendar size={12} /> {task.due_date}
+                          <Calendar size={12} /> {task.due_date}{task.due_time ? ` ${task.due_time}` : ''}
                         </div>
                       )}
                       {task.linkedEventId && (
@@ -376,13 +468,21 @@ export default function Planner() {
                  </div>
                  <div>
                     <label className="block text-xs font-semibold uppercase text-tg-hint mb-1 flex items-center gap-1"><Calendar size={12}/> Дедлайн</label>
-                    <input 
-                      type="date"
+                    <SegmentedDateInput
                       value={currentTask.due_date || ''}
-                      onChange={(e) => setCurrentTask({...currentTask, due_date: e.target.value})}
-                      className="w-full px-3 py-2.5 rounded-xl bg-tg-bg text-tg-text focus:outline-none focus:ring-2 focus:ring-tg-button border border-transparent min-h-[44px]"
+                      onChange={(v) => setCurrentTask(prev => ({...prev, due_date: v}))}
                     />
                   </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold uppercase text-tg-hint mb-1 flex items-center gap-1"><Clock size={12}/> Время дедлайна</label>
+                <input
+                  type="time"
+                  value={currentTask.due_time || ''}
+                  onChange={(e) => setCurrentTask({...currentTask, due_time: e.target.value})}
+                  className="w-full px-3 py-2.5 rounded-xl bg-tg-bg text-tg-text focus:outline-none focus:ring-2 focus:ring-tg-button border border-transparent min-h-[44px]"
+                />
               </div>
 
               <div>

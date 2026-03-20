@@ -101,6 +101,7 @@ async def startup_event():
         await safe_add_column("custom_events", "recurrence_end_date", "VARCHAR", None)
         await safe_add_column("custom_events", "recurrence_interval", "INTEGER", "1")
         await safe_add_column("tasks", "reminders", "VARCHAR", None)
+        await safe_add_column("tasks", "due_time", "VARCHAR", None)
         await safe_add_column("users", "is_teacher", "BOOLEAN", "false")
         await safe_add_column("users", "teacher_url_id", "VARCHAR", None)
         await safe_add_column("users", "english_teacher_id", "VARCHAR", None)
@@ -147,6 +148,7 @@ class TaskCreate(BaseModel):
     description: Optional[str] = None
     priority: str = "medium"
     due_date: Optional[str] = None
+    due_time: Optional[str] = None
     subject: Optional[str] = None
     linkedEventId: Optional[str] = None
     created_at: Optional[int] = None
@@ -158,6 +160,7 @@ class TaskUpdate(BaseModel):
     priority: Optional[str] = None
     is_completed: Optional[bool] = None
     due_date: Optional[str] = None
+    due_time: Optional[str] = None
     subject: Optional[str] = None
     linkedEventId: Optional[str] = None
     reminders: Optional[str] = None
@@ -241,6 +244,7 @@ async def create_task(telegram_id: int, task: TaskCreate, db: AsyncSession = Dep
         description=task.description,
         priority=task.priority,
         due_date=task.due_date,
+        due_time=task.due_time,
         subject=task.subject,
         linkedEventId=task.linkedEventId,
         created_at=task.created_at,
