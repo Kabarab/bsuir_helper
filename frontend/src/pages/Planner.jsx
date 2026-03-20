@@ -63,19 +63,22 @@ export default function Planner() {
     return () => window.removeEventListener('storage', handleStorage);
   }, []);
 
+  const syncToLocalStorage = (taskList) => {
+    localStorage.setItem('bsuir_tasks', JSON.stringify(taskList));
+    window.dispatchEvent(new Event('storage'));
+  };
+
   const refreshTasks = () => {
     if (!telegramId) return;
     axios.get(`/api/tasks/${telegramId}`)
       .then(res => {
         const data = Array.isArray(res.data) ? res.data : [];
         setTasks(data);
-        localStorage.setItem('bsuir_tasks', JSON.stringify(data));
+        syncToLocalStorage(data);
       })
       .catch(err => {
         console.error("Refresh tasks error:", err);
-        const url = err.config?.url || 'unknown url';
-        const msg = err.response?.data?.detail || err.message || "Неизвестная ошибка";
-        if (window.Telegram?.WebApp) window.Telegram.WebApp.showAlert(`Ошибка [GET ${url}]: ${msg}`);
+        // Don't show error on initial load if we have localStorage data
       });
   };
 
@@ -151,14 +154,18 @@ export default function Planner() {
     const task = tasks.find(t => t.id == id);
     if (!task) return;
     
+    // Optimistic update - toggle locally first
+    const updatedTasks = tasks.map(t => t.id == id ? { ...t, is_completed: !t.is_completed } : t);
+    setTasks(updatedTasks);
+    syncToLocalStorage(updatedTasks);
+    
     axios.put(`/api/tasks/${id}`, { is_completed: !task.is_completed })
       .then(res => {
         setTasks(prev => prev.map(t => t.id == id ? res.data : t));
       })
       .catch(err => {
         console.error(err);
-        const msg = err.response?.data?.detail || err.message || "Сервер не ответил";
-        if (window.Telegram?.WebApp) window.Telegram.WebApp.showAlert(`Не удалось обновить статус: ${msg}`);
+        // Keep local change even if server fails
       });
   };
 
@@ -173,14 +180,15 @@ export default function Planner() {
   };
 
   const performDelete = (id) => {
+    // Optimistic delete - remove locally first
+    const updatedTasks = tasks.filter(t => t.id != id);
+    setTasks(updatedTasks);
+    syncToLocalStorage(updatedTasks);
+    
     axios.delete(`/api/tasks/${id}`)
-      .then(() => {
-        setTasks(prev => prev.filter(t => t.id != id));
-      })
       .catch(err => {
         console.error(err);
-        const msg = err.response?.data?.detail || err.message || "Сервер не ответил";
-        if (window.Telegram?.WebApp) window.Telegram.WebApp.showAlert(`Не удалось удалить задачу: ${msg}`);
+        // Task already removed locally, no need to block UI
       });
   };
 
