@@ -117,7 +117,9 @@ export default function Planner() {
 
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [currentTask, setCurrentTask] = useState({ id: null, title: '', description: '', priority: 'medium', due_date: '', due_time: '', linkedEventId: null, reminders: [] });
+  const modalContentRef = useRef(null);
 
   const fetchEventsForDate = (dateStr) => {
     if (!dateStr) return;
@@ -207,6 +209,12 @@ export default function Planner() {
       setCurrentTask({ id: null, title: '', description: '', priority: 'medium', due_date: '', due_time: '', linkedEventId: null, reminders: [] });
     }
     setIsModalOpen(true);
+    // Scroll to top when opening
+    setTimeout(() => {
+      if (modalContentRef.current) {
+        modalContentRef.current.scrollTop = 0;
+      }
+    }, 100);
   };
 
   const handleCloseModal = () => {
@@ -231,9 +239,12 @@ export default function Planner() {
       }
       return;
     }
+    setIsSaving(true);
     
+    // Explicitly remove id from payload for new tasks
+    const { id, ...payloadWithoutId } = currentTask;
     const taskPayload = {
-      ...currentTask,
+      ...(currentTask.id ? currentTask : payloadWithoutId),
       reminders: (currentTask.reminders || []).length > 0 ? JSON.stringify(currentTask.reminders) : null
     };
 
@@ -250,12 +261,14 @@ export default function Planner() {
           const url = err.config?.url || 'unknown url';
           const status = err.response?.status || 'No Status';
           const msg = err.response?.data?.detail || err.message || "Сервер не ответил";
+          const help = status === 422 ? "\n(Ошибка валидации данных. Проверьте поля.)" : "";
           if (window.Telegram?.WebApp) {
-            window.Telegram.WebApp.showAlert(`Ошибка [PUT ${url}] (Status: ${status}): ${msg}`);
+            window.Telegram.WebApp.showAlert(`Ошибка [PUT ${url}] (Status: ${status}): ${msg}${help}`);
           } else {
-            alert(`Ошибка [PUT ${url}] (Status: ${status}): ${msg}`);
+            alert(`Ошибка [PUT ${url}] (Status: ${status}): ${msg}${help}`);
           }
-        });
+        })
+        .finally(() => setIsSaving(false));
     } else {
       const taskToCreate = { ...taskPayload, created_at: Date.now() };
       axios.post(`/api/tasks/${telegramId}`, taskToCreate, config)
@@ -268,12 +281,14 @@ export default function Planner() {
           const url = err.config?.url || 'unknown url';
           const status = err.response?.status || 'No Status';
           const msg = err.response?.data?.detail || err.message || "Сервер не ответил";
+          const help = status === 422 ? "\n(Ошибка валидации. Попробуйте перезагрузить страницу.)" : "";
           if (window.Telegram?.WebApp) {
-            window.Telegram.WebApp.showAlert(`Ошибка [POST ${url}] (Status: ${status}): ${msg}`);
+            window.Telegram.WebApp.showAlert(`Ошибка [POST ${url}] (Status: ${status}): ${msg}${help}`);
           } else {
-            alert(`Ошибка [POST ${url}] (Status: ${status}): ${msg}`);
+            alert(`Ошибка [POST ${url}] (Status: ${status}): ${msg}${help}`);
           }
-        });
+        })
+        .finally(() => setIsSaving(false));
     }
   };
 
@@ -474,9 +489,9 @@ export default function Planner() {
               <button type="button" onClick={handleCloseModal} className="text-tg-hint hover:text-tg-text bg-tg-bg p-1.5 rounded-full"><X size={20} /></button>
             </div>
             
-            <form onSubmit={(e) => { e.preventDefault(); handleSaveTask(); }} className="flex flex-col flex-1 overflow-hidden">
-            <div className="overflow-y-auto overflow-x-hidden px-5 flex-1">
-            <div className="space-y-4">
+            <form onSubmit={(e) => { e.preventDefault(); !isSaving && handleSaveTask(); }} className="flex flex-col flex-1 overflow-hidden">
+            <div ref={modalContentRef} className="overflow-y-auto overflow-x-hidden px-5 flex-1 scroll-smooth">
+            <div className="space-y-4 pt-2">
               <div>
                  <label className="block text-xs font-semibold uppercase text-tg-hint mb-1">Название</label>
                  <input 
@@ -484,7 +499,7 @@ export default function Planner() {
                    value={currentTask.title}
                    onChange={(e) => setCurrentTask({...currentTask, title: e.target.value})}
                    placeholder="Название задачи..."
-                   className="w-full px-4 h-[48px] rounded-xl bg-tg-bg text-tg-text focus:outline-none focus:ring-2 focus:ring-tg-button border border-transparent shadow-inner font-semibold appearance-none"
+                   className="w-full px-4 h-[48px] rounded-xl bg-tg-bg text-tg-text focus:outline-none focus:ring-2 focus:ring-tg-button border border-tg-hint/20 focus:border-tg-button shadow-inner font-semibold appearance-none transition-all"
                    autoFocus
                    required
                  />
@@ -496,7 +511,7 @@ export default function Planner() {
                    value={currentTask.description}
                    onChange={(e) => setCurrentTask({...currentTask, description: e.target.value})}
                    placeholder="Дополнительные детали..."
-                   className="w-full px-4 py-3 rounded-xl bg-tg-bg text-tg-text focus:outline-none focus:ring-2 focus:ring-tg-button border border-transparent shadow-inner resize-none h-24 text-sm"
+                   className="w-full px-4 py-3 rounded-xl bg-tg-bg text-tg-text focus:outline-none focus:ring-2 focus:ring-tg-button border border-tg-hint/20 focus:border-tg-button shadow-inner resize-none h-24 text-sm transition-all"
                  />
               </div>
 
@@ -506,7 +521,7 @@ export default function Planner() {
                     <select 
                       value={currentTask.priority}
                       onChange={(e) => setCurrentTask({...currentTask, priority: e.target.value})}
-                      className="w-full px-3 py-2.5 rounded-xl bg-tg-bg text-tg-text focus:outline-none focus:ring-2 focus:ring-tg-button border border-transparent custom-select"
+                   className="w-full px-3 py-2.5 rounded-xl bg-tg-bg text-tg-text focus:outline-none focus:ring-2 focus:ring-tg-button border border-tg-hint/20 focus:border-tg-button custom-select text-sm transition-all"
                     >
                       <option value="low" className="text-black">Низкий</option>
                       <option value="medium" className="text-black">Средний</option>
@@ -528,7 +543,7 @@ export default function Planner() {
                   type="time"
                   value={currentTask.due_time || ''}
                   onChange={(e) => setCurrentTask({...currentTask, due_time: e.target.value})}
-                  className="w-full px-3 py-2.5 rounded-xl bg-tg-bg text-tg-text focus:outline-none focus:ring-2 focus:ring-tg-button border border-transparent min-h-[44px]"
+                   className="w-full px-3 py-2.5 rounded-xl bg-tg-bg text-tg-text focus:outline-none focus:ring-2 focus:ring-tg-button border border-tg-hint/20 focus:border-tg-button min-h-[44px] transition-all"
                 />
               </div>
 
@@ -606,9 +621,17 @@ export default function Planner() {
             <div className="px-5 py-4 border-t border-[var(--tg-theme-hint-color)] border-opacity-10">
               <button 
                 type="submit"
-                className="w-full py-3.5 bg-tg-button text-tg-buttonText font-bold rounded-xl active:scale-[0.98] transition-transform shadow-lg shadow-tg-button/20"
+                 disabled={isSaving}
+                className="w-full py-3.5 bg-tg-button text-tg-buttonText font-bold rounded-xl active:scale-[0.98] transition-transform shadow-lg shadow-tg-button/20 flex items-center justify-center gap-2 disabled:opacity-70 disabled:active:scale-100"
               >
-                {currentTask.id ? 'Сохранить изменения' : 'Добавить задачу'}
+                {isSaving ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-tg-buttonText/20 border-t-tg-buttonText rounded-full animate-spin"></div>
+                    Загрузка...
+                  </>
+                ) : (
+                  currentTask.id ? 'Сохранить изменения' : 'Добавить задачу'
+                )}
               </button>
             </div>
             </form>
