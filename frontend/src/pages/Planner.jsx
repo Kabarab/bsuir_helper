@@ -241,6 +241,20 @@ export default function Planner() {
     }
     setIsSaving(true);
     
+    // Diagnostic alert for TMA
+    if (window.Telegram?.WebApp) window.Telegram.WebApp.showAlert(`DEBUG: Start saving task for TG_ID: ${telegramId}`);
+
+    if (!telegramId) {
+      setIsSaving(false);
+      const msg = "Ошибка: ID пользователя не найден. Перезапустите приложение.";
+      if (window.Telegram?.WebApp) {
+        window.Telegram.WebApp.showAlert(msg);
+      } else {
+        alert(msg);
+      }
+      return;
+    }
+    
     // Explicitly remove id from payload for new tasks
     const { id, ...payloadWithoutId } = currentTask;
     const taskPayload = {
@@ -248,7 +262,7 @@ export default function Planner() {
       reminders: (currentTask.reminders || []).length > 0 ? JSON.stringify(currentTask.reminders) : null
     };
 
-    const config = {};
+    const config = { timeout: 15000 };
 
     if (currentTask.id) {
       axios.put(`/api/tasks/${currentTask.id}`, taskPayload, config)
@@ -261,7 +275,7 @@ export default function Planner() {
           const url = err.config?.url || 'unknown url';
           const status = err.response?.status || 'No Status';
           const msg = err.response?.data?.detail || err.message || "Сервер не ответил";
-          const help = status === 422 ? "\n(Ошибка валидации данных. Проверьте поля.)" : "";
+          const help = status === 422 ? "\n(Ошибка валидации данных. Проверьте поля.)" : status === 404 ? "\n(Задача не найдена)" : "";
           if (window.Telegram?.WebApp) {
             window.Telegram.WebApp.showAlert(`Ошибка [PUT ${url}] (Status: ${status}): ${msg}${help}`);
           } else {
@@ -281,7 +295,8 @@ export default function Planner() {
           const url = err.config?.url || 'unknown url';
           const status = err.response?.status || 'No Status';
           const msg = err.response?.data?.detail || err.message || "Сервер не ответил";
-          const help = status === 422 ? "\n(Ошибка валидации. Попробуйте перезагрузить страницу.)" : "";
+          const help = (status === 422) ? "\n(Ошибка валидации. Проверьте название и другие поля.)" : 
+                       (err.code === 'ECONNABORTED') ? "\n(Время ожидания истекло. Медленный интернет?)" : "";
           if (window.Telegram?.WebApp) {
             window.Telegram.WebApp.showAlert(`Ошибка [POST ${url}] (Status: ${status}): ${msg}${help}`);
           } else {
