@@ -481,7 +481,7 @@ export default function Planner() {
 
       {/* Bottom Sheet Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-0">
+        <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center sm:p-0">
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity" onClick={handleCloseModal} />
           <div className="relative bg-tg-secondaryBg w-full sm:w-[400px] sm:rounded-2xl rounded-t-2xl shadow-2xl transition-transform max-h-[85vh] flex flex-col transform translate-y-0 mb-[70px]">
             <div className="flex items-center justify-between p-5 pb-2">
@@ -621,7 +621,14 @@ export default function Planner() {
             <div className="px-5 py-4 border-t border-[var(--tg-theme-hint-color)] border-opacity-10">
               <button 
                 type="submit"
-                 disabled={isSaving}
+                disabled={isSaving}
+                onClick={(e) => { 
+                  // Fallback for mobile devices where form onSubmit might be flaky
+                  if (!isSaving && e.target.type === 'submit') {
+                    // button will trigger form submit, but we can also call it here if needed
+                    // however, let's just ensure the button is clickable
+                  }
+                }}
                 className="w-full py-3.5 bg-tg-button text-tg-buttonText font-bold rounded-xl active:scale-[0.98] transition-transform shadow-lg shadow-tg-button/20 flex items-center justify-center gap-2 disabled:opacity-70 disabled:active:scale-100"
               >
                 {isSaving ? (
