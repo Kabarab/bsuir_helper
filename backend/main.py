@@ -1,4 +1,5 @@
 import asyncio
+import time
 from fastapi import FastAPI, Depends, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -285,13 +286,17 @@ async def get_tasks(telegram_id: int, db: AsyncSession = Depends(get_db)):
 
 @app.post("/api/tasks/{telegram_id}", response_model=TaskResponse)
 async def create_task(telegram_id: int, task: TaskCreate, db: AsyncSession = Depends(get_db)):
+    print(f"REQUEST [POST /api/tasks/{telegram_id}]: {task.title}", flush=True)
     user_result = await db.execute(select(User).where(User.telegram_id == telegram_id))
     user = user_result.scalars().first()
     if not user:
+        print(f"Creating user for TG_ID: {telegram_id}", flush=True)
         user = User(telegram_id=telegram_id)
         db.add(user)
         await db.commit()
         await db.refresh(user)
+    
+    print(f"Saving task for UserID: {user.id}", flush=True)
     
     new_task = Task(
         user_id=user.id, 
@@ -302,8 +307,8 @@ async def create_task(telegram_id: int, task: TaskCreate, db: AsyncSession = Dep
         due_time=task.due_time,
         subject=task.subject,
         linkedEventId=task.linkedEventId,
-        created_at=task.created_at,
-        reminders=task.reminders
+        reminders=task.reminders,
+        created_at=task.created_at or int(time.time() * 1000),
     )
     db.add(new_task)
     await db.commit()

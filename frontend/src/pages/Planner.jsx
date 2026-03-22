@@ -241,8 +241,16 @@ export default function Planner() {
     }
     setIsSaving(true);
     
-    // Diagnostic alert for TMA
-    if (window.Telegram?.WebApp) window.Telegram.WebApp.showAlert(`DEBUG: Start saving task for TG_ID: ${telegramId}`);
+    if (!currentTask.title?.trim()) {
+      setIsSaving(false);
+      const msg = "Пожалуйста, введите название задачи";
+      if (window.Telegram?.WebApp) {
+        window.Telegram.WebApp.showAlert(msg);
+      } else {
+        alert(msg);
+      }
+      return;
+    }
 
     if (!telegramId) {
       setIsSaving(false);
@@ -255,10 +263,16 @@ export default function Planner() {
       return;
     }
     
-    // Explicitly remove id from payload for new tasks
+    // Map frontend fields to backend schema
     const { id, ...payloadWithoutId } = currentTask;
     const taskPayload = {
-      ...(currentTask.id ? currentTask : payloadWithoutId),
+      title: currentTask.title,
+      description: currentTask.description,
+      priority: currentTask.priority,
+      due_date: currentTask.due_date,
+      due_time: currentTask.due_time,
+      subject: currentTask.subject,
+      linkedEventId: currentTask.linkedEventId,
       reminders: (currentTask.reminders || []).length > 0 ? JSON.stringify(currentTask.reminders) : null
     };
 
@@ -516,7 +530,6 @@ export default function Planner() {
                    placeholder="Название задачи..."
                    className="w-full px-4 h-[48px] rounded-xl bg-tg-bg text-tg-text focus:outline-none focus:ring-2 focus:ring-tg-button border border-tg-hint/20 focus:border-tg-button shadow-inner font-semibold appearance-none transition-all"
                    autoFocus
-                   required
                  />
               </div>
               
