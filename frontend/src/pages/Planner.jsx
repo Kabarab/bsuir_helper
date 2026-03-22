@@ -109,7 +109,7 @@ export default function Planner() {
       return [];
     }
   });
-  const [filter, setFilter] = useState('all'); // all, active, completed
+  const [filter, setFilter] = useState('all'); // all, active, completed, overdue
   const [sort, setSort] = useState('newest'); // newest, oldest, priority
   
   // Schedule integration
@@ -322,6 +322,17 @@ export default function Planner() {
   const filteredTasks = (Array.isArray(tasks) ? tasks : []).filter(task => {
     if (filter === 'active') return !task.is_completed;
     if (filter === 'completed') return task.is_completed;
+    if (filter === 'overdue') {
+      if (task.is_completed || !task.due_date) return false;
+      const now = getMinskNow();
+      const today = now.toISOString().split('T')[0];
+      if (task.due_date < today) return true;
+      if (task.due_date === today && task.due_time) {
+        const nowTime = now.toTimeString().split(' ')[0].substring(0, 5); // "HH:MM"
+        return task.due_time < nowTime;
+      }
+      return false;
+    }
     return true;
   }).sort((a, b) => {
     if (sort === 'oldest') return (a.created_at || 0) - (b.created_at || 0);
@@ -363,14 +374,14 @@ export default function Planner() {
         {/* Controls */}
         <div className="flex flex-col gap-3">
           <div className="flex bg-tg-secondaryBg p-1 rounded-xl shadow-sm overflow-x-auto">
-             {['all', 'active', 'completed'].map(f => (
+             {['all', 'active', 'completed', 'overdue'].map(f => (
                <button 
                   key={f}
                   onClick={() => setFilter(f)}
                   className={`flex-1 min-w-[80px] py-1.5 text-sm font-medium rounded-lg capitalize transition-colors
                     ${filter === f ? 'bg-tg-button text-tg-buttonText shadow-sm' : 'text-tg-hint'}`}
                >
-                 {f === 'all' ? 'Все' : f === 'active' ? 'Активные' : 'Готовые'}
+                 {f === 'all' ? 'Все' : f === 'active' ? 'Активные' : f === 'completed' ? 'Готовые' : 'Просрочено'}
                </button>
              ))}
           </div>
