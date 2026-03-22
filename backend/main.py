@@ -17,6 +17,7 @@ from services.bsuir_api import (
 )
 from services.rating import rating_service
 from services.notifications import notification_service
+from services.rating_update import rating_update_service
 
 import uvicorn
 import time
@@ -119,6 +120,10 @@ async def startup_event():
         await safe_add_column("users", "teacher_url_id", "VARCHAR", None)
         await safe_add_column("users", "english_teacher_id", "VARCHAR", None)
         await safe_add_column("users", "english_teacher_fio", "VARCHAR", None)
+        await safe_add_column("users", "average_grade", "VARCHAR", None)
+        await safe_add_column("users", "rating_position", "INTEGER", None)
+        await safe_add_column("users", "grades_data", "TEXT", None)
+        await safe_add_column("users", "last_rating_update", "TIMESTAMP", None)
         
         # Alter column types to BigInt for Postgres if needed
         async def alter_column_type_pgsql(table, column, new_type):
@@ -145,6 +150,9 @@ async def startup_event():
     
     # Запуск сервиса уведомлений
     asyncio.create_task(notification_service.start())
+    
+    # Запуск сервиса автоматического обновления оценок
+    asyncio.create_task(rating_update_service.start())
 
 from aiogram.types import Update
 
@@ -503,6 +511,20 @@ async def grades(telegram_id: int, db: AsyncSession = Depends(get_db)):
     # 4. Process subjects
     subjects = []
     raw_data = subjects_data.get("data")
+    
+    # Update DB with latest data if successful
+    if subjects_data.get("success"):
+        try:
+            import json
+            user.average_grade = str(average)
+            user.rating_position = ranking
+            user.grades_data = json.dumps(raw_data)
+            user.last_rating_update = dt_datetime.now()
+            await db.commit()
+            print(f"Updated stored grades for user {telegram_id}")
+        except Exception as e:
+            print(f"Failed to update user grades in DB: {e}")
+
     lessons_list = []
     if isinstance(raw_data, list):
         lessons_list = raw_data
@@ -511,7 +533,20 @@ async def grades(telegram_id: int, db: AsyncSession = Depends(get_db)):
         if not lessons_list and raw_data: # If it's a single object that's not a list but holds the data
             lessons_list = [raw_data]
 
-    if subjects_data.get("success") and lessons_list:
+    # If fetch failed but we have stored data, use it
+    if not subjects_data.get("success") and user.grades_data:
+        try:
+            import json
+            lessons_list = json.loads(user.grades_data)
+            if not isinstance(lessons_list, list) and isinstance(lessons_list, dict):
+                lessons_list = lessons_list.get("lessons", [])
+            average = float(user.average_grade or 0.0)
+            ranking = user.rating_position or 0
+            print(f"Using stored grades for user {telegram_id}")
+        except Exception as e:
+            print(f"Failed to parse stored grades: {e}")
+
+    if (subjects_data.get("success") or user.grades_data) and lessons_list:
         seen_subjects = {} # subj_name -> list of {val, date}
         for lesson in lessons_list:
             if not isinstance(lesson, dict): continue

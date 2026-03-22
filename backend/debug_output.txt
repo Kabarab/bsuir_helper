@@ -1,0 +1,14 @@
+Starting manual rating update test...
+User found: 899052748, Current Rating: None, Average: None
+Group info: {'name': '568403', 'facultyId': 20040, 'facultyAbbrev': 'ФИБ', 'facultyName': 'Факультет информационной безопасности', 'specialityDepartmentEducationFormId': 20655, 'specialityName': 'Системы и сети инфокоммуникаций', 'specialityAbbrev': 'СиСИ', 'course': 1, 'id': 24886, 'calendarId': 'e7848fcbe1e9c25df5bff59d266108b2e87ab929c9e0d0d539a4f24af12c437a@group.calendar.google.com', 'educationDegree': 1}
+sdef: 20655, course: 1
+Rating list: {'error': ''}
+Update completed. New Rating: None, New Average: None
+Last update: 2026-03-22 17:27:51.440467
+Grades data stored (length: 102248)
+Parsed grades data successfully. Keys: dict_keys(['id', 'fio', 'subGroup', 'subGroupStudent', 'lessons'])
+Unclosed client session
+client_session: <aiohttp.client.ClientSession object at 0x10b267fd0>
+Unclosed connector
+connections: ['deque([(<aiohttp.client_proto.ResponseHandler object at 0x10b33b100>, 11.29018575)])']
+connector: <aiohttp.connector.TCPConnector object at 0x10b2a7430>

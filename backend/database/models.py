@@ -15,6 +15,10 @@ class User(Base):
     notification_offset = Column(Integer, default=10) # minutes before
     english_teacher_id = Column(String, nullable=True)
     english_teacher_fio = Column(String, nullable=True)
+    average_grade = Column(String, nullable=True) # "8.5" or similar
+    rating_position = Column(Integer, nullable=True)
+    grades_data = Column(String, nullable=True) # JSON string of grades
+    last_rating_update = Column(DateTime, nullable=True)
 
     tasks = relationship("Task", back_populates="owner", cascade="all, delete-orphan")
     custom_events = relationship("CustomEvent", back_populates="owner", cascade="all, delete-orphan")

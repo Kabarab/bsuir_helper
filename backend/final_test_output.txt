@@ -1,0 +1,11 @@
+Starting manual rating update test...
+User found: 899052748, Current Rating: None, Average: None
+Update completed. New Rating: None, New Average: None
+Last update: 2026-03-22 17:26:25.043666
+Grades data stored (length: 102248)
+Parsed grades data successfully. Keys: dict_keys(['id', 'fio', 'subGroup', 'subGroupStudent', 'lessons'])
+Unclosed client session
+client_session: <aiohttp.client.ClientSession object at 0x10b485340>
+Unclosed connector
+connections: ['deque([(<aiohttp.client_proto.ResponseHandler object at 0x10b5d2e80>, 0.801055208)])']
+connector: <aiohttp.connector.TCPConnector object at 0x10b5d0100>
