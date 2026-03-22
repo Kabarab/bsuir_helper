@@ -4,6 +4,10 @@ import WebApp from '@twa-dev/sdk'
 import App from './App.jsx'
 import './index.css'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
+import axios from 'axios';
+
+// Configure Axios baseURL from environment, or use relative (proxy) for local dev
+axios.defaults.baseURL = import.meta.env.VITE_API_URL || '';
 
 try {
   const rootElement = document.getElementById('root');
