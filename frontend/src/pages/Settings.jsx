@@ -4,6 +4,7 @@ import { Settings as SettingsIcon, Save, ChevronLeft, GraduationCap, Search, Che
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import WebApp from '@twa-dev/sdk';
+import SegmentedDateTimeInput from '../components/SegmentedDateTimeInput';
 
 export default function Settings() {
   const { 
@@ -396,11 +397,9 @@ export default function Settings() {
         </p>
         
         <div className="space-y-4">
-          <input 
-            type="datetime-local" 
+          <SegmentedDateTimeInput 
             value={debugTime}
-            onChange={(e) => setDebugTime(e.target.value)}
-            className="w-full px-4 py-3.5 rounded-2xl bg-tg-bg text-tg-text focus:outline-none ring-2 ring-transparent focus:ring-red-500/30 border border-tg-hint/10 transition-all font-bold"
+            onChange={(val) => setDebugTime(val)}
           />
           <div className="flex gap-2">
             <button

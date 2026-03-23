@@ -6,6 +6,8 @@ import { ru } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
 import { getMinskNow } from '../utils/minskTime';
+import SegmentedDateInput from '../components/SegmentedDateInput';
+import SegmentedTimeInput from '../components/SegmentedTimeInput';
 
 const COLOR_PRESETS = {
   blue: { bg: 'bg-blue-500', text: 'text-blue-500', border: 'border-blue-500/30', light: 'bg-blue-500/10' },
@@ -1344,50 +1346,41 @@ export default function Schedule() {
 
               <div>
                 <label className="block text-xs font-semibold uppercase text-tg-hint mb-1.5 ml-1">Дата</label>
-                <input 
-                  type="date"
+                <SegmentedDateInput 
                   value={newPlan.date || format(selectedDate, 'yyyy-MM-dd')}
-                  onChange={(e) => setNewPlan({...newPlan, date: e.target.value})}
-                  className="w-full px-4 h-[52px] rounded-2xl bg-tg-bg text-tg-text focus:outline-none ring-2 ring-transparent focus:ring-tg-button/30 border-none transition-all font-medium appearance-none"
+                  onChange={(val) => setNewPlan({...newPlan, date: val})}
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold uppercase text-tg-hint mb-1.5 ml-1">Начало</label>
-                  <input 
-                    type="time"
-                    step="60"
+                  <SegmentedTimeInput 
                     value={newPlan.startTime}
-                    onChange={(e) => {
-                      const newStart = e.target.value;
-                      const updates = { startTime: newStart };
-                      if (newStart >= newPlan.endTime) {
-                        const [h, m] = newStart.split(':').map(Number);
+                    onChange={(val) => {
+                      const updates = { startTime: val };
+                      if (val >= newPlan.endTime) {
+                        const [h, m] = val.split(':').map(Number);
                         const endMin = h * 60 + m + 30;
                         updates.endTime = `${Math.floor(endMin / 60).toString().padStart(2, '0')}:${(endMin % 60).toString().padStart(2, '0')}`;
                       }
                       setNewPlan({...newPlan, ...updates});
                     }}
-                    className="w-full px-4 h-[52px] rounded-2xl bg-tg-bg text-tg-text focus:outline-none ring-2 ring-transparent focus:ring-tg-button/30 border-none transition-all font-medium appearance-none"
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold uppercase text-tg-hint mb-1.5 ml-1">Конец</label>
-                  <input 
-                    type="time"
-                    step="60"
+                  <SegmentedTimeInput 
                     value={newPlan.endTime}
-                    onChange={(e) => {
-                      let val = e.target.value;
-                      if (val <= newPlan.startTime) {
+                    onChange={(val) => {
+                      let finalVal = val;
+                      if (finalVal <= newPlan.startTime) {
                         const [h, m] = newPlan.startTime.split(':').map(Number);
                         const clamped = h * 60 + m + 1;
-                        val = `${Math.floor(clamped / 60).toString().padStart(2,'0')}:${(clamped % 60).toString().padStart(2,'0')}`;
+                        finalVal = `${Math.floor(clamped / 60).toString().padStart(2,'0')}:${(clamped % 60).toString().padStart(2,'0')}`;
                       }
-                      setNewPlan({...newPlan, endTime: val});
+                      setNewPlan({...newPlan, endTime: finalVal});
                     }}
-                    className="w-full px-4 h-[52px] rounded-2xl bg-tg-bg text-tg-text focus:outline-none ring-2 ring-transparent focus:ring-tg-button/30 border-none transition-all font-medium appearance-none"
                   />
                 </div>
               </div>
@@ -1461,12 +1454,9 @@ export default function Schedule() {
                       <label className="block text-xs font-semibold uppercase text-tg-hint mb-1.5 ml-1">
                         Повторять до (необязательно)
                       </label>
-                      <input 
-                        type="date"
+                      <SegmentedDateInput 
                         value={newPlan.recurrence_end_date || ''}
-                        onChange={(e) => setNewPlan({...newPlan, recurrence_end_date: e.target.value})}
-                        className="w-full px-4 h-[52px] rounded-2xl bg-tg-bg text-tg-text focus:outline-none ring-2 ring-transparent focus:ring-tg-button/30 border-none transition-all font-medium appearance-none"
-                        min={newPlan.date || format(selectedDate, 'yyyy-MM-dd')}
+                        onChange={(val) => setNewPlan({...newPlan, recurrence_end_date: val})}
                       />
                     </div>
                   </div>
