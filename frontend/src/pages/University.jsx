@@ -115,38 +115,30 @@ export default function University() {
 
   // Current Week logic
   const [currentWeekNum, setCurrentWeekNum] = useState(null);
+  const [weekFetchDate, setWeekFetchDate] = useState(null);
+
   useEffect(() => {
-    axios.get('/api/bsuir/week').then(res => setCurrentWeekNum(res.data)).catch(console.error);
+    axios.get('/api/bsuir/week').then(res => {
+      if (typeof res.data === 'object' && res.data.week !== undefined) {
+        setCurrentWeekNum(res.data.week);
+        setWeekFetchDate(new Date(res.data.serverTime));
+      } else {
+        setCurrentWeekNum(res.data);
+        setWeekFetchDate(getMinskNow());
+      }
+    }).catch(console.error);
   }, []);
   
   const getWeekNumberForDate = (date) => {
-    const d = new Date(date);
-    d.setHours(0, 0, 0, 0);
-    // Находим 1 сентября текущего учебного года
-    let year = d.getFullYear();
-    if (d.getMonth() < 8) { // Если месяц до сентября (0-7), значит учебный год начался в прошлом году
-      year -= 1;
-    }
-    const sept1 = new Date(year, 8, 1); // 1 сентября
+    if (!currentWeekNum) return 1; // Fallback
+    const referenceDate = weekFetchDate || getMinskNow();
     
-    // Находим первый понедельник учебного года (или 1 сентября, если это понедельник)
-    const firstMonday = new Date(sept1);
-    const dayOfWeek = firstMonday.getDay();
-    if (dayOfWeek !== 1) {
-      const daysToAdd = dayOfWeek === 0 ? 1 : 8 - dayOfWeek;
-      firstMonday.setDate(firstMonday.getDate() + daysToAdd);
-    }
-
-    // Если дата до первого понедельника, считаем это 1-й неделей
-    if (d < firstMonday) return 1;
-
-    // Считаем разницу в неделях между датой и первым понедельником
-    const diffTime = d.getTime() - firstMonday.getTime();
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-    const weekDiff = Math.floor(diffDays / 7);
-
-    // Учебные недели циклично 1-4
-    return (weekDiff % 4) + 1;
+    const diffWeeks = differenceInCalendarWeeks(date, referenceDate, { weekStartsOn: 1 });
+    
+    let targetWeek = ((currentWeekNum - 1 + diffWeeks) % 4) + 1;
+    if (targetWeek <= 0) targetWeek += 4;
+    
+    return targetWeek;
   };
 
   const getLessonColor = (lesson) => {

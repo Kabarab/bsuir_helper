@@ -620,7 +620,13 @@ async def current_week():
     data = await fetch_current_week()
     if isinstance(data, dict) and "error" in data:
         raise HTTPException(status_code=400, detail=data["error"])
-    return data
+    
+    # Provide server time to avoid client timezone desyncs
+    now = time_machine.now(MINSK_TZ)
+    return {
+        "week": data,
+        "serverTime": now.isoformat()
+    }
 
 @app.get("/api/bsuir/teachers")
 async def teachers():

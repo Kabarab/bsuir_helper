@@ -29,6 +29,7 @@ export default function Schedule() {
     } catch { return null; }
   });
   const [currentWeekNum, setCurrentWeekNum] = useState(null);
+  const [weekFetchDate, setWeekFetchDate] = useState(null);
   const [loading, setLoading] = useState(!schedule);
 
   const [selectedDate, setSelectedDate] = useState(getMinskNow());
@@ -132,7 +133,15 @@ export default function Schedule() {
     if (showLoader) setLoading(true);
 
     axios.get(`/api/bsuir/week`)
-      .then(res => setCurrentWeekNum(res.data))
+      .then(res => {
+        if (typeof res.data === 'object' && res.data.week !== undefined) {
+          setCurrentWeekNum(res.data.week);
+          setWeekFetchDate(new Date(res.data.serverTime));
+        } else {
+          setCurrentWeekNum(res.data);
+          setWeekFetchDate(getMinskNow());
+        }
+      })
       .catch(console.error);
 
     const url = isTeacher ? `/api/bsuir/teachers/${g}/schedule` : `/api/bsuir/schedule/${g}`;
@@ -244,9 +253,9 @@ export default function Schedule() {
   // BSUIR weeks go 1 -> 2 -> 3 -> 4 -> 1...
   const getWeekNumberForDate = (date) => {
     if (!currentWeekNum) return 1; // Fallback
-    const today = getMinskNow();
+    const referenceDate = weekFetchDate || getMinskNow();
     
-    const diffWeeks = differenceInCalendarWeeks(date, today, { weekStartsOn: 1 });
+    const diffWeeks = differenceInCalendarWeeks(date, referenceDate, { weekStartsOn: 1 });
     
     let targetWeek = ((currentWeekNum - 1 + diffWeeks) % 4) + 1;
     if (targetWeek <= 0) targetWeek += 4;
