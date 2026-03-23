@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
 
 /* ── Segmented Date Time Input (DD/MM/YYYY HH:MM) with validation ── */
-export default function SegmentedDateTimeInput({ value, onChange, minDate }) {
+const SegmentedDateTimeInput = forwardRef(({ value, onChange, minDate, onComplete }, ref) => {
   // value is ISO string or ""
   const [isInvalid, setIsInvalid] = useState(false);
   const dayRef = useRef(null);
@@ -23,6 +23,13 @@ export default function SegmentedDateTimeInput({ value, onChange, minDate }) {
       return { dd, mm, yyyy, hh, min };
     } catch { return { dd:'', mm:'', yyyy:'', hh:'', min:'' }; }
   };
+
+  useImperativeHandle(ref, () => ({
+    focus: () => {
+      dayRef.current?.focus();
+      dayRef.current?.select();
+    }
+  }));
 
   const [seg, setSeg] = useState(() => parse(value));
   useEffect(() => { setSeg(parse(value)); }, [value]);
@@ -73,9 +80,13 @@ export default function SegmentedDateTimeInput({ value, onChange, minDate }) {
     const next = { ...seg, [field]: v };
     setSeg(next);
     emit(next);
-    if (shouldJump && nextRef?.current) {
-      nextRef.current.focus();
-      nextRef.current.select();
+    if (shouldJump) {
+      if (nextRef?.current) {
+        nextRef.current.focus();
+        nextRef.current.select();
+      } else if (field === 'min' && onComplete) {
+        onComplete();
+      }
     }
   };
 
@@ -103,4 +114,6 @@ export default function SegmentedDateTimeInput({ value, onChange, minDate }) {
       </div>
     </div>
   );
-}
+});
+
+export default SegmentedDateTimeInput;

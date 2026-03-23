@@ -36,6 +36,8 @@ export default function Planner() {
   const [customReminderType, setCustomReminderType] = useState('relative'); // 'relative' | 'absolute'
   const [customReminderUnit, setCustomReminderUnit] = useState('minutes'); // 'minutes' | 'hours' | 'days'
   const modalContentRef = useRef(null);
+  const dueTimeRef = useRef(null);
+  const editDueTimeRef = useRef(null);
 
   const fetchEventsForDate = (dateStr) => {
     if (!dateStr) return;
@@ -481,6 +483,7 @@ export default function Planner() {
                       value={currentTask.due_date || ''}
                       onChange={(v) => setCurrentTask(prev => ({...prev, due_date: v}))}
                       minDate={new Date()}
+                      onComplete={() => dueTimeRef.current?.focus()}
                     />
                   </div>
               </div>
@@ -488,6 +491,7 @@ export default function Planner() {
               <div>
                 <label className="block text-xs font-semibold uppercase text-tg-hint mb-1 flex items-center gap-1"><Clock size={12}/> Время дедлайна</label>
                 <SegmentedTimeInput
+                  ref={dueTimeRef}
                   value={currentTask.due_time || ''}
                   onChange={(v) => setCurrentTask({...currentTask, due_time: v})}
                 />

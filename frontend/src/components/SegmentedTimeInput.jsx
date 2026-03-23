@@ -1,12 +1,8 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
 
-/**
- * SegmentedTimeInput (HH:MM) with auto-jump and validation.
- * @param {string} value - "HH:MM" or ""
- * @param {function} onChange - callback with "HH:MM"
- */
-function SegmentedTimeInput({ value, onChange }) {
-  const hourRef = useRef(null);
+/* ── Segmented Time Input (HH:MM) ── */
+const SegmentedTimeInput = forwardRef(({ value, onChange, onComplete }, ref) => {
+  const hhRef = useRef(null);
   const minRef = useRef(null);
 
   const parse = (v) => {
@@ -15,11 +11,15 @@ function SegmentedTimeInput({ value, onChange }) {
     return { hh: h || '', min: m || '' };
   };
 
-  const [seg, setSeg] = useState(() => parse(value));
+  useImperativeHandle(ref, () => ({
+    focus: () => {
+      hhRef.current?.focus();
+      hhRef.current?.select();
+    }
+  }));
 
-  useEffect(() => {
-    setSeg(parse(value));
-  }, [value]);
+  const [seg, setSeg] = useState(() => parse(value));
+  useEffect(() => { setSeg(parse(value)); }, [value]);
 
   const emit = useCallback((next) => {
     const { hh, min } = next;
@@ -34,13 +34,11 @@ function SegmentedTimeInput({ value, onChange }) {
     let v = raw.replace(/\D/g, '').slice(0, maxLen);
     let shouldJump = v.length === maxLen || (raw.length > 0 && /[:\/\-\.\s]/.test(raw.slice(-1)));
 
-    // Smart auto-jump
     if (field === 'hh' && v.length === 1 && parseInt(v) > 2) {
       v = '0' + v;
       shouldJump = true;
     }
 
-    // Bounds check
     if (v.length === 2) {
       let num = parseInt(v);
       if (field === 'hh' && num > 23) v = '23';
@@ -51,9 +49,13 @@ function SegmentedTimeInput({ value, onChange }) {
     setSeg(next);
     emit(next);
 
-    if (shouldJump && nextRef?.current) {
-      nextRef.current.focus();
-      nextRef.current.select();
+    if (shouldJump) {
+      if (nextRef?.current) {
+        nextRef.current.focus();
+        nextRef.current.select();
+      } else if (field === 'min' && onComplete) {
+        onComplete();
+      }
     }
   };
 
@@ -63,36 +65,40 @@ function SegmentedTimeInput({ value, onChange }) {
     }
   };
 
-  const inputCls = 'bg-transparent text-center text-tg-text font-semibold outline-none';
-  const separatorCls = 'text-tg-hint font-bold select-none px-1';
+  const iCls = 'bg-transparent text-center text-tg-text font-bold outline-none text-[13px]';
+  const sCls = 'text-tg-hint font-bold select-none opacity-40 text-[13px]';
 
   return (
-    <div className="flex items-center justify-center w-full px-3 py-2.5 rounded-xl bg-tg-bg focus-within:ring-2 focus-within:ring-tg-button border border-transparent min-h-[44px]">
-      <input
-        ref={hourRef}
-        type="text"
-        inputMode="numeric"
-        maxLength={2}
-        value={seg.hh}
-        onChange={(e) => handleChange('hh', e.target.value, 2, minRef)}
-        onKeyDown={(e) => handleKeyDown('hh', e, null)}
-        onFocus={(e) => e.target.select()}
-        className={`${inputCls} w-[28px]`}
-      />
-      <span className={separatorCls}>:</span>
-      <input
-        ref={minRef}
-        type="text"
-        inputMode="numeric"
-        maxLength={2}
-        value={seg.min}
-        onChange={(e) => handleChange('min', e.target.value, 2, null)}
-        onKeyDown={(e) => handleKeyDown('min', e, hourRef)}
-        onFocus={(e) => e.target.select()}
-        className={`${inputCls} w-[28px]`}
-      />
+    <div className="flex items-center gap-1 w-full px-3 py-2.5 rounded-xl bg-tg-secondaryBg border border-tg-hint/10 focus-within:ring-2 focus-within:ring-tg-button min-h-[44px] transition-all">
+      <div className="flex items-center flex-1 justify-around">
+        <input
+          ref={hhRef}
+          type="text"
+          inputMode="numeric"
+          placeholder="ЧЧ"
+          maxLength={2}
+          value={seg.hh}
+          onChange={(e) => handleChange('hh', e.target.value, 2, minRef)}
+          onKeyDown={(e) => handleKeyDown('hh', e, null)}
+          onFocus={(e) => e.target.select()}
+          className={`${iCls} w-5`}
+        />
+        <span className={sCls}>:</span>
+        <input
+          ref={minRef}
+          type="text"
+          inputMode="numeric"
+          placeholder="ММ"
+          maxLength={2}
+          value={seg.min}
+          onChange={(e) => handleChange('min', e.target.value, 2, null)}
+          onKeyDown={(e) => handleKeyDown('min', e, hhRef)}
+          onFocus={(e) => e.target.select()}
+          className={`${iCls} w-5`}
+        />
+      </div>
     </div>
   );
-}
+});
 
 export default SegmentedTimeInput;

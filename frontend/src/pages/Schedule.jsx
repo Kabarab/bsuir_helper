@@ -35,6 +35,7 @@ export default function Schedule() {
   const [loading, setLoading] = useState(!schedule);
 
   const [selectedDate, setSelectedDate] = useState(getMinskNow());
+  const planStartTimeRef = useRef(null);
 
   // Live Minsk time, updated every 60s for progress tracking
   const [now, setNow] = useState(getMinskNow());
@@ -1350,6 +1351,7 @@ export default function Schedule() {
                   value={newPlan.date || format(selectedDate, 'yyyy-MM-dd')}
                   onChange={(val) => setNewPlan({...newPlan, date: val})}
                   minDate={new Date()}
+                  onComplete={() => planStartTimeRef.current?.focus()}
                 />
               </div>
 
@@ -1357,6 +1359,7 @@ export default function Schedule() {
                 <div>
                   <label className="block text-xs font-semibold uppercase text-tg-hint mb-1.5 ml-1">Начало</label>
                   <SegmentedTimeInput 
+                    ref={planStartTimeRef}
                     value={newPlan.startTime}
                     onChange={(val) => {
                       const updates = { startTime: val };
