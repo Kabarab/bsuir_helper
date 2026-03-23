@@ -120,6 +120,9 @@ export default function Planner() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [currentTask, setCurrentTask] = useState({ id: null, title: '', description: '', priority: 'medium', due_date: '', due_time: '', linkedEventId: null, reminders: [] });
+  const [showCustomNotify, setShowCustomNotify] = useState(false);
+  const [customReminderVal, setCustomReminderVal] = useState('');
+  const [customReminderType, setCustomReminderType] = useState('relative'); // 'relative' | 'absolute'
   const modalContentRef = useRef(null);
 
   const fetchEventsForDate = (dateStr) => {
@@ -220,6 +223,8 @@ export default function Planner() {
 
   const handleCloseModal = () => {
     setIsModalOpen(false);
+    setShowCustomNotify(false);
+    setCustomReminderVal('');
   };
 
   const handleSaveTask = () => {
@@ -634,12 +639,123 @@ export default function Planner() {
                     );
                   })}
                 </div>
+                
+                {/* Custom Reminders List */}
+                <div className="mt-4 space-y-2">
+                   {(currentTask.reminders || []).filter(r => ![5, 15, 30, 60, 120, 1440].includes(r)).map((r, idx) => (
+                      <div key={idx} className="flex items-center justify-between bg-tg-bg px-3 py-2.5 rounded-xl border border-tg-hint/10 shadow-sm">
+                         <div className="flex items-center gap-2">
+                            <Bell size={14} className="text-tg-button" />
+                            <span className="text-xs font-bold text-tg-text">
+                               {typeof r === 'number' 
+                                 ? (r >= 1440 ? `${r / 1440} д. до дедлайна` : r >= 60 ? `${r / 60} ч. до дедлайна` : `${r} мин. до дедлайна`)
+                                 : `Напомнить в ${new Date(r).toLocaleString([], { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}`
+                               }
+                            </span>
+                         </div>
+                         <button 
+                           type="button"
+                           onClick={() => setCurrentTask(prev => ({...prev, reminders: prev.reminders.filter(rem => rem !== r)}))}
+                           className="text-red-500/70 hover:text-red-500 p-1"
+                         >
+                            <X size={16} />
+                         </button>
+                      </div>
+                   ))}
+                </div>
+
+                {/* Add Custom Reminder Button/Form */}
+                {!showCustomNotify ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowCustomNotify(true)}
+                    className="w-full mt-3 py-3 border-2 border-dashed border-tg-hint/20 rounded-xl text-tg-hint hover:text-tg-button hover:border-tg-button/30 transition-all flex items-center justify-center gap-2"
+                  >
+                    <PlusCircle size={18} />
+                    <span className="text-sm font-bold">Добавить напоминание</span>
+                  </button>
+                ) : (
+                  <div className="mt-3 p-4 bg-tg-bg rounded-2xl border border-tg-button/20 space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-200">
+                    <div className="flex bg-tg-secondaryBg p-1 rounded-xl">
+                      <button 
+                        type="button"
+                        onClick={() => { setCustomReminderType('relative'); setCustomReminderVal(''); }}
+                        className={`flex-1 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all ${customReminderType === 'relative' ? 'bg-tg-button text-tg-buttonText shadow-md' : 'text-tg-hint'}`}
+                      >
+                        Относительно
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={() => { setCustomReminderType('absolute'); setCustomReminderVal(''); }}
+                        className={`flex-1 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all ${customReminderType === 'absolute' ? 'bg-tg-button text-tg-buttonText shadow-md' : 'text-tg-hint'}`}
+                      >
+                        Точное время
+                      </button>
+                    </div>
+
+                    {customReminderType === 'relative' ? (
+                       <div className="flex gap-2">
+                          <input 
+                            type="number"
+                            inputMode="numeric"
+                            placeholder="Минут до..."
+                            value={customReminderVal}
+                            onChange={(e) => setCustomReminderVal(e.target.value)}
+                            className="flex-1 bg-tg-secondaryBg text-tg-text px-4 py-2.5 rounded-xl border border-tg-hint/10 focus:outline-none focus:ring-2 focus:ring-tg-button text-sm font-bold"
+                          />
+                       </div>
+                    ) : (
+                       <input 
+                         type="datetime-local"
+                         value={customReminderVal}
+                         onChange={(e) => setCustomReminderVal(e.target.value)}
+                         className="w-full bg-tg-secondaryBg text-tg-text px-4 py-2.5 rounded-xl border border-tg-hint/10 focus:outline-none focus:ring-2 focus:ring-tg-button text-sm font-bold"
+                       />
+                    )}
+
+                    <div className="flex gap-2 pt-1">
+                       <button 
+                         type="button"
+                         onClick={() => setShowCustomNotify(false)}
+                         className="flex-1 py-2.5 bg-tg-secondaryBg text-tg-text rounded-xl text-xs font-bold border border-tg-hint/10"
+                       >
+                         Отмена
+                       </button>
+                       <button 
+                         type="button"
+                         onClick={() => {
+                           if (!customReminderVal) return;
+                           let val = customReminderVal;
+                           if (customReminderType === 'relative') {
+                             val = parseInt(customReminderVal);
+                             if (isNaN(val)) return;
+                           }
+                           setCurrentTask(prev => ({
+                             ...prev,
+                             reminders: [...(prev.reminders || []), val]
+                           }));
+                           setShowCustomNotify(false);
+                           setCustomReminderVal('');
+                         }}
+                         className="flex-1 py-2.5 bg-tg-button text-tg-buttonText rounded-xl text-xs font-bold shadow-md shadow-tg-button/20"
+                       >
+                         Добавить
+                       </button>
+                    </div>
+                  </div>
+                )}
+
                 {(currentTask.reminders || []).length > 0 && (
                   <div className="mt-2 text-[10px] text-tg-hint font-medium ml-1">
                     Выбрано: {(currentTask.reminders || []).map(r => {
-                      if (r >= 1440) return `${r / 1440} д`;
-                      if (r >= 60) return `${r / 60} ч`;
-                      return `${r} мин`;
+                      if (typeof r === 'number') {
+                         if (r >= 1440) return `${r / 1440} д`;
+                         if (r >= 60) return `${r / 60} ч`;
+                         return `${r} мин`;
+                      }
+                      try {
+                        return new Date(r).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                      } catch { return '???'; }
                     }).join(', ')}
                   </div>
                 )}
