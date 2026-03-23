@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useUser } from '../contexts/UserContext';
-import { Settings as SettingsIcon, Save, ChevronLeft, GraduationCap, Search, Check, Clock } from 'lucide-react';
+import { Settings as SettingsIcon, Save, ChevronLeft, GraduationCap, Search, Check } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import WebApp from '@twa-dev/sdk';
-import SegmentedDateTimeInput from '../components/SegmentedDateTimeInput';
 
 export default function Settings() {
   const { 
@@ -29,8 +28,6 @@ export default function Settings() {
   const [englishTeachers, setEnglishTeachers] = useState([]);
   const [selectedEnglishTeacher, setSelectedEnglishTeacher] = useState(null);
 
-  const [debugTime, setDebugTime] = useState('');
-  const [isTimeChanging, setIsTimeChanging] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -45,18 +42,6 @@ export default function Settings() {
     setEnglishTeacherFio(savedEngFio || null);
   }, [savedEngId, savedEngFio]);
 
-  useEffect(() => {
-    const fetchTime = async () => {
-      try {
-        const res = await axios.get('/api/time');
-        const formatted = res.data.iso.slice(0, 16);
-        setDebugTime(formatted);
-      } catch (e) {
-        console.error(e);
-      }
-    };
-    fetchTime();
-  }, []);
 
   const handleSearchTeachers = async (val) => {
     setTeacherSearch(val);
@@ -148,33 +133,6 @@ export default function Settings() {
     };
   }, [handleSave]);
 
-  const handleSetDebugTime = async () => {
-    setIsTimeChanging(true);
-    try {
-      await axios.post('/api/debug/time', { iso: debugTime });
-      WebApp.showScanQrPopup({ text: 'Время изменено!' });
-      setTimeout(() => WebApp.closeScanQrPopup(), 1000);
-    } catch (e) {
-      WebApp.showAlert('Ошибка: ' + e.message);
-    } finally {
-      setIsTimeChanging(false);
-    }
-  };
-
-  const handleResetTime = async () => {
-    setIsTimeChanging(true);
-    try {
-      await axios.post('/api/debug/time', { iso: null });
-      const res = await axios.get('/api/time');
-      setDebugTime(res.data.iso.slice(0, 16));
-      WebApp.showScanQrPopup({ text: 'Время сброшено' });
-      setTimeout(() => WebApp.closeScanQrPopup(), 1000);
-    } catch (e) {
-      WebApp.showAlert('Ошибка: ' + e.message);
-    } finally {
-      setIsTimeChanging(false);
-    }
-  };
 
   return (
     <div className="p-4 relative min-h-[calc(100vh-4rem)] flex flex-col bg-tg-bg text-tg-text">
@@ -386,39 +344,6 @@ export default function Settings() {
         </div>
       )}
 
-      {/* Time Machine Debug Section */}
-      <div className="bg-tg-secondaryBg p-5 rounded-3xl shadow-sm border border-red-500/20 mb-6 bg-red-500/5">
-        <h2 className="text-lg font-bold mb-4 flex items-center gap-2 text-red-500">
-          <Clock size={20} />
-          Машина времени (Debug)
-        </h2>
-        <p className="text-xs text-tg-hint mb-4 ml-1">
-          Позволяет изменить текущее время для тестирования уведомлений и планера.
-        </p>
-        
-        <div className="space-y-4">
-          <SegmentedDateTimeInput 
-            value={debugTime}
-            onChange={(val) => setDebugTime(val)}
-          />
-          <div className="flex gap-2">
-            <button
-              onClick={handleSetDebugTime}
-              disabled={isTimeChanging}
-              className="flex-1 py-3 bg-red-500 text-white font-bold rounded-xl active:scale-95 transition-all text-sm disabled:opacity-50"
-            >
-              Установить
-            </button>
-            <button
-              onClick={handleResetTime}
-              disabled={isTimeChanging}
-              className="px-4 py-3 bg-tg-bg text-tg-text border border-tg-hint/20 font-bold rounded-xl active:scale-95 transition-all text-sm disabled:opacity-50"
-            >
-              Сброс
-            </button>
-          </div>
-        </div>
-      </div>
 
       <button 
         onClick={handleSave}
