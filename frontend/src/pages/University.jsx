@@ -118,14 +118,9 @@ export default function University() {
   const [weekFetchDate, setWeekFetchDate] = useState(null);
 
   useEffect(() => {
-    axios.get('/api/bsuir/week').then(res => {
-      if (typeof res.data === 'object' && res.data.week !== undefined) {
-        setCurrentWeekNum(res.data.week);
-        setWeekFetchDate(new Date(res.data.serverTime));
-      } else {
-        setCurrentWeekNum(res.data);
-        setWeekFetchDate(getMinskNow());
-      }
+    axios.get('https://iis.bsuir.by/api/v1/schedule/current-week').then(res => {
+      setCurrentWeekNum(res.data);
+      setWeekFetchDate(getMinskNow());
     }).catch(console.error);
   }, []);
   

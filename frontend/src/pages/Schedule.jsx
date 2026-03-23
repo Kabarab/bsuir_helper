@@ -132,15 +132,10 @@ export default function Schedule() {
   const fetchSchedule = (g, showLoader = true) => {
     if (showLoader) setLoading(true);
 
-    axios.get(`/api/bsuir/week`)
+    axios.get('https://iis.bsuir.by/api/v1/schedule/current-week')
       .then(res => {
-        if (typeof res.data === 'object' && res.data.week !== undefined) {
-          setCurrentWeekNum(res.data.week);
-          setWeekFetchDate(new Date(res.data.serverTime));
-        } else {
-          setCurrentWeekNum(res.data);
-          setWeekFetchDate(getMinskNow());
-        }
+        setCurrentWeekNum(res.data);
+        setWeekFetchDate(getMinskNow());
       })
       .catch(console.error);
 
