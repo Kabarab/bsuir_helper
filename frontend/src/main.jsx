@@ -7,7 +7,11 @@ import ErrorBoundary from './components/ErrorBoundary.jsx'
 import axios from 'axios';
 
 // Configure Axios baseURL from environment, or use relative (proxy) for local dev
-axios.defaults.baseURL = import.meta.env.VITE_API_URL || '';
+const apiBase = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || '';
+if (apiBase) {
+  axios.defaults.baseURL = apiBase;
+}
+
 
 try {
   const rootElement = document.getElementById('root');

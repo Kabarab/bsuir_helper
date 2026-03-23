@@ -31,30 +31,7 @@ MINSK_TZ = ZoneInfo("Europe/Minsk")
 
 app = FastAPI(title="BSUIR Nexus API")
 
-@app.get("/health")
-async def health():
-    return {"status": "ok", "port": os.getenv("PORT", "not set")}
-
-@app.get("/api/time")
-async def server_time():
-    now = time_machine.now(MINSK_TZ)
-    return {"iso": now.isoformat(), "timestamp": now.timestamp()}
-
-@app.post("/api/debug/time")
-async def set_debug_time(data: dict):
-    # Expects {"iso": "2026-03-17T10:00:00"} or {"iso": null} to reset
-    iso_str = data.get("iso")
-    time_machine.set_time(iso_str)
-    now = time_machine.now(MINSK_TZ)
-    return {"status": "ok", "new_time": now.isoformat()}
-
-# --- In-memory grades cache ---
-_grades_cache = {}
-GRADES_CACHE_TTL = 600  # 10 minutes
-
-WEBHOOK_PATH = "/api/bot/webhook"
-WEBHOOK_URL = os.getenv("BACKEND_URL", "") + WEBHOOK_PATH
-
+# --- Middleware ---
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"], 
@@ -84,7 +61,33 @@ async def log_requests(request, call_next):
     print(f"DEBUG: {request.method} {request.url.path} | Status: {response.status_code} | Duration: {duration:.3f}s", flush=True)
     return response
 
+# --- Routes - Basics ---
+@app.get("/health")
+async def health():
+    return {"status": "ok", "port": os.getenv("PORT", "not set")}
+
+@app.get("/api/time")
+async def server_time():
+    now = time_machine.now(MINSK_TZ)
+    return {"iso": now.isoformat(), "timestamp": now.timestamp()}
+
+@app.post("/api/debug/time")
+async def set_debug_time(data: dict):
+    # Expects {"iso": "2026-03-17T10:00:00"} or {"iso": null} to reset
+    iso_str = data.get("iso")
+    time_machine.set_time(iso_str)
+    now = time_machine.now(MINSK_TZ)
+    return {"status": "ok", "new_time": now.isoformat()}
+
+# --- In-memory grades cache ---
+_grades_cache = {}
+GRADES_CACHE_TTL = 600  # 10 minutes
+
+WEBHOOK_PATH = "/api/bot/webhook"
+WEBHOOK_URL = os.getenv("BACKEND_URL", "") + WEBHOOK_PATH
+
 @app.on_event("startup")
+
 async def startup_event():
     print(f"STARTUP: PORT env = {os.getenv('PORT', 'NOT SET')}", flush=True)
     print("STARTUP: Starting application initialization...", flush=True)
