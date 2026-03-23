@@ -22,6 +22,7 @@ function SegmentedTimeInput({ value, onChange }) {
   }, [value]);
 
   const emit = useCallback((next) => {
+    const { hh, min } = next;
     if (hh && min && hh.length === 2 && min.length === 2) {
       onChange(`${hh}:${min}`);
     } else if (!hh && !min) {
@@ -31,7 +32,7 @@ function SegmentedTimeInput({ value, onChange }) {
 
   const handleChange = (field, raw, maxLen, nextRef) => {
     let v = raw.replace(/\D/g, '').slice(0, maxLen);
-    let shouldJump = v.length === maxLen;
+    let shouldJump = v.length === maxLen || (raw.length > 0 && /[:\/\-\.\s]/.test(raw.slice(-1)));
 
     // Smart auto-jump
     if (field === 'hh' && v.length === 1 && parseInt(v) > 2) {
@@ -71,7 +72,7 @@ function SegmentedTimeInput({ value, onChange }) {
         ref={hourRef}
         type="text"
         inputMode="numeric"
-        placeholder="ЧЧ"
+        maxLength={2}
         value={seg.hh}
         onChange={(e) => handleChange('hh', e.target.value, 2, minRef)}
         onKeyDown={(e) => handleKeyDown('hh', e, null)}
@@ -83,7 +84,7 @@ function SegmentedTimeInput({ value, onChange }) {
         ref={minRef}
         type="text"
         inputMode="numeric"
-        placeholder="ММ"
+        maxLength={2}
         value={seg.min}
         onChange={(e) => handleChange('min', e.target.value, 2, null)}
         onKeyDown={(e) => handleKeyDown('min', e, hourRef)}

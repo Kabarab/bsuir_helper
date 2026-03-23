@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 
 /* ── Segmented Date Input (DD / MM / YYYY) with auto‑jump and validation ── */
-export default function SegmentedDateInput({ value, onChange }) {
+export default function SegmentedDateInput({ value, onChange, minDate }) {
+  const [isInvalid, setIsInvalid] = useState(false);
   // value is "YYYY-MM-DD" or ""
   const dayRef = useRef(null);
   const monthRef = useRef(null);
@@ -23,17 +24,36 @@ export default function SegmentedDateInput({ value, onChange }) {
     const { dd, mm, yyyy } = next;
     if (dd && mm && yyyy && dd.length === 2 && mm.length === 2 && yyyy.length === 4) {
       const d = new Date(parseInt(yyyy), parseInt(mm) - 1, parseInt(dd));
+      // Reset hours to start of day for comparison
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      
+      const compDate = new Date(d);
+      compDate.setHours(0,0,0,0);
+
       if (d.getFullYear() === parseInt(yyyy) && d.getMonth() === parseInt(mm) - 1 && d.getDate() === parseInt(dd)) {
+        if (minDate) {
+          const min = new Date(minDate);
+          min.setHours(0,0,0,0);
+          if (compDate < min) {
+            setIsInvalid(true);
+            return;
+          }
+        }
+        setIsInvalid(false);
         onChange(`${yyyy}-${mm}-${dd}`);
+      } else {
+        setIsInvalid(true);
       }
     } else if (!dd && !mm && !yyyy) {
+      setIsInvalid(false);
       onChange('');
     }
-  }, [onChange]);
+  }, [onChange, minDate]);
 
   const handleChange = (field, raw, maxLen, nextRef) => {
     let v = raw.replace(/\D/g, '').slice(0, maxLen);
-    let shouldJump = v.length === maxLen;
+    let shouldJump = v.length === maxLen || (raw.length > 0 && /[:\/\-\.\s]/.test(raw.slice(-1)));
 
     // Smart auto-jump
     if (field === 'dd' && v.length === 1 && parseInt(v) > 3) {
@@ -74,7 +94,7 @@ export default function SegmentedDateInput({ value, onChange }) {
   const separatorCls = 'text-tg-hint font-bold select-none';
 
   return (
-    <div className="flex items-center gap-0 w-full px-3 py-2.5 rounded-xl bg-tg-bg focus-within:ring-2 focus-within:ring-tg-button border border-transparent min-h-[44px]">
+    <div className={`flex items-center gap-0 w-full px-3 py-2.5 rounded-xl bg-tg-bg focus-within:ring-2 ${isInvalid ? 'ring-2 ring-red-500 border-red-500' : 'focus-within:ring-tg-button border-transparent'} border min-h-[44px] transition-all`}>
       <input
         ref={dayRef}
         type="text"

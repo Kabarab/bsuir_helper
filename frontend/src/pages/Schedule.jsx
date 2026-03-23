@@ -1349,6 +1349,7 @@ export default function Schedule() {
                 <SegmentedDateInput 
                   value={newPlan.date || format(selectedDate, 'yyyy-MM-dd')}
                   onChange={(val) => setNewPlan({...newPlan, date: val})}
+                  minDate={new Date()}
                 />
               </div>
 
@@ -1457,6 +1458,7 @@ export default function Schedule() {
                       <SegmentedDateInput 
                         value={newPlan.recurrence_end_date || ''}
                         onChange={(val) => setNewPlan({...newPlan, recurrence_end_date: val})}
+                        minDate={new Date()}
                       />
                     </div>
                   </div>

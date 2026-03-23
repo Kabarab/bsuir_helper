@@ -5,6 +5,7 @@ import { useUser } from '../contexts/UserContext';
 import { getMinskNow } from '../utils/minskTime';
 import { getApiBaseUrl } from '../utils/apiClient';
 import SegmentedDateInput from '../components/SegmentedDateInput';
+import SegmentedTimeInput from '../components/SegmentedTimeInput';
 import SegmentedDateTimeInput from '../components/SegmentedDateTimeInput';
 
 export default function Planner() {
@@ -479,17 +480,16 @@ export default function Planner() {
                     <SegmentedDateInput
                       value={currentTask.due_date || ''}
                       onChange={(v) => setCurrentTask(prev => ({...prev, due_date: v}))}
+                      minDate={new Date()}
                     />
                   </div>
               </div>
 
               <div>
                 <label className="block text-xs font-semibold uppercase text-tg-hint mb-1 flex items-center gap-1"><Clock size={12}/> Время дедлайна</label>
-                <input
-                  type="time"
+                <SegmentedTimeInput
                   value={currentTask.due_time || ''}
-                  onChange={(e) => setCurrentTask({...currentTask, due_time: e.target.value})}
-                   className="w-full px-3 py-2.5 rounded-xl bg-tg-bg text-tg-text focus:outline-none focus:ring-2 focus:ring-tg-button border border-tg-hint/20 focus:border-tg-button min-h-[44px] transition-all"
+                  onChange={(v) => setCurrentTask({...currentTask, due_time: v})}
                 />
               </div>
 
@@ -629,6 +629,7 @@ export default function Planner() {
                         <SegmentedDateTimeInput
                           value={customReminderVal}
                           onChange={(v) => setCustomReminderVal(v)}
+                          minDate={new Date()}
                         />
                     )}
 
