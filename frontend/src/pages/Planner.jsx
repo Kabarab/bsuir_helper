@@ -3,6 +3,7 @@ import axios from 'axios';
 import { Circle, CheckCircle2, Calendar, Edit2, Trash2, PlusCircle, X, Check, Bell, Clock } from 'lucide-react';
 import { useUser } from '../contexts/UserContext';
 import { getMinskNow } from '../utils/minskTime';
+import { getApiBaseUrl } from '../utils/apiClient';
 
 /* ── Segmented Date Input (DD / MM / YYYY) with auto‑jump ── */
 function SegmentedDateInput({ value, onChange }) {
@@ -130,7 +131,7 @@ export default function Planner() {
     const bsuirDayNames = ["Воскресенье", "Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота"];
     const dayName = bsuirDayNames[targetDate.getDay()];
     
-    const url = isTeacher ? `/api/bsuir/teachers/${targetKey}/schedule` : `/api/bsuir/schedule/${targetKey}`;
+    const url = isTeacher ? `${getApiBaseUrl()}/api/bsuir/teachers/${targetKey}/schedule` : `${getApiBaseUrl()}/api/bsuir/schedule/${targetKey}`;
     axios.get(url)
       .then(res => {
         if (res.data?.schedules && res.data.schedules[dayName]) {
@@ -164,7 +165,7 @@ export default function Planner() {
 
   const refreshTasks = () => {
     if (!telegramId) return;
-    axios.get(`/api/tasks/${telegramId}`)
+    axios.get(`${getApiBaseUrl()}/api/tasks/${telegramId}`)
       .then(res => {
         const data = Array.isArray(res.data) ? res.data : [];
         setTasks(data);
@@ -279,7 +280,7 @@ export default function Planner() {
     const config = { timeout: 15000 };
 
     if (currentTask.id) {
-      axios.put(`/api/tasks/${currentTask.id}`, taskPayload, config)
+      axios.put(`${getApiBaseUrl()}/api/tasks/${currentTask.id}`, taskPayload, config)
         .then(res => {
           setTasks(prev => prev.map(t => t.id == currentTask.id ? res.data : t));
           handleCloseModal();
@@ -299,7 +300,7 @@ export default function Planner() {
         .finally(() => setIsSaving(false));
     } else {
       const taskToCreate = { ...taskPayload, created_at: Date.now() };
-      axios.post(`/api/tasks/${telegramId}`, taskToCreate, config)
+      axios.post(`${getApiBaseUrl()}/api/tasks/${telegramId}`, taskToCreate, config)
         .then(res => {
           setTasks(prev => [res.data, ...prev]);
           handleCloseModal();
@@ -330,7 +331,7 @@ export default function Planner() {
     setTasks(updatedTasks);
     syncToLocalStorage(updatedTasks);
     
-    axios.put(`/api/tasks/${id}`, { is_completed: !task.is_completed })
+    axios.put(`${getApiBaseUrl()}/api/tasks/${id}`, { is_completed: !task.is_completed })
       .then(res => {
         setTasks(prev => prev.map(t => t.id == id ? res.data : t));
       })
@@ -356,7 +357,7 @@ export default function Planner() {
     setTasks(updatedTasks);
     syncToLocalStorage(updatedTasks);
     
-    axios.delete(`/api/tasks/${id}`)
+    axios.delete(`${getApiBaseUrl()}/api/tasks/${id}`)
       .catch(err => {
         console.error(err);
         // Task already removed locally, no need to block UI

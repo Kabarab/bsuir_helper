@@ -1,10 +1,9 @@
 import axios from 'axios';
+import { getApiBaseUrl } from './apiClient';
 
 /**
  * Utility to fetch and parse XML from BSUIR IIS API.
  */
-
-const PROXY_URL = '/api/bsuir/proxy';
 
 // --- Simple in-memory TTL cache ---
 const _cache = {};
@@ -23,7 +22,7 @@ const TTL_RATING = 10 * 60 * 1000;  // 10 min
 async function getCachedGroups() {
   const cached = cacheGet('groups', TTL_GROUPS);
   if (cached) return cached;
-  const res = await axios.get('/api/bsuir/groups');
+  const res = await axios.get(`${getApiBaseUrl()}/api/bsuir/groups`);
   const data = res.data || [];
   cacheSet('groups', data);
   return data;
@@ -34,7 +33,7 @@ async function getCachedGroups() {
  * Support both JSON and XML depending on backend response.
  */
 export async function fetchRaw(url) {
-  const response = await axios.get(`/api/bsuir/proxy?url=${encodeURIComponent(url)}`);
+  const response = await axios.get(`${getApiBaseUrl()}/api/bsuir/proxy?url=${encodeURIComponent(url)}`);
   return response.data;
 }
 
