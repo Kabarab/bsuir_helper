@@ -117,6 +117,7 @@ async def startup_event():
         await safe_add_column("custom_events", "recurrence_interval", "INTEGER", "1")
         await safe_add_column("tasks", "reminders", "VARCHAR", None)
         await safe_add_column("tasks", "due_time", "VARCHAR", None)
+        await safe_add_column("tasks", "overdue_notified", "BOOLEAN", "false")
         await safe_add_column("users", "is_teacher", "BOOLEAN", "false")
         await safe_add_column("users", "teacher_url_id", "VARCHAR", None)
         await safe_add_column("users", "english_teacher_id", "VARCHAR", None)
@@ -215,6 +216,7 @@ class TaskResponse(BaseModel):
     linkedEventId: Optional[str] = None
     created_at: Optional[int] = None
     reminders: Optional[str] = None
+    overdue_notified: bool = False
 
     class Config:
         from_attributes = True
