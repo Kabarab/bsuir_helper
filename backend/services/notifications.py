@@ -28,7 +28,8 @@ class NotificationService:
                 logger.error(f"Error in notification check: {e}")
             await asyncio.sleep(60) # Check every minute
 
-    async def check_notifications(self):
+    async def check_notifications(self, dry_run=False):
+        stats = {"users_processed": 0, "tasks_processed": 0, "notifications_sent": 0, "errors": [], "messages": []}
         async with SessionLocal() as db:
             result = await db.execute(select(User))
             users = result.scalars().all()
@@ -38,13 +39,25 @@ class NotificationService:
                 current_week = None
 
             for user in users:
-                await self.process_user_tasks(db, user)
+                stats["users_processed"] += 1
+                user_stats = await self.process_user_tasks(db, user, dry_run=dry_run)
+                stats["tasks_processed"] += user_stats["tasks_checked"]
+                stats["notifications_sent"] += user_stats["sent"]
+                stats["errors"].extend(user_stats["errors"])
+                stats["messages"].extend(user_stats.get("messages", []))
+                
                 if user.bsuir_group and current_week:
-                    await self.process_user_schedule(user, current_week)
+                    schedule_res = await self.process_user_schedule(user, current_week, dry_run=dry_run)
+                    if isinstance(schedule_res, dict):
+                        stats["errors"].extend(schedule_res.get("errors", []))
+                        stats["messages"].extend(schedule_res.get("messages", []))
+                        stats["notifications_sent"] += schedule_res.get("sent", 0)
             
             await db.commit()
+        return stats
 
-    async def process_user_tasks(self, db: AsyncSession, user: User):
+    async def process_user_tasks(self, db: AsyncSession, user: User, dry_run=False):
+        stats = {"tasks_checked": 0, "sent": 0, "errors": [], "messages": []}
         import json
         now = time_machine.now(MINSK_TZ).replace(tzinfo=None)
         
@@ -58,6 +71,7 @@ class NotificationService:
         tasks = result.scalars().all()
         
         for task in tasks:
+            stats["tasks_checked"] += 1
             target_dt = None
             
             # Try parsing from linkedEventId: "2026-03-06_09:00_Maths"
@@ -95,62 +109,108 @@ class NotificationService:
                         msg += f"\n📚 Предмет: {task.subject}"
                     
                     try:
-                        await bot.send_message(user.telegram_id, msg)
+                        if dry_run:
+                            stats["messages"].append(f"DRY_RUN to {user.telegram_id}: {msg}")
+                        else:
+                            await bot.send_message(user.telegram_id, msg)
                         task.overdue_notified = True
+                        stats["sent"] += 1
                     except Exception as e:
                         logger.error(f"Failed to send overdue notification to {user.telegram_id}: {e}")
+                        stats["errors"].append(str(e))
                 continue
 
-            # Parse reminders array [15, 60] etc. or fallback to user.notification_offset
+            # Parse reminders array [15, "2026-03-23T15:00:00"] etc.
             reminders_to_check = []
             if task.reminders:
                 try:
                     reminders_to_check = json.loads(task.reminders)
                 except Exception:
                     pass
+            
+            # Ensure we always have at least the user's default offset if no custom reminders
             if not reminders_to_check:
                 reminders_to_check = [user.notification_offset]
                 
-            # Sort reminders descending (e.g., 1440, 60, 5) to trigger the largest first
-            for offset_mins in sorted(reminders_to_check, reverse=True):
-                notify_time = target_dt - timedelta(minutes=offset_mins)
+            for reminder_val in reminders_to_check:
+                notify_time = None
+                label = "Дедлайн"
                 
+                if isinstance(reminder_val, (int, float)):
+                    # Relative reminder (minutes before target_dt)
+                    notify_time = target_dt - timedelta(minutes=int(reminder_val))
+                    label = f"Дедлайн через {int(reminder_val)} мин."
+                elif isinstance(reminder_val, str):
+                    # Absolute reminder (ISO format)
+                    try:
+                        notify_time = datetime.fromisoformat(reminder_val)
+                        label = f"Напоминание (запланировано на {notify_time.strftime('%H:%M')})"
+                    except ValueError:
+                        continue
+                
+                if not notify_time:
+                    continue
+                    
+                # Check if it's time to notify AND we haven't notified for this specific reminder yet
+                # We use last_reminded_at as a simple gate for relative reminders,
+                # but for multiple/absolute we might need a more complex state if they are very close.
+                # However, usually they are distinct enough.
                 if now >= notify_time:
-                    # check if we already reminded for this specific offset or a closer one
+                    # To avoid double-notifying the same reminder, we check if last_reminded_at 
+                    # is VERY close to notify_time (within 1 minute) or later.
                     if task.last_reminded_at and task.last_reminded_at >= notify_time:
                         continue
                         
                     time_left = int((target_dt - now).total_seconds() / 60)
+                    time_str = target_dt.strftime('%H:%M')
+                    
+                    if isinstance(reminder_val, (int, float)):
+                        msg_time = f"⏰ {label} ({time_str})"
+                    else:
+                        # For absolute time, we show how much time is left until deadline
+                        msg_time = f"⏰ {label}\n⌛️ До дедлайна осталось {time_left} мин. ({time_str})"
+                        
                     msg = (
                         f"🔔 <b>Напоминание о задаче!</b>\n\n"
                         f"📌 {task.title}\n"
-                        f"⏰ Начнется через {time_left} мин. ({target_dt.strftime('%H:%M')})"
+                        f"{msg_time}"
                     )
+                    
                     if task.subject:
                         msg += f"\n📚 Предмет: {task.subject}"
                     
                     try:
-                        await bot.send_message(user.telegram_id, msg)
+                        if dry_run:
+                            stats["messages"].append(f"DRY_RUN to {user.telegram_id}: {msg}")
+                        else:
+                            await bot.send_message(user.telegram_id, msg)
+                        
                         task.last_reminded_at = now
-                        # We break because we just sent a notification
+                        stats["sent"] += 1
+                        # Break inner loop to avoid sending multiple reminders for the same task in one check
+                        # (they will trigger sequentially in next checks if needed)
                         break
                     except Exception as e:
                         logger.error(f"Failed to send task notification to {user.telegram_id}: {e}")
+                        stats["errors"].append(str(e))
+        return stats
 
-    async def process_user_schedule(self, user: User, current_week: int):
+    async def process_user_schedule(self, user: User, current_week: int, dry_run=False):
+        res = {"errors": [], "messages": [], "sent": 0}
         now = time_machine.now(MINSK_TZ).replace(tzinfo=None)
         weekday_map = {0: "Понедельник", 1: "Вторник", 2: "Среда", 3: "Четверг", 4: "Пятница", 5: "Суббота", 6: "Воскресенье"}
         today_name = weekday_map[now.weekday()]
         
         schedule_data = await fetch_schedule(user.bsuir_group)
         if not schedule_data or "error" in schedule_data or "schedules" not in schedule_data:
-            return
+            return res
 
         today_schedule = schedule_data["schedules"].get(today_name, [])
         valid_pairs = []
         for pair in today_schedule:
             # Check if pair is for current week
-            if current_week not in pair.get("weekNumber", []):
+            week_numbers = pair.get("weekNumber") or []
+            if current_week not in week_numbers:
                 continue
             
             # Subgroup filtering
@@ -171,7 +231,7 @@ class NotificationService:
                 continue
 
         if not valid_pairs:
-            return
+            return res
 
         # Sort by time to find the first pair
         valid_pairs.sort(key=lambda x: x[0])
@@ -197,11 +257,16 @@ class NotificationService:
                     )
                     
                     try:
-                        await bot.send_message(user.telegram_id, msg)
+                        if dry_run:
+                            res["messages"].append(f"DRY_RUN to {user.telegram_id}: {msg}")
+                        else:
+                            await bot.send_message(user.telegram_id, msg)
                         self.notified_pairs.add(notif_key)
+                        res["sent"] += 1
                         logger.info(f"Sent 1h reminder to {user.telegram_id} for {subject}")
                     except Exception as e:
                         logger.error(f"Failed to send 1h reminder to {user.telegram_id}: {e}")
+                        res["errors"].append(str(e))
 
             # 2. Regular notification based on user.notification_offset
             if 0 <= time_diff <= user.notification_offset:
@@ -219,13 +284,20 @@ class NotificationService:
                     )
                     
                     try:
-                        await bot.send_message(user.telegram_id, msg)
+                        if dry_run:
+                            res["messages"].append(f"DRY_RUN to {user.telegram_id}: {msg}")
+                        else:
+                            await bot.send_message(user.telegram_id, msg)
                         self.notified_pairs.add(notif_key)
+                        res["sent"] += 1
                     except Exception as e:
                         logger.error(f"Failed to send schedule notification to {user.telegram_id}: {e}")
-
-            # Cleanup old notified pairs occasionally
-            if len(self.notified_pairs) > 5000:
-                self.notified_pairs = {k for k in self.notified_pairs if k[1] == now.date().isoformat()}
+                        res["errors"].append(str(e))
+        
+        # Cleanup old notified pairs occasionally
+        if len(self.notified_pairs) > 5000:
+            self.notified_pairs = {k for k in self.notified_pairs if k[1] == now.date().isoformat()}
+            
+        return res
 
 notification_service = NotificationService()

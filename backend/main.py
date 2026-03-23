@@ -79,6 +79,30 @@ async def set_debug_time(data: dict):
     now = time_machine.now(MINSK_TZ)
     return {"status": "ok", "new_time": now.isoformat()}
 
+@app.post("/api/debug/check_notifications")
+async def trigger_notifications():
+    stats = await notification_service.check_notifications(dry_run=True)
+    return {"status": "ok", "stats": stats}
+
+@app.post("/api/debug/test_setup")
+async def setup_test_data(data: dict, db: AsyncSession = Depends(get_db)):
+    tg_id = data.get("telegram_id", 89902748)
+    user_result = await db.execute(select(User).where(User.telegram_id == tg_id))
+    user = user_result.scalars().first()
+    if not user:
+        user = User(telegram_id=tg_id, bsuir_group="453501")
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+    
+    # Optional: Clear tasks
+    if data.get("clear_tasks"):
+        from sqlalchemy import text
+        await db.execute(text("DELETE FROM tasks WHERE user_id = :uid"), {"uid": user.id})
+        await db.commit()
+    
+    return {"status": "ok", "user_id": user.id}
+
 # --- In-memory grades cache ---
 _grades_cache = {}
 GRADES_CACHE_TTL = 600  # 10 minutes
