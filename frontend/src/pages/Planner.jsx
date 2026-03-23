@@ -123,6 +123,7 @@ export default function Planner() {
   const [showCustomNotify, setShowCustomNotify] = useState(false);
   const [customReminderVal, setCustomReminderVal] = useState('');
   const [customReminderType, setCustomReminderType] = useState('relative'); // 'relative' | 'absolute'
+  const [customReminderUnit, setCustomReminderUnit] = useState('minutes'); // 'minutes' | 'hours' | 'days'
   const modalContentRef = useRef(null);
 
   const fetchEventsForDate = (dateStr) => {
@@ -225,6 +226,7 @@ export default function Planner() {
     setIsModalOpen(false);
     setShowCustomNotify(false);
     setCustomReminderVal('');
+    setCustomReminderUnit('minutes');
   };
 
   const handleSaveTask = () => {
@@ -679,14 +681,14 @@ export default function Planner() {
                     <div className="flex bg-tg-secondaryBg p-1 rounded-xl">
                       <button 
                         type="button"
-                        onClick={() => { setCustomReminderType('relative'); setCustomReminderVal(''); }}
+                        onClick={() => { setCustomReminderType('relative'); setCustomReminderVal(''); setCustomReminderUnit('minutes'); }}
                         className={`flex-1 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all ${customReminderType === 'relative' ? 'bg-tg-button text-tg-buttonText shadow-md' : 'text-tg-hint'}`}
                       >
                         Относительно
                       </button>
                       <button 
                         type="button"
-                        onClick={() => { setCustomReminderType('absolute'); setCustomReminderVal(''); }}
+                        onClick={() => { setCustomReminderType('absolute'); setCustomReminderVal(''); setCustomReminderUnit('minutes'); }}
                         className={`flex-1 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all ${customReminderType === 'absolute' ? 'bg-tg-button text-tg-buttonText shadow-md' : 'text-tg-hint'}`}
                       >
                         Точное время
@@ -694,16 +696,25 @@ export default function Planner() {
                     </div>
 
                     {customReminderType === 'relative' ? (
-                       <div className="flex gap-2">
-                          <input 
-                            type="number"
-                            inputMode="numeric"
-                            placeholder="Минут до..."
-                            value={customReminderVal}
-                            onChange={(e) => setCustomReminderVal(e.target.value)}
-                            className="flex-1 bg-tg-secondaryBg text-tg-text px-4 py-2.5 rounded-xl border border-tg-hint/10 focus:outline-none focus:ring-2 focus:ring-tg-button text-sm font-bold"
-                          />
-                       </div>
+                        <div className="flex gap-2">
+                           <input 
+                             type="number"
+                             inputMode="numeric"
+                             placeholder="Количество..."
+                             value={customReminderVal}
+                             onChange={(e) => setCustomReminderVal(e.target.value)}
+                             className="flex-1 bg-tg-secondaryBg text-tg-text px-4 py-2.5 rounded-xl border border-tg-hint/10 focus:outline-none focus:ring-2 focus:ring-tg-button text-sm font-bold"
+                           />
+                           <select
+                             value={customReminderUnit}
+                             onChange={(e) => setCustomReminderUnit(e.target.value)}
+                             className="flex-1 px-3 py-2.5 rounded-xl bg-tg-secondaryBg text-tg-text focus:outline-none focus:ring-2 focus:ring-tg-button border border-tg-hint/10 custom-select text-sm font-bold"
+                           >
+                             <option value="minutes" className="text-black">Мин</option>
+                             <option value="hours" className="text-black">Час</option>
+                             <option value="days" className="text-black">Дни</option>
+                           </select>
+                        </div>
                     ) : (
                        <input 
                          type="datetime-local"
@@ -727,8 +738,11 @@ export default function Planner() {
                            if (!customReminderVal) return;
                            let val = customReminderVal;
                            if (customReminderType === 'relative') {
-                             val = parseInt(customReminderVal);
-                             if (isNaN(val)) return;
+                             let num = parseInt(customReminderVal);
+                             if (isNaN(num)) return;
+                             if (customReminderUnit === 'hours') num *= 60;
+                             if (customReminderUnit === 'days') num *= 1440;
+                             val = num;
                            }
                            setCurrentTask(prev => ({
                              ...prev,
