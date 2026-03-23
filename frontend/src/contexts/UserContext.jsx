@@ -1,9 +1,11 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import axios from 'axios';
 import WebApp from '@twa-dev/sdk';
+import { getApiBaseUrl } from '../utils/apiClient';
 
-// Use environment variable for production, fallback to relative for proxy in dev
-axios.defaults.baseURL = import.meta.env.VITE_API_BASE_URL || '';
+// Use VITE_BACKEND_URL in production (Vercel → Railway), fallback to '' for
+// local dev where the Vite proxy rewrites /api/* to localhost:8000.
+axios.defaults.baseURL = getApiBaseUrl();
 
 const UserContext = createContext();
 
