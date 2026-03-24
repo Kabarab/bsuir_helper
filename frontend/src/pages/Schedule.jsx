@@ -91,14 +91,6 @@ export default function Schedule() {
   // Expandable lesson state
   const [expandedLessonId, setExpandedLessonId] = useState(null);
 
-  // Attendance state
-  const [attendance, setAttendance] = useState(() => {
-    try {
-      const saved = localStorage.getItem('bsuir_attendance');
-      return saved ? JSON.parse(saved) : [];
-    } catch { return []; }
-  });
-
   // Drag-to-create state
   const [dragState, setDragState] = useState({ isDragging: false, startY: 0, currentY: 0 });
   const gridRef = useRef(null);
@@ -116,17 +108,9 @@ export default function Schedule() {
   }, [customPlans]);
 
   useEffect(() => {
-    // Custom events are fetched using telegramId
     axios.get(`/api/events/${telegramId}`)
       .then(res => {
         setCustomPlans(Array.isArray(res.data) ? res.data : []);
-      })
-      .catch(console.error);
-
-    axios.get(`/api/attendance/${telegramId}`)
-      .then(res => {
-        setAttendance(Array.isArray(res.data) ? res.data : []);
-        localStorage.setItem('bsuir_attendance', JSON.stringify(res.data));
       })
       .catch(console.error);
   }, [telegramId]);
@@ -618,45 +602,6 @@ export default function Schedule() {
       .catch(console.error);
   };
 
-  const handleToggleAttendance = (lesson) => {
-    if (!telegramId) return;
-    dismissContextMenu();
-    
-    const dateStr = format(selectedDate, 'yyyy-MM-dd');
-    const data = {
-      subject: lesson.subject,
-      lesson_type: lesson.lessonTypeAbbrev,
-      date: dateStr,
-      start_time: lesson.startLessonTime,
-      end_time: lesson.endLessonTime,
-      hours: 2 // Default academic hours
-    };
-
-    axios.post(`/api/attendance/${telegramId}/toggle`, data)
-      .then(res => {
-        if (res.data.status === 'added') {
-          const newRecord = { ...data, user_id: telegramId, id: Date.now() }; // temporary ID for UI
-          const updated = [...attendance, newRecord];
-          setAttendance(updated);
-          localStorage.setItem('bsuir_attendance', JSON.stringify(updated));
-          if (window.Telegram?.WebApp) window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
-        } else {
-          const updated = attendance.filter(a => !(a.subject === data.subject && a.date === data.date && a.start_time === data.start_time));
-          setAttendance(updated);
-          localStorage.setItem('bsuir_attendance', JSON.stringify(updated));
-          if (window.Telegram?.WebApp) window.Telegram.WebApp.HapticFeedback.selectionChanged();
-        }
-      })
-      .catch(err => {
-        console.error("Attendance toggle error:", err);
-      });
-  };
-
-  const isLessonSkipped = (lesson) => {
-    const dateStr = format(selectedDate, 'yyyy-MM-dd');
-    return attendance.some(a => a.subject === lesson.subject && a.date === dateStr && a.start_time === lesson.startLessonTime);
-  };
-
   const getTimeFromY = (y) => {
     const totalMinutes = Math.floor((y / 80) * 60);
     const hours = Math.floor(totalMinutes / 60);
@@ -1000,13 +945,6 @@ export default function Schedule() {
                          </div>
                        )}
                        
-                       {/* Skipped Badge */}
-                      {isLessonSkipped(lesson) && (
-                        <div className={`absolute top-0 ${lesson.numSubgroup !== 0 ? 'right-[9rem]' : 'right-[4.5rem]'} px-2 py-1 rounded-bl-xl font-black text-[10px] uppercase bg-red-500 text-white z-20 shadow-lg animate-pulse`}>
-                           ПРОПУЩЕНО
-                        </div>
-                      )}
-
                       <div className="flex flex-col gap-3">
                         {/* Time */}
                         <div className={`flex items-center gap-1.5 font-bold text-sm ${isPast ? colors.text : colors.text} ${isPast ? colors.light : 'bg-white/40'} w-max px-2 py-1 rounded-lg`}>
@@ -1291,13 +1229,6 @@ export default function Schedule() {
                         />
                       )}
                       {isPast && <div className="absolute inset-0 bg-black opacity-10" />}
-                      
-                      {/* Attendance indicator - red cross over skipped lesson */}
-                      {isLessonSkipped(lesson) && (
-                        <div className="absolute inset-0 bg-red-500/20 backdrop-blur-[1px] z-10 flex items-center justify-center">
-                          <X size={24} className="text-red-500 opacity-40 rotate-12" />
-                        </div>
-                      )}
 
                       <div>
                         <div className="flex items-center justify-between mb-0.5">
@@ -1355,22 +1286,6 @@ export default function Schedule() {
               Добавить план
             </button>
             <div className="h-px bg-[var(--tg-theme-hint-color)] opacity-10 mx-3" />
-            <button
-              onClick={() => handleToggleAttendance(contextMenu.lesson)}
-              className={`flex items-center gap-3 w-full px-4 py-3 text-left text-sm font-semibold hover:bg-tg-bg transition-colors ${isLessonSkipped(contextMenu.lesson) ? 'text-tg-button' : 'text-red-500'}`}
-            >
-              {isLessonSkipped(contextMenu.lesson) ? (
-                <>
-                  <CheckSquare size={16} />
-                  Я был на паре
-                </>
-              ) : (
-                <>
-                  <X size={16} />
-                  Пропустил пару
-                </>
-              )}
-            </button>
             {contextMenu.lesson?.isCustom && (
               <>
                 <div className="h-px bg-[var(--tg-theme-hint-color)] opacity-10 mx-3" />
