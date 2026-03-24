@@ -22,6 +22,7 @@ class User(Base):
 
     tasks = relationship("Task", back_populates="owner", cascade="all, delete-orphan")
     custom_events = relationship("CustomEvent", back_populates="owner", cascade="all, delete-orphan")
+    attendance = relationship("AttendanceRecord", back_populates="owner", cascade="all, delete-orphan")
 
 class Task(Base):
     __tablename__ = "tasks"
@@ -60,3 +61,17 @@ class CustomEvent(Base):
     recurrence_interval = Column(Integer, default=1)
 
     owner = relationship("User", back_populates="custom_events")
+
+class AttendanceRecord(Base):
+    __tablename__ = "attendance"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    subject = Column(String, nullable=False)
+    lesson_type = Column(String, nullable=False) # ЛК, ПЗ, ЛР
+    date = Column(String, nullable=False) # YYYY-MM-DD
+    start_time = Column(String, nullable=False) # HH:MM
+    end_time = Column(String, nullable=False) # HH:MM
+    hours = Column(Integer, default=2) # Academic hours
+
+    owner = relationship("User", back_populates="attendance")

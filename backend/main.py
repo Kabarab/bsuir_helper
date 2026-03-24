@@ -7,7 +7,7 @@ from sqlalchemy.future import select
 from pydantic import BaseModel
 
 from database.core import engine, Base, get_db
-from database.models import User, Task, CustomEvent
+from database.models import User, Task, CustomEvent, AttendanceRecord
 from bot.bot import bot, dp, setup_menu_button
 from services.calculator import calculate_ip
 from services.bsuir_api import (
@@ -274,6 +274,25 @@ class CustomEventUpdate(BaseModel):
     date: Optional[str] = None
     is_recurring: Optional[bool] = None
     recurrence_type: Optional[str] = None
+
+class AttendanceBase(BaseModel):
+    subject: str
+    lesson_type: str
+    date: str
+    start_time: str
+    end_time: str
+    hours: int = 2
+
+class AttendanceCreate(AttendanceBase):
+    pass
+
+class AttendanceResponse(AttendanceBase):
+    id: int
+    user_id: int
+
+    class Config:
+        from_attributes = True
+
 class IpRequest(BaseModel):
     ip: str
 
@@ -488,6 +507,76 @@ async def delete_event(event_id: int, db: AsyncSession = Depends(get_db)):
     await db.delete(event)
     await db.commit()
     return {"success": True}
+
+# --- Routes - Attendance ---
+@app.get("/api/attendance/{telegram_id}", response_model=list[AttendanceResponse])
+async def get_attendance(telegram_id: int, db: AsyncSession = Depends(get_db)):
+    user_result = await db.execute(select(User).where(User.telegram_id == telegram_id))
+    user = user_result.scalars().first()
+    if not user:
+        return []
+    result = await db.execute(select(AttendanceRecord).where(AttendanceRecord.user_id == user.id))
+    return result.scalars().all()
+
+@app.post("/api/attendance/{telegram_id}/toggle")
+async def toggle_attendance(telegram_id: int, data: AttendanceCreate, db: AsyncSession = Depends(get_db)):
+    user_result = await db.execute(select(User).where(User.telegram_id == telegram_id))
+    user = user_result.scalars().first()
+    if not user:
+        user = User(telegram_id=telegram_id)
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+
+    # Check if record already exists for this lesson on this date
+    existing_result = await db.execute(
+        select(AttendanceRecord).where(
+            AttendanceRecord.user_id == user.id,
+            AttendanceRecord.subject == data.subject,
+            AttendanceRecord.date == data.date,
+            AttendanceRecord.start_time == data.start_time
+        )
+    )
+    existing = existing_result.scalars().first()
+
+    if existing:
+        await db.delete(existing)
+        await db.commit()
+        return {"status": "removed", "hours": 0}
+    else:
+        new_record = AttendanceRecord(
+            user_id=user.id,
+            subject=data.subject,
+            lesson_type=data.lesson_type,
+            date=data.date,
+            start_time=data.start_time,
+            end_time=data.end_time,
+            hours=data.hours
+        )
+        db.add(new_record)
+        await db.commit()
+        return {"status": "added", "hours": data.hours}
+
+@app.get("/api/attendance/{telegram_id}/stats")
+async def get_attendance_stats(telegram_id: int, db: AsyncSession = Depends(get_db)):
+    user_result = await db.execute(select(User).where(User.telegram_id == telegram_id))
+    user = user_result.scalars().first()
+    if not user:
+        return {"total_hours": 0, "breakdown": {}}
+    
+    result = await db.execute(select(AttendanceRecord).where(AttendanceRecord.user_id == user.id))
+    records = result.scalars().all()
+    
+    total_hours = sum(r.hours for r in records)
+    breakdown = {}
+    for r in records:
+        breakdown[r.subject] = breakdown.get(r.subject, 0) + r.hours
+        
+    return {
+        "total_hours": total_hours,
+        "breakdown": breakdown,
+        "records_count": len(records)
+    }
 
 # --- Routes - BSUIR ---
 @app.get("/api/bsuir/schedule/{group}")

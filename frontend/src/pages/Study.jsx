@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
-import { BookOpen, Star, GraduationCap, Settings, Info, Search, Trophy, Loader2 } from 'lucide-react';
+import { BookOpen, Star, GraduationCap, Settings, Info, Search, Trophy, Loader2, Clock, AlertTriangle } from 'lucide-react';
 import { useUser } from '../contexts/UserContext';
 import { useNavigate } from 'react-router-dom';
 import { getStudentGrades, fetchStudentRating } from '../utils/bsuirApi';
@@ -35,6 +35,7 @@ export default function Study() {
   });
   const [loadingRating, setLoadingRating] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [attendanceStats, setAttendanceStats] = useState(null);
 
   // Calculate display average (official from rating info OR local from xmlMarks)
   const displayAverage = useMemo(() => {
@@ -92,6 +93,13 @@ export default function Study() {
 
       })
       .catch(err => console.error("Backend grades fetch error:", err));
+
+    // Fetch attendance stats
+    if (telegramId) {
+      axios.get(`/api/attendance/${telegramId}/stats`)
+        .then(res => setAttendanceStats(res.data))
+        .catch(err => console.error("Stats fetch error:", err));
+    }
   }, [telegramId, studentId]);
 
   useEffect(() => {
@@ -214,148 +222,196 @@ export default function Study() {
         </div>
       ) : (
         <>
-          {/* Секция "Текущие оценки" (XML Task) */}
-      <div className="bg-tg-secondaryBg rounded-2xl overflow-hidden shadow-sm">
-        <div className="p-4 border-b border-[var(--tg-theme-hint-color)] opacity-80 flex justify-between items-center">
-          <h2 className="font-semibold flex items-center gap-2">
-            <BookOpen size={20}/> Текущие оценки
-            {isRefreshing && (
-              <div className="flex items-center gap-1.5 ml-2 px-2 py-0.5 border border-tg-button text-tg-button rounded-full opacity-70">
-                <Loader2 size={12} className="animate-spin flex-shrink-0" />
-                <span className="text-[9px] font-bold tracking-wider uppercase">Кэш</span>
-              </div>
-            )}
-          </h2>
-          {!studentId && <Info size={16} className="text-tg-hint" />}
-        </div>
-        <div className="p-4 space-y-4">
-          {!studentId ? (
-            <div className="space-y-3">
-              <p className="text-xs text-tg-hint">Введите номер студенческого билета для получения оценок:</p>
-              <div className="flex gap-2">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-tg-hint" size={16} />
-                  <input 
-                    type="text" 
-                    placeholder="Пример: 206554" 
-                    value={studentCard}
-                    onChange={e => setStudentCard(e.target.value)}
-                    className="w-full bg-tg-bg text-tg-text pl-9 pr-4 py-2.5 rounded-xl border border-tg-hint border-opacity-20 focus:outline-none focus:ring-2 focus:ring-tg-button text-sm"
-                  />
-                </div>
-                <button 
-                  onClick={handleSaveStudentId}
-                  className="px-4 py-2.5 bg-tg-button text-white rounded-xl font-medium text-sm hover:opacity-90 transition shadow-sm"
-                >
-                  OK
-                </button>
-              </div>
+          {/* Секция "Текущие оценки" */}
+          <div className="bg-tg-secondaryBg rounded-2xl overflow-hidden shadow-sm">
+            <div className="p-4 border-b border-[var(--tg-theme-hint-color)] opacity-80 flex justify-between items-center">
+              <h2 className="font-semibold flex items-center gap-2">
+                <BookOpen size={20}/> Текущие оценки
+                {isRefreshing && (
+                  <div className="flex items-center gap-1.5 ml-2 px-2 py-0.5 border border-tg-button text-tg-button rounded-full opacity-70">
+                    <Loader2 size={12} className="animate-spin flex-shrink-0" />
+                    <span className="text-[9px] font-bold tracking-wider uppercase">Кэш</span>
+                  </div>
+                )}
+              </h2>
+              {!studentId && <Info size={16} className="text-tg-hint" />}
             </div>
-          ) : (
-            <>
-              {/* Rating Widget */}
-              {(loadingRating || ratingData) && (
-                <div className="bg-tg-bg p-4 rounded-xl border border-tg-button border-opacity-20 mb-4 relative">
-                  {loadingRating ? (
-                    <div className="w-full text-center text-xs text-tg-hint animate-pulse">Загрузка рейтинга...</div>
-                  ) : ratingData ? (
-                    <>
-                      {isRefreshing && (
-                        <div className="absolute top-2 right-2 flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-tg-button text-tg-button opacity-70">
-                          <Loader2 size={10} className="animate-spin flex-shrink-0" />
-                          <span className="text-[8px] font-bold tracking-wider uppercase">Кэш / Обновляем</span>
-                        </div>
-                      )}
-                      {ratingData.specName && (
-                        <div className="text-center mb-3">
-                          <span className="text-[10px] uppercase font-bold text-tg-hint tracking-wider">Специальность</span>
-                          <div className="text-sm font-bold text-tg-text mt-0.5">{ratingData.specName}</div>
-                        </div>
-                      )}
-                      <div className="flex justify-between items-center">
-                        <div className="flex flex-col">
-                          <span className="text-[10px] uppercase font-bold text-tg-hint tracking-wider">Ваше место</span>
-                          <div className="flex items-baseline gap-1 mt-0.5">
-                            <Trophy size={16} className="text-yellow-500 mb-0.5" />
-                            <span className="text-xl font-black text-tg-text">{ratingData.rank}</span>
-                            <span className="text-xs text-tg-hint font-medium">из {ratingData.total}</span>
-                          </div>
-                        </div>
-                        <div className="h-10 w-px bg-tg-hint opacity-10"></div>
-                        <div className="flex flex-col text-right">
-                          <span className="text-[10px] uppercase font-bold text-tg-hint tracking-wider">Средний балл</span>
-                          <div className="flex items-baseline justify-end gap-1 mt-0.5">
-                            <span className="text-xl font-black text-tg-button">{displayAverage > 0 ? displayAverage.toFixed(1) : '0.0'}</span>
-                            <Star size={14} className="text-tg-button fill-tg-button opacity-20 mb-0.5" />
-                          </div>
-                        </div>
-                      </div>
-                    </>
-                  ) : null}
-                </div>
-              )}
-
-              {loadingXml ? (
-                <div className="text-center py-4 text-tg-hint text-sm">Загрузка данных из IIS...</div>
-              ) : errorXml ? (
-                <div className="text-center py-4 text-red-500 text-sm bg-red-50 rounded-xl">{errorXml}</div>
-              ) : xmlMarks.length > 0 ? (
+            <div className="p-4 space-y-4">
+              {!studentId ? (
                 <div className="space-y-3">
-                  {xmlMarks.map((m, idx) => (
-                    <div key={idx} className="p-4 bg-tg-bg rounded-2xl border border-tg-hint border-opacity-10 space-y-3">
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs font-bold text-tg-hint uppercase tracking-tight">{m.subject}</span>
-                        {m.marks && m.marks.length > 3 && (
-                          <span className="text-[10px] text-tg-hint opacity-50 px-2 py-0.5 bg-tg-secondaryBg rounded-full border border-tg-hint border-opacity-10">
-                            {m.marks.length} оц.
-                          </span>
-                        )}
-                      </div>
-                      
-                      <div className="flex flex-wrap gap-2.5">
-                        {m.marks && m.marks.length > 0 ? m.marks.map((mark, midx) => {
-                          if (mark === null || mark === undefined) return null;
-                          const val = (typeof mark === 'object' && mark !== null) ? mark.val : mark;
-                          const date = (typeof mark === 'object' && mark !== null) ? mark.date : null;
-                          if (val === undefined || val === null) return null;
-
-                          return (
-                            <div key={midx} className="flex flex-col items-center gap-1.5">
-                              <span 
-                                title={date ? `Выставлена: ${date}` : ''}
-                                onClick={() => date && WebApp.showAlert(`Оценка ${val} выставлена ${date}`)}
-                                className={`w-10 h-10 flex items-center justify-center rounded-xl text-sm font-black border shadow-sm transition-all active:scale-90 ${
-                                  val >= 8 ? 'bg-green-500/10 text-green-600 border-green-500/20' : 
-                                  val >= 4 ? 'bg-tg-button/10 text-tg-button border-tg-button/20' : 
-                                  'bg-red-500/10 text-red-600 border-red-500/20'
-                                }`}
-                              >
-                                {val}
-                              </span>
-                              {date && typeof date === 'string' && (
-                                <span className="text-[8px] text-tg-hint opacity-70 font-bold bg-tg-secondaryBg/30 px-1.5 py-0.5 rounded-md border border-tg-hint border-opacity-5">
-                                  {date.includes('.') ? date.split('.').slice(0, 2).join('.') : date}
-                                </span>
-                              )}
-                            </div>
-                          );
-                        }) : (
-                          <span className="text-xs text-tg-hint italic opacity-60">Оценок пока нет</span>
-                        )}
-                      </div>
+                  <p className="text-xs text-tg-hint">Введите номер студенческого билета для получения оценок:</p>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-tg-hint" size={16} />
+                      <input 
+                        type="text" 
+                        placeholder="Пример: 206554" 
+                        value={studentCard}
+                        onChange={e => setStudentCard(e.target.value)}
+                        className="w-full bg-tg-bg text-tg-text pl-9 pr-4 py-2.5 rounded-xl border border-tg-hint border-opacity-20 focus:outline-none focus:ring-2 focus:ring-tg-button text-sm"
+                      />
                     </div>
-                  ))}
-
+                    <button 
+                      onClick={handleSaveStudentId}
+                      className="px-4 py-2.5 bg-tg-button text-white rounded-xl font-medium text-sm hover:opacity-90 transition shadow-sm"
+                    >
+                      OK
+                    </button>
+                  </div>
                 </div>
               ) : (
-                <div className="text-center py-4 text-tg-hint text-sm">Оценок пока нет</div>
+                <>
+                  {/* Rating Widget */}
+                  {(loadingRating || ratingData) && (
+                    <div className="bg-tg-bg p-4 rounded-xl border border-tg-button border-opacity-20 mb-4 relative">
+                      {loadingRating ? (
+                        <div className="w-full text-center text-xs text-tg-hint animate-pulse">Загрузка рейтинга...</div>
+                      ) : ratingData ? (
+                        <>
+                          {isRefreshing && (
+                            <div className="absolute top-2 right-2 flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-tg-button text-tg-button opacity-70">
+                              <Loader2 size={10} className="animate-spin flex-shrink-0" />
+                              <span className="text-[8px] font-bold tracking-wider uppercase">Кэш / Обновляем</span>
+                            </div>
+                          )}
+                          {ratingData.specName && (
+                            <div className="text-center mb-3">
+                              <span className="text-[10px] uppercase font-bold text-tg-hint tracking-wider">Специальность</span>
+                              <div className="text-sm font-bold text-tg-text mt-0.5">{ratingData.specName}</div>
+                            </div>
+                          )}
+                          <div className="flex justify-between items-center">
+                            <div className="flex flex-col">
+                              <span className="text-[10px] uppercase font-bold text-tg-hint tracking-wider">Ваше место</span>
+                              <div className="flex items-baseline gap-1 mt-0.5">
+                                <Trophy size={16} className="text-yellow-500 mb-0.5" />
+                                <span className="text-xl font-black text-tg-text">{ratingData.rank}</span>
+                                <span className="text-xs text-tg-hint font-medium">из {ratingData.total}</span>
+                              </div>
+                            </div>
+                            <div className="h-10 w-px bg-tg-hint opacity-10"></div>
+                            <div className="flex flex-col text-right">
+                              <span className="text-[10px] uppercase font-bold text-tg-hint tracking-wider">Средний балл</span>
+                              <div className="flex items-baseline justify-end gap-1 mt-0.5">
+                                <span className="text-xl font-black text-tg-button">{displayAverage > 0 ? displayAverage.toFixed(1) : '0.0'}</span>
+                                <Star size={14} className="text-tg-button fill-tg-button opacity-20 mb-0.5" />
+                              </div>
+                            </div>
+                          </div>
+                        </>
+                      ) : null}
+                    </div>
+                  )}
+
+                  {loadingXml ? (
+                    <div className="text-center py-4 text-tg-hint text-sm">Загрузка данных из IIS...</div>
+                  ) : errorXml ? (
+                    <div className="text-center py-4 text-red-500 text-sm bg-red-50 rounded-xl">{errorXml}</div>
+                  ) : xmlMarks.length > 0 ? (
+                    <div className="space-y-3">
+                      {xmlMarks.map((m, idx) => (
+                        <div key={idx} className="p-4 bg-tg-bg rounded-2xl border border-tg-hint border-opacity-10 space-y-3">
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs font-bold text-tg-hint uppercase tracking-tight">{m.subject}</span>
+                            {m.marks && m.marks.length > 3 && (
+                              <span className="text-[10px] text-tg-hint opacity-50 px-2 py-0.5 bg-tg-secondaryBg rounded-full border border-tg-hint border-opacity-10">
+                                {m.marks.length} оц.
+                              </span>
+                            )}
+                          </div>
+                          
+                          <div className="flex flex-wrap gap-2.5">
+                            {m.marks && m.marks.length > 0 ? m.marks.map((mark, midx) => {
+                              if (mark === null || mark === undefined) return null;
+                              const val = (typeof mark === 'object' && mark !== null) ? mark.val : mark;
+                              const date = (typeof mark === 'object' && mark !== null) ? mark.date : null;
+                              if (val === undefined || val === null) return null;
+
+                              return (
+                                <div key={midx} className="flex flex-col items-center gap-1.5">
+                                  <span 
+                                    title={date ? `Выставлена: ${date}` : ''}
+                                    onClick={() => date && WebApp.showAlert(`Оценка ${val} выставлена ${date}`)}
+                                    className={`w-10 h-10 flex items-center justify-center rounded-xl text-sm font-black border shadow-sm transition-all active:scale-90 ${
+                                      val >= 8 ? 'bg-green-500/10 text-green-600 border-green-500/20' : 
+                                      val >= 4 ? 'bg-tg-button/10 text-tg-button border-tg-button/20' : 
+                                      'bg-red-500/10 text-red-600 border-red-500/20'
+                                    }`}
+                                  >
+                                    {val}
+                                  </span>
+                                  {date && typeof date === 'string' && (
+                                    <span className="text-[8px] text-tg-hint opacity-70 font-bold bg-tg-secondaryBg/30 px-1.5 py-0.5 rounded-md border border-tg-hint border-opacity-5">
+                                      {date.includes('.') ? date.split('.').slice(0, 2).join('.') : date}
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            }) : (
+                              <span className="text-xs text-tg-hint italic opacity-60">Оценок пока нет</span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-4 text-tg-hint text-sm">Оценок пока нет</div>
+                  )}
+                </>
               )}
-            </>
-          )}
-        </div>
-      </div>
-    </>
-  )}
-</div>
-);
+            </div>
+          </div>
+
+          {/* Attendance Stats Widget - Always visible for students */}
+          <div className="bg-tg-secondaryBg rounded-2xl overflow-hidden shadow-sm">
+            <div className="p-4 border-b border-[var(--tg-theme-hint-color)] opacity-80 flex items-center gap-2">
+              <Clock size={20} className="text-tg-button" />
+              <h2 className="font-semibold text-tg-text">Пропуски занятий</h2>
+            </div>
+            <div className="p-4">
+              <div className="bg-tg-bg p-4 rounded-xl border border-tg-button border-opacity-10 flex justify-between items-center">
+                <div className="flex flex-col">
+                  <span className="text-[10px] uppercase font-bold text-tg-hint tracking-wider">Всего пропущено</span>
+                  <div className="flex items-baseline gap-1 mt-0.5">
+                    <span className={`text-xl font-black ${(attendanceStats?.total_hours || 0) > 20 ? 'text-red-500' : 'text-tg-text'}`}>
+                      {attendanceStats?.total_hours || 0}
+                    </span>
+                    <span className="text-xs text-tg-hint font-medium">акад. часов</span>
+                  </div>
+                </div>
+                <div className="h-10 w-px bg-tg-hint opacity-10"></div>
+                <div className="flex flex-col text-right">
+                  <span className="text-[10px] uppercase font-bold text-tg-hint tracking-wider">Предметов</span>
+                  <div className="flex items-baseline justify-end gap-1 mt-0.5">
+                    <span className="text-xl font-black text-tg-text">{Object.keys(attendanceStats?.by_subject || {}).length}</span>
+                    <AlertTriangle size={14} className="text-red-500 opacity-20 mb-0.5" />
+                  </div>
+                </div>
+              </div>
+              
+              {attendanceStats?.by_subject && Object.keys(attendanceStats.by_subject).length > 0 && (
+                <div className="mt-4 space-y-2">
+                  <span className="text-[10px] uppercase font-black text-tg-hint tracking-widest ml-1">Детализация</span>
+                  {Object.entries(attendanceStats.by_subject).map(([subject, hours]) => (
+                    <div key={subject} className="flex justify-between items-center p-3 bg-tg-bg/50 rounded-xl border border-tg-hint border-opacity-5">
+                      <span className="text-xs font-bold text-tg-text truncate max-w-[200px]">{subject}</span>
+                      <span className="text-xs font-black text-tg-button">{hours} ч</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {(!attendanceStats || attendanceStats.total_hours === 0) && (
+                <div className="text-center py-6">
+                  <div className="text-2xl mb-2">🎉</div>
+                  <div className="text-sm font-bold text-tg-text">Пропусков нет!</div>
+                  <div className="text-[11px] text-tg-hint mt-1">Здесь появится статистика, когда вы отметите пропуск в расписании.</div>
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
 }

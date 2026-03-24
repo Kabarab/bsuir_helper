@@ -91,6 +91,14 @@ export default function Schedule() {
   // Expandable lesson state
   const [expandedLessonId, setExpandedLessonId] = useState(null);
 
+  // Attendance state
+  const [attendance, setAttendance] = useState(() => {
+    try {
+      const saved = localStorage.getItem('bsuir_attendance');
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
+
   // Drag-to-create state
   const [dragState, setDragState] = useState({ isDragging: false, startY: 0, currentY: 0 });
   const gridRef = useRef(null);
@@ -112,6 +120,13 @@ export default function Schedule() {
     axios.get(`/api/events/${telegramId}`)
       .then(res => {
         setCustomPlans(Array.isArray(res.data) ? res.data : []);
+      })
+      .catch(console.error);
+
+    axios.get(`/api/attendance/${telegramId}`)
+      .then(res => {
+        setAttendance(Array.isArray(res.data) ? res.data : []);
+        localStorage.setItem('bsuir_attendance', JSON.stringify(res.data));
       })
       .catch(console.error);
   }, [telegramId]);
@@ -603,6 +618,45 @@ export default function Schedule() {
       .catch(console.error);
   };
 
+  const handleToggleAttendance = (lesson) => {
+    if (!telegramId) return;
+    dismissContextMenu();
+    
+    const dateStr = format(selectedDate, 'yyyy-MM-dd');
+    const data = {
+      subject: lesson.subject,
+      lesson_type: lesson.lessonTypeAbbrev,
+      date: dateStr,
+      start_time: lesson.startLessonTime,
+      end_time: lesson.endLessonTime,
+      hours: 2 // Default academic hours
+    };
+
+    axios.post(`/api/attendance/${telegramId}/toggle`, data)
+      .then(res => {
+        if (res.data.status === 'added') {
+          const newRecord = { ...data, user_id: telegramId, id: Date.now() }; // temporary ID for UI
+          const updated = [...attendance, newRecord];
+          setAttendance(updated);
+          localStorage.setItem('bsuir_attendance', JSON.stringify(updated));
+          if (window.Telegram?.WebApp) window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+        } else {
+          const updated = attendance.filter(a => !(a.subject === data.subject && a.date === data.date && a.start_time === data.start_time));
+          setAttendance(updated);
+          localStorage.setItem('bsuir_attendance', JSON.stringify(updated));
+          if (window.Telegram?.WebApp) window.Telegram.WebApp.HapticFeedback.selectionChanged();
+        }
+      })
+      .catch(err => {
+        console.error("Attendance toggle error:", err);
+      });
+  };
+
+  const isLessonSkipped = (lesson) => {
+    const dateStr = format(selectedDate, 'yyyy-MM-dd');
+    return attendance.some(a => a.subject === lesson.subject && a.date === dateStr && a.start_time === lesson.startLessonTime);
+  };
+
   const getTimeFromY = (y) => {
     const totalMinutes = Math.floor((y / 80) * 60);
     const hours = Math.floor(totalMinutes / 60);
@@ -943,6 +997,13 @@ export default function Schedule() {
                       {lesson.numSubgroup !== 0 && (
                         <div className="absolute top-0 right-[4.5rem] px-2 py-1 rounded-bl-xl font-black text-[10px] uppercase bg-orange-500 text-white z-10">
                           {lesson.numSubgroup} ПОДГР
+                         </div>
+                       )}
+                       
+                       {/* Skipped Badge */}
+                      {isLessonSkipped(lesson) && (
+                        <div className={`absolute top-0 ${lesson.numSubgroup !== 0 ? 'right-[9rem]' : 'right-[4.5rem]'} px-2 py-1 rounded-bl-xl font-black text-[10px] uppercase bg-red-500 text-white z-20 shadow-lg animate-pulse`}>
+                           ПРОПУЩЕНО
                         </div>
                       )}
 
@@ -1003,7 +1064,7 @@ export default function Schedule() {
                                 <span className={`text-[10px] px-1.5 py-0.5 rounded truncate max-w-[120px] ${isPast ? 'bg-[var(--tg-theme-bg-color)] text-tg-hint' : 'bg-white/40 text-tg-text'}`}>
                                   {lesson.note}
                                 </span>
-                              )}
+                             )}
                             </div>
                           </div>
                         )}
@@ -1046,7 +1107,7 @@ export default function Schedule() {
                                   </div>
                                 )}
                                 
-                                {/* Groups Info (for teachers or shared lectures) */}
+                                {/* Groups Info */}
                                 {isTeacher && lesson.studentGroups && lesson.studentGroups.length > 0 && (
                                   <div className="flex flex-col gap-2">
                                     <span className="text-[10px] font-black uppercase text-tg-hint tracking-wider">Группы</span>
@@ -1089,7 +1150,6 @@ export default function Schedule() {
                                   };
                                   
                                   const isExpanded = expandedLessonId === (lesson.pseudoId || idx);
-                                  // Compute only when expanded
                                   const currentGroups = lesson.studentGroups?.map(g => g.name) || [];
                                   const prevOcc = isExpanded ? findOccurrence('prev', lesson.subject, lesson.lessonTypeAbbrev, selectedDate, currentGroups) : null;
                                   const nextOcc = isExpanded ? findOccurrence('next', lesson.subject, lesson.lessonTypeAbbrev, selectedDate, currentGroups) : null;
@@ -1101,14 +1161,13 @@ export default function Schedule() {
                                     </div>
                                   );
                                 })()}
-                              </div>
+                               </div>
                             )}
                           </div>
                         </div>
-
                       </div>
                     </div>
-                  </div>
+                   </div>
                 );
               })}
             </div>
@@ -1134,7 +1193,7 @@ export default function Schedule() {
               <div className="bg-tg-bg/50 border-r border-[var(--tg-theme-hint-color)] border-opacity-10 relative">
                 {Array.from({ length: 24 }).map((_, i) => (
                   <div key={i} className="h-20 text-[10px] text-tg-hint font-bold flex items-start justify-center pt-2 border-b border-[var(--tg-theme-hint-color)] border-opacity-5">
-                    {i.toString().padStart(2, '0')}:00
+                     {i.toString().padStart(2, '0')}:00
                   </div>
                 ))}
                 {/* Current Time Label */}
@@ -1172,15 +1231,12 @@ export default function Schedule() {
                 {isSameDay(selectedDate, now) && (() => {
                   const nowMinutes = now.getHours() * 60 + now.getMinutes();
                   const nowTop = (nowMinutes / 60) * 80;
-                  const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
                   return (
                     <div 
                       className="absolute left-0 right-0 z-30 pointer-events-none flex items-center"
                       style={{ top: `${nowTop}px` }}
                     >
-                      {/* Red dot */}
                       <div className="w-3 h-3 rounded-full bg-red-500 -ml-1.5 shadow-lg shadow-red-500/50 animate-pulse shrink-0" />
-                      {/* Red line */}
                       <div className="flex-1 h-[2px] bg-red-500 shadow-sm shadow-red-500/30" />
                     </div>
                   );
@@ -1210,7 +1266,6 @@ export default function Schedule() {
                 {activeLessons.map((lesson, idx) => {
                   const [startH, startM] = lesson.startLessonTime.split(':').map(Number);
                   const [endH, endM] = lesson.endLessonTime.split(':').map(Number);
-                  
                   const top = (startH * 80) + (startM / 60 * 80);
                   const duration = (endH * 60 + endM) - (startH * 60 + startM);
                   const height = (duration / 60 * 80);
@@ -1219,69 +1274,71 @@ export default function Schedule() {
                   const isPast = progress === 1;
                   const isActive = progress > 0 && progress < 1;
                   const progressPct = (typeof progress === 'number' && progress > 0 && progress < 1) ? Math.round(progress * 100) : 0;
-                                    return (
-                      <div 
-                        key={lesson.pseudoId || idx}
-                        style={{ top: `${top}px`, height: `${height}px` }}
-                        onContextMenu={(e) => showContextMenu(e, lesson)}
-                        onTouchStart={(e) => { if (!isDraggingRef.current) handleEventTouchStart(e, lesson); }}
-                        onTouchMove={(e) => { if (!isDraggingRef.current) handleEventTouchMove(e); }}
-                        onTouchEnd={(e) => { if (!isDraggingRef.current) handleEventTouchEnd(); }}
-                        className={`absolute left-2 right-2 rounded-xl p-2 border-l-4 shadow-sm flex flex-col justify-between overflow-hidden select-none transition-all hover:scale-[1.02] hover:z-20 backdrop-blur-sm ${isPast ? `${colors.bg} bg-opacity-5 ${colors.border} opacity-50` : `${colors.bg} bg-opacity-10 ${colors.border} shadow-md ${isActive ? 'ring-2 ring-white/30 z-10' : ''}`}`}
-                      >
-                        {/* Progress fill overlay for calendar view */}
-                        {isActive && (
-                          <div 
-                            className="absolute top-0 left-0 right-0 bg-black opacity-20 transition-all duration-1000 ease-linear"
-                            style={{ height: `${progressPct}%` }}
-                          />
-                        )}
-                        {isPast && (
-                          <div className="absolute inset-0 bg-black opacity-10" />
-                        )}
-                        <div>
-                          <div className="flex items-center justify-between mb-0.5">
-                            <span className={`text-[9px] font-black uppercase ${isPast ? colors.text : colors.text}`}>{lesson.lessonTypeAbbrev}</span>
-                            <span className={`text-[9px] font-bold ${isPast ? 'text-tg-hint' : colors.text}`}>{lesson.startLessonTime}</span>
-                          </div>
-                            <h4 className={`text-[11px] font-bold leading-tight line-clamp-2 ${isPast ? 'text-tg-text' : 'text-tg-text'}`}>{lesson.subject}</h4>
-                          {lesson.employees && lesson.employees.length > 0 && (
-                            <div className={`text-[9px] mt-0.5 truncate font-medium ${isPast ? 'text-tg-hint' : 'text-tg-text/80'}`}>
-                              {lesson.employees.map(e => `${e.lastName} ${e.firstName?.[0] || ''}.${e.middleName ? ` ${e.middleName[0]}.` : ''}`).join(', ')}
-                            </div>
-                          )}
-                          
-                          {/* Task Count Badge for Grid */}
-                          {(() => {
-                             const dateKey = format(selectedDate, 'yyyy-MM-dd');
-                             const eventId = `${dateKey}_${lesson.startLessonTime}_${lesson.subject}`;
-                             const count = plannerTasks.filter(t => t.linkedEventId === eventId && !t.is_completed).length;
-                             if (count === 0) return null;
-                             return (
-                               <div className="mt-1 flex items-center gap-1 text-[9px] font-black p-1 rounded-md bg-white/40 text-tg-text backdrop-blur-sm w-fit">
-                                 <CheckCircle2 size={10} /> {count}
-                               </div>
-                             );
-                          })()}
-
-                          </div>
-                          <div className="flex items-center justify-between mt-auto">
-                          <span className="text-[9px] font-medium text-tg-hint truncate">
-                            {lesson.auditories?.[0] || lesson.note || ''}
-                          </span>
-                          {lesson.isCustom && (
-                            <span className="text-[9px] font-black text-tg-hint opacity-40 uppercase">Своё</span>
-                          )}
+                  return (
+                    <div 
+                      key={lesson.pseudoId || idx}
+                      style={{ top: `${top}px`, height: `${height}px` }}
+                      onContextMenu={(e) => showContextMenu(e, lesson)}
+                      onTouchStart={(e) => { if (!isDraggingRef.current) handleEventTouchStart(e, lesson); }}
+                      onTouchMove={(e) => { if (!isDraggingRef.current) handleEventTouchMove(e); }}
+                      onTouchEnd={() => { if (!isDraggingRef.current) handleEventTouchEnd(); }}
+                      className={`absolute left-2 right-2 rounded-xl p-2 border-l-4 shadow-sm flex flex-col justify-between overflow-hidden select-none transition-all hover:scale-[1.02] hover:z-20 backdrop-blur-sm ${isPast ? `${colors.bg} bg-opacity-5 ${colors.border} opacity-50` : `${colors.bg} bg-opacity-10 ${colors.border} shadow-md ${isActive ? 'ring-2 ring-white/30 z-10' : ''}`}`}
+                    >
+                      {isActive && (
+                        <div 
+                          className="absolute top-0 left-0 right-0 bg-black opacity-20 transition-all duration-1000 ease-linear"
+                          style={{ height: `${progressPct}%` }}
+                        />
+                      )}
+                      {isPast && <div className="absolute inset-0 bg-black opacity-10" />}
+                      
+                      {/* Attendance indicator - red cross over skipped lesson */}
+                      {isLessonSkipped(lesson) && (
+                        <div className="absolute inset-0 bg-red-500/20 backdrop-blur-[1px] z-10 flex items-center justify-center">
+                          <X size={24} className="text-red-500 opacity-40 rotate-12" />
                         </div>
+                      )}
+
+                      <div>
+                        <div className="flex items-center justify-between mb-0.5">
+                          <span className={`text-[9px] font-black uppercase ${colors.text}`}>{lesson.lessonTypeAbbrev}</span>
+                          <span className={`text-[9px] font-bold ${isPast ? 'text-tg-hint' : colors.text}`}>{lesson.startLessonTime}</span>
+                        </div>
+                        <h4 className={`text-[11px] font-bold leading-tight line-clamp-2 text-tg-text`}>{lesson.subject}</h4>
+                        {lesson.employees && lesson.employees.length > 0 && (
+                          <div className={`text-[9px] mt-0.5 truncate font-medium ${isPast ? 'text-tg-hint' : 'text-tg-text/80'}`}>
+                            {lesson.employees.map(e => `${e.lastName} ${e.firstName?.[0] || ''}.${e.middleName ? ` ${e.middleName[0]}.` : ''}`).join(', ')}
+                          </div>
+                        )}
+                        {(() => {
+                           const dateKey = format(selectedDate, 'yyyy-MM-dd');
+                           const eventId = `${dateKey}_${lesson.startLessonTime}_${lesson.subject}`;
+                           const count = plannerTasks.filter(t => t.linkedEventId === eventId && !t.is_completed).length;
+                           if (count === 0) return null;
+                           return (
+                             <div className="mt-1 flex items-center gap-1 text-[9px] font-black p-1 rounded-md bg-white/40 text-tg-text backdrop-blur-sm w-fit">
+                               <CheckCircle2 size={10} /> {count}
+                             </div>
+                           );
+                        })()}
                       </div>
+                      <div className="flex items-center justify-between mt-auto">
+                        <span className="text-[9px] font-medium text-tg-hint truncate">
+                          {lesson.auditories?.[0] || lesson.note || ''}
+                        </span>
+                        {lesson.isCustom && (
+                          <span className="text-[9px] font-black text-tg-hint opacity-40 uppercase">Своё</span>
+                        )}
+                       </div>
+                    </div>
                   );
                 })}
               </div>
             </div>
-          </div>
+           </div>
         )}
       </div>
-
+      
       {/* CONTEXT MENU */}
       {contextMenu.visible && (
         <div 
@@ -1297,12 +1354,29 @@ export default function Schedule() {
               <ClipboardList size={16} className="text-tg-button" />
               Добавить план
             </button>
+            <div className="h-px bg-[var(--tg-theme-hint-color)] opacity-10 mx-3" />
+            <button
+              onClick={() => handleToggleAttendance(contextMenu.lesson)}
+              className={`flex items-center gap-3 w-full px-4 py-3 text-left text-sm font-semibold hover:bg-tg-bg transition-colors ${isLessonSkipped(contextMenu.lesson) ? 'text-tg-button' : 'text-red-500'}`}
+            >
+              {isLessonSkipped(contextMenu.lesson) ? (
+                <>
+                  <CheckSquare size={16} />
+                  Я был на паре
+                </>
+              ) : (
+                <>
+                  <X size={16} />
+                  Пропустил пару
+                </>
+              )}
+            </button>
             {contextMenu.lesson?.isCustom && (
               <>
                 <div className="h-px bg-[var(--tg-theme-hint-color)] opacity-10 mx-3" />
                 <button
                   onClick={() => handleEditEvent(contextMenu.lesson)}
-                  className="flex items-center gap-3 w-full px-4 py-3 text-left text-sm font-semibold text-tg-text hover:bg-tg-bg transition-colors"
+                  className="flex items-center gap-3 w-full px-4 py-3 text-left text-sm font-semibold text-amber-500 hover:bg-tg-bg transition-colors"
                 >
                   <Edit2 size={16} className="text-amber-500" />
                   Редактировать
@@ -1317,7 +1391,7 @@ export default function Schedule() {
                 </button>
               </>
             )}
-          </div>
+           </div>
         </div>
       )}
 
@@ -1494,7 +1568,7 @@ export default function Schedule() {
                 {isEditing ? 'Сохранить изменения' : 'Сохранить в расписание'}
               </button>
             </div>
-            </form>
+             </form>
           </div>
         </div>
       )}
@@ -1620,7 +1694,7 @@ export default function Schedule() {
                 >
                   Добавить задачу
                 </button>
-              </div>
+               </div>
             </div>
           </div>
         </div>
@@ -1698,7 +1772,7 @@ export default function Schedule() {
                >
                  Закрыть
                </button>
-            </div>
+             </div>
           </div>
         </div>
       )}
