@@ -714,18 +714,24 @@ async def grades(telegram_id: int, db: AsyncSession = Depends(get_db)):
                 seen_subjects[subj_name].extend(marks_with_dates)
 
         for name, marks_in_subj in seen_subjects.items():
-            # Sort marks by value descending
+            # Treat zeros as skips (each is 2 academic hours)
+            skips_in_subj = sum(1 for m in marks_in_subj if m["val"] == 0)
             sorted_marks = sorted(marks_in_subj, key=lambda x: x["val"], reverse=True)
             subjects.append({
                 "subject": name,
-                "marks": sorted_marks
+                "marks": sorted_marks,
+                "skips_count": skips_in_subj,
+                "skip_hours": skips_in_subj * 2
             })
 
+
+    total_iis_hours = sum(s.get("skip_hours", 0) for s in subjects)
 
     grades_data = {
         "average": average,
         "rating": ranking,
         "subjects": subjects,
+        "total_iis_hours": total_iis_hours,
         "studentId": user.bsuir_id,
         "is_real": True
     }

@@ -369,12 +369,33 @@ export default function Study() {
               <h2 className="font-semibold text-tg-text">Пропуски занятий</h2>
             </div>
             <div className="p-4">
-              <div className="bg-tg-bg p-4 rounded-xl border border-tg-button border-opacity-10 flex justify-between items-center">
+              <div className="grid grid-cols-2 gap-3 mb-6">
+                <div className="bg-tg-bg p-3 rounded-xl border border-tg-button border-opacity-10">
+                  <span className="text-[9px] uppercase font-bold text-tg-hint tracking-wider">Из системы ИИС</span>
+                  <div className="flex items-baseline gap-1 mt-0.5">
+                    <span className={`text-lg font-black ${grades?.total_iis_hours > 20 ? 'text-red-500' : 'text-tg-text'}`}>
+                      {grades?.total_iis_hours || 0}
+                    </span>
+                    <span className="text-[10px] text-tg-hint font-medium">ч</span>
+                  </div>
+                </div>
+                <div className="bg-tg-bg p-3 rounded-xl border border-amber-500 border-opacity-10">
+                  <span className="text-[9px] uppercase font-bold text-tg-hint tracking-wider">Отмечено вами</span>
+                  <div className="flex items-baseline gap-1 mt-0.5">
+                    <span className={`text-lg font-black ${attendanceStats?.total_hours > 10 ? 'text-amber-500' : 'text-tg-text'}`}>
+                      {attendanceStats?.total_hours || 0}
+                    </span>
+                    <span className="text-[10px] text-tg-hint font-medium">ч</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-tg-bg p-4 rounded-xl border border-tg-button border-opacity-20 flex justify-between items-center">
                 <div className="flex flex-col">
                   <span className="text-[10px] uppercase font-bold text-tg-hint tracking-wider">Всего пропущено</span>
                   <div className="flex items-baseline gap-1 mt-0.5">
-                    <span className={`text-xl font-black ${(attendanceStats?.total_hours || 0) > 20 ? 'text-red-500' : 'text-tg-text'}`}>
-                      {attendanceStats?.total_hours || 0}
+                    <span className={`text-2xl font-black ${( (grades?.total_iis_hours || 0) + (attendanceStats?.total_hours || 0) ) > 30 ? 'text-red-500' : 'text-tg-text'}`}>
+                      {(grades?.total_iis_hours || 0) + (attendanceStats?.total_hours || 0)}
                     </span>
                     <span className="text-xs text-tg-hint font-medium">акад. часов</span>
                   </div>
@@ -383,29 +404,47 @@ export default function Study() {
                 <div className="flex flex-col text-right">
                   <span className="text-[10px] uppercase font-bold text-tg-hint tracking-wider">Предметов</span>
                   <div className="flex items-baseline justify-end gap-1 mt-0.5">
-                    <span className="text-xl font-black text-tg-text">{Object.keys(attendanceStats?.by_subject || {}).length}</span>
+                    <span className="text-xl font-black text-tg-text">
+                      {[...new Set([
+                        ...(grades?.subjects?.filter(s => s.skips_count > 0).map(s => s.subject) || []),
+                        ...(attendanceStats?.records_count ? Object.keys(attendanceStats.breakdown || {}) : [])
+                      ])].length}
+                    </span>
                     <AlertTriangle size={14} className="text-red-500 opacity-20 mb-0.5" />
                   </div>
                 </div>
               </div>
               
-              {attendanceStats?.by_subject && Object.keys(attendanceStats.by_subject).length > 0 && (
-                <div className="mt-4 space-y-2">
-                  <span className="text-[10px] uppercase font-black text-tg-hint tracking-widest ml-1">Детализация</span>
-                  {Object.entries(attendanceStats.by_subject).map(([subject, hours]) => (
-                    <div key={subject} className="flex justify-between items-center p-3 bg-tg-bg/50 rounded-xl border border-tg-hint border-opacity-5">
-                      <span className="text-xs font-bold text-tg-text truncate max-w-[200px]">{subject}</span>
-                      <span className="text-xs font-black text-tg-button">{hours} ч</span>
+              {/* Combine breakdowns from both sources */}
+              {(() => {
+                const combined = {};
+                (grades?.subjects || []).forEach(s => {
+                  if (s.skip_hours > 0) combined[s.subject] = (combined[s.subject] || 0) + s.skip_hours;
+                });
+                Object.entries(attendanceStats?.breakdown || {}).forEach(([subject, hours]) => {
+                  combined[subject] = (combined[subject] || 0) + hours;
+                });
+                
+                if (Object.keys(combined).length > 0) {
+                  return (
+                    <div className="mt-4 space-y-2">
+                      <span className="text-[10px] uppercase font-black text-tg-hint tracking-widest ml-1">Детализация (совместно)</span>
+                      {Object.entries(combined).map(([subject, hours]) => (
+                        <div key={subject} className="flex justify-between items-center p-3 bg-tg-bg/50 rounded-xl border border-tg-hint border-opacity-5">
+                          <span className="text-xs font-bold text-tg-text truncate max-w-[200px]">{subject}</span>
+                          <span className="text-xs font-black text-tg-button">{hours} ч</span>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              )}
-              
-              {(!attendanceStats || attendanceStats.total_hours === 0) && (
+                  );
+                }
+              })()}
+
+              {!grades?.total_iis_hours && !attendanceStats?.total_hours && (
                 <div className="text-center py-6">
                   <div className="text-2xl mb-2">🎉</div>
                   <div className="text-sm font-bold text-tg-text">Пропусков нет!</div>
-                  <div className="text-[11px] text-tg-hint mt-1">Здесь появится статистика, когда вы отметите пропуск в расписании.</div>
+                  <div className="text-[11px] text-tg-hint mt-1">Здесь появится статистика из ИИС (нули в журнале) или ваших отметок.</div>
                 </div>
               )}
             </div>
