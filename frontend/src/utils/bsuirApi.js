@@ -73,6 +73,8 @@ export async function getStudentGrades(studentCardNumber) {
     const omissionsBySubject = {};
     let totalHours = 0;
     let totalRespectfulHours = 0;
+    let totalNonRespectfulHours = 0;
+    const records = []; // detailed per-lesson omission records
     
     lessons.forEach(l => {
       const sub = l.lessonNameAbbrev || l.subject || l.subjectAbbrev || l.name || 'Unknown';
@@ -87,23 +89,54 @@ export async function getStudentGrades(studentCardNumber) {
       
       if (omissions > 0) {
         totalHours += omissions;
-        if (isRespectful) totalRespectfulHours += omissions;
+        if (isRespectful) {
+          totalRespectfulHours += omissions;
+        } else {
+          totalNonRespectfulHours += omissions;
+        }
         
         if (!omissionsBySubject[sub]) {
-          omissionsBySubject[sub] = { skip_hours: 0, respectful_hours: 0 };
+          omissionsBySubject[sub] = { skip_hours: 0, respectful_hours: 0, non_respectful_hours: 0, records: [] };
         }
         omissionsBySubject[sub].skip_hours += omissions;
-        if (isRespectful) omissionsBySubject[sub].respectful_hours += omissions;
+        if (isRespectful) {
+          omissionsBySubject[sub].respectful_hours += omissions;
+        } else {
+          omissionsBySubject[sub].non_respectful_hours += omissions;
+        }
+        
+        const record = {
+          date: l.dateString || null,
+          lessonType: l.lessonTypeAbbrev || null,
+          subject: sub,
+          hours: omissions,
+          isRespectful,
+        };
+        records.push(record);
+        omissionsBySubject[sub].records.push(record);
       }
     });
+    
+    // Sort records by date (newest first)
+    const sortByDate = (a, b) => {
+      if (!a.date || !b.date) return 0;
+      const [dA, mA, yA] = a.date.split('.').map(Number);
+      const [dB, mB, yB] = b.date.split('.').map(Number);
+      return (yB * 10000 + mB * 100 + dB) - (yA * 10000 + mA * 100 + dA);
+    };
+    records.sort(sortByDate);
     
     return {
       total_hours: totalHours,
       total_respectful_hours: totalRespectfulHours,
+      total_non_respectful_hours: totalNonRespectfulHours,
+      records,
       subjects: Object.entries(omissionsBySubject).map(([subject, data]) => ({
         subject,
         skip_hours: data.skip_hours,
-        respectful_hours: data.respectful_hours
+        respectful_hours: data.respectful_hours,
+        non_respectful_hours: data.non_respectful_hours,
+        records: data.records.sort(sortByDate)
       }))
     };
   };

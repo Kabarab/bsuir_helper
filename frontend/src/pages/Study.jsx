@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
-import { BookOpen, Star, GraduationCap, Settings, Info, Search, Trophy, Loader2, Clock, AlertTriangle } from 'lucide-react';
+import { BookOpen, Star, GraduationCap, Settings, Info, Search, Trophy, Loader2, Clock, AlertTriangle, ChevronDown } from 'lucide-react';
 import { useUser } from '../contexts/UserContext';
 import { useNavigate } from 'react-router-dom';
 import { getStudentGrades, fetchStudentRating } from '../utils/bsuirApi';
@@ -40,6 +40,7 @@ export default function Study() {
     } catch { return null; }
   });
   const [loadingRating, setLoadingRating] = useState(false);
+  const [expandedOmissionSubjects, setExpandedOmissionSubjects] = useState([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Calculate display average (official from rating info OR local from xmlMarks)
@@ -390,42 +391,128 @@ export default function Study() {
             <div className="p-4">
               {omissionsData ? (
                 <>
-                  <div className="bg-tg-bg p-4 rounded-xl border border-tg-button border-opacity-20 flex justify-between items-center">
-                    <div className="flex flex-col">
-                      <span className="text-[10px] uppercase font-bold text-tg-hint tracking-wider">Всего пропущено</span>
-                      <div className="flex items-baseline gap-1 mt-0.5">
-                        <span className={`text-2xl font-black ${(omissionsData.total_hours || 0) > 30 ? 'text-red-500' : 'text-tg-text'}`}>
-                          {omissionsData.total_hours || 0}
-                        </span>
-                        <span className="text-xs text-tg-hint font-medium">акад. ч</span>
+                  {/* Summary stats */}
+                  <div className="bg-tg-bg p-4 rounded-xl border border-tg-button border-opacity-20">
+                    <div className="flex justify-between items-center">
+                      <div className="flex flex-col">
+                        <span className="text-[10px] uppercase font-bold text-tg-hint tracking-wider">Всего пропущено</span>
+                        <div className="flex items-baseline gap-1 mt-0.5">
+                          <span className={`text-2xl font-black ${(omissionsData.total_hours || 0) > 30 ? 'text-red-500' : 'text-tg-text'}`}>
+                            {omissionsData.total_hours || 0}
+                          </span>
+                          <span className="text-xs text-tg-hint font-medium">акад. ч</span>
+                        </div>
                       </div>
-                      {omissionsData.total_respectful_hours > 0 && (
-                        <span className="text-[9px] text-tg-button font-bold bg-tg-button/10 px-1.5 py-0.5 rounded-md mt-1 italic">
-                          из них {omissionsData.total_respectful_hours} ч — уваж.
-                        </span>
-                      )}
-                    </div>
-                    <div className="h-10 w-px bg-tg-hint opacity-10"></div>
-                    <div className="flex flex-col text-right">
-                      <span className="text-[10px] uppercase font-bold text-tg-hint tracking-wider">Предметов</span>
-                      <div className="flex items-baseline justify-end gap-1 mt-0.5">
-                        <span className="text-xl font-black text-tg-text">
-                          {omissionsData.subjects?.length || 0}
-                        </span>
-                        <AlertTriangle size={14} className="text-red-500 opacity-20 mb-0.5" />
+                      <div className="h-10 w-px bg-tg-hint opacity-10"></div>
+                      <div className="flex flex-col text-right">
+                        <span className="text-[10px] uppercase font-bold text-tg-hint tracking-wider">Предметов</span>
+                        <div className="flex items-baseline justify-end gap-1 mt-0.5">
+                          <span className="text-xl font-black text-tg-text">
+                            {omissionsData.subjects?.length || 0}
+                          </span>
+                          <AlertTriangle size={14} className="text-red-500 opacity-20 mb-0.5" />
+                        </div>
                       </div>
                     </div>
+                    
+                    {/* Respectful / Non-respectful breakdown */}
+                    {omissionsData.total_hours > 0 && (
+                      <div className="flex gap-2 mt-3">
+                        <div className="flex-1 bg-red-500/10 rounded-lg p-2.5 border border-red-500/15">
+                          <div className="text-[9px] uppercase font-bold text-red-500 tracking-wider opacity-80">Неуваж.</div>
+                          <div className="text-lg font-black text-red-500 mt-0.5">
+                            {omissionsData.total_non_respectful_hours || 0}
+                            <span className="text-[10px] font-bold opacity-60 ml-1">ч</span>
+                          </div>
+                        </div>
+                        <div className="flex-1 bg-tg-button/10 rounded-lg p-2.5 border border-tg-button/15">
+                          <div className="text-[9px] uppercase font-bold text-tg-button tracking-wider opacity-80">Уваж.</div>
+                          <div className="text-lg font-black text-tg-button mt-0.5">
+                            {omissionsData.total_respectful_hours || 0}
+                            <span className="text-[10px] font-bold opacity-60 ml-1">ч</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                   
+                  {/* Subject-level breakdown with expandable details */}
                   {omissionsData.subjects?.length > 0 && (
                     <div className="mt-4 space-y-2">
                       <span className="text-[10px] uppercase font-black text-tg-hint tracking-widest ml-1">Детализация по предметам</span>
-                      {omissionsData.subjects.map(s => (
-                        <div key={s.subject} className="flex justify-between items-center p-3 bg-tg-bg/50 rounded-xl border border-tg-hint border-opacity-5">
-                          <span className="text-xs font-bold text-tg-text truncate max-w-[200px]">{s.subject}</span>
-                          <span className="text-xs font-black text-tg-button">{s.skip_hours} ч</span>
-                        </div>
-                      ))}
+                      {omissionsData.subjects.map(s => {
+                        const isExpanded = expandedOmissionSubjects.includes(s.subject);
+                        
+                        return (
+                          <div key={s.subject} className="bg-tg-bg/50 rounded-xl border border-tg-hint border-opacity-5 overflow-hidden">
+                            {/* Subject header - clickable */}
+                            <button
+                              onClick={() => {
+                                setExpandedOmissionSubjects(prev =>
+                                  prev.includes(s.subject)
+                                    ? prev.filter(x => x !== s.subject)
+                                    : [...prev, s.subject]
+                                );
+                              }}
+                              className="w-full flex justify-between items-center p-3 active:bg-tg-hint/5 transition-colors"
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                <ChevronDown
+                                  size={14}
+                                  className={`text-tg-hint flex-shrink-0 transition-transform duration-200 ${isExpanded ? '' : '-rotate-90'}`}
+                                />
+                                <span className="text-xs font-bold text-tg-text truncate">{s.subject}</span>
+                              </div>
+                              <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
+                                {s.non_respectful_hours > 0 && (
+                                  <span className="text-[10px] font-black text-red-500 bg-red-500/10 px-1.5 py-0.5 rounded-md">
+                                    {s.non_respectful_hours} ч
+                                  </span>
+                                )}
+                                {s.respectful_hours > 0 && (
+                                  <span className="text-[10px] font-black text-tg-button bg-tg-button/10 px-1.5 py-0.5 rounded-md">
+                                    {s.respectful_hours} ч ув.
+                                  </span>
+                                )}
+                                <span className="text-xs font-black text-tg-hint opacity-60">{s.skip_hours} ч</span>
+                              </div>
+                            </button>
+                            
+                            {/* Expanded detail records */}
+                            {isExpanded && s.records && s.records.length > 0 && (
+                              <div className="border-t border-tg-hint border-opacity-5 px-3 pb-3">
+                                {s.records.map((r, idx) => (
+                                  <div key={idx} className="flex items-center justify-between py-2.5 border-b border-tg-hint border-opacity-5 last:border-0">
+                                    <div className="flex items-center gap-2.5 min-w-0">
+                                      {/* Lesson type badge */}
+                                      <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded flex-shrink-0 ${
+                                        r.lessonType === 'ЛК' ? 'bg-purple-500/10 text-purple-500 border border-purple-500/15' :
+                                        r.lessonType === 'ПЗ' ? 'bg-blue-500/10 text-blue-500 border border-blue-500/15' :
+                                        r.lessonType === 'ЛР' ? 'bg-green-500/10 text-green-500 border border-green-500/15' :
+                                        'bg-tg-hint/10 text-tg-hint border border-tg-hint/15'
+                                      }`}>
+                                        {r.lessonType || '—'}
+                                      </span>
+                                      {/* Date */}
+                                      <span className="text-xs text-tg-text font-medium">
+                                        {r.date || 'Нет даты'}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                                      <span className="text-[10px] font-bold text-tg-hint">{r.hours} ч</span>
+                                      {r.isRespectful ? (
+                                        <span className="text-[8px] font-black uppercase text-tg-button bg-tg-button/10 px-1 py-0.5 rounded">ув.</span>
+                                      ) : (
+                                        <span className="text-[8px] font-black uppercase text-red-500 bg-red-500/10 px-1 py-0.5 rounded">н/у</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
 
