@@ -64,8 +64,49 @@ export async function getStudentGrades(studentCardNumber) {
   console.log("Fetching marks for card:", studentCardNumber);
   const data = await fetchRaw(url);
   
-  if (!data) return [];
+  const emptyResult = { subjects: [], omissions: { total_hours: 0, total_respectful_hours: 0, subjects: [] } };
+  if (!data) return emptyResult;
   const processedIds = new Set();
+  
+  // Helper to extract omissions from lessons
+  const extractOmissions = (lessons) => {
+    const omissionsBySubject = {};
+    let totalHours = 0;
+    let totalRespectfulHours = 0;
+    
+    lessons.forEach(l => {
+      const sub = l.lessonNameAbbrev || l.subject || l.subjectAbbrev || l.name || 'Unknown';
+      let omissions = l.gradeBookOmissions;
+      if (omissions === undefined || omissions === null) omissions = 0;
+      if (typeof omissions === 'string') omissions = parseInt(omissions, 10) || 0;
+      if (typeof omissions !== 'number') omissions = 0;
+      
+      let isRespectful = l.isRespectfulOmission;
+      if (typeof isRespectful === 'string') isRespectful = isRespectful.toLowerCase() === 'true';
+      if (typeof isRespectful !== 'boolean') isRespectful = false;
+      
+      if (omissions > 0) {
+        totalHours += omissions;
+        if (isRespectful) totalRespectfulHours += omissions;
+        
+        if (!omissionsBySubject[sub]) {
+          omissionsBySubject[sub] = { skip_hours: 0, respectful_hours: 0 };
+        }
+        omissionsBySubject[sub].skip_hours += omissions;
+        if (isRespectful) omissionsBySubject[sub].respectful_hours += omissions;
+      }
+    });
+    
+    return {
+      total_hours: totalHours,
+      total_respectful_hours: totalRespectfulHours,
+      subjects: Object.entries(omissionsBySubject).map(([subject, data]) => ({
+        subject,
+        skip_hours: data.skip_hours,
+        respectful_hours: data.respectful_hours
+      }))
+    };
+  };
   
   // 1. If we already have an object or array (Axios parsed JSON), use it
   if (typeof data === 'object' && data !== null) {
@@ -104,6 +145,9 @@ export async function getStudentGrades(studentCardNumber) {
         return found;
       };
 
+      // Extract omissions from all lessons (before dedup filtering)
+      const omissions = extractOmissions(lessons);
+
       lessons.forEach(l => {
         if (!l.id || processedIds.has(l.id)) return;
         processedIds.add(l.id);
@@ -120,9 +164,8 @@ export async function getStudentGrades(studentCardNumber) {
         }
       });
       
-      if (Object.keys(resMap).length > 0) {
-        return Object.entries(resMap).map(([subject, marks]) => ({ subject, marks }));
-      }
+      const subjects = Object.entries(resMap).map(([subject, marks]) => ({ subject, marks }));
+      return { subjects, omissions };
     } catch(e) {
       console.error("JSON processing error in getStudentGrades:", e);
     }
@@ -206,10 +249,11 @@ export async function getStudentGrades(studentCardNumber) {
 
   }
   
-  return Object.entries(resultsMap).map(([subject, marks]) => ({
+  const subjects = Object.entries(resultsMap).map(([subject, marks]) => ({
     subject,
     marks: Array.isArray(marks) && typeof marks[0] === 'object' ? marks : marks.map(m => ({ val: m, date: null }))
   }));
+  return { subjects, omissions: emptyResult.omissions };
 }
 
 /**

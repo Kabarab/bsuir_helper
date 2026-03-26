@@ -27,6 +27,12 @@ export default function Study() {
   const [loadingXml, setLoadingXml] = useState(false);
   const [studentCard, setStudentCard] = useState(studentId || '');
   const [errorXml, setErrorXml] = useState(null);
+  const [omissionsData, setOmissionsData] = useState(() => {
+    try {
+      const key = studentId ? `study_omissions_${studentId}` : 'study_omissions';
+      return JSON.parse(localStorage.getItem(key)) || null;
+    } catch { return null; }
+  });
   const [ratingData, setRatingData] = useState(() => {
     try {
       const key = studentId ? `study_ratingData_${studentId}` : 'study_ratingData';
@@ -103,18 +109,22 @@ export default function Study() {
       // Try to load cached data for this specific studentId
       const marksKey = `study_xmlMarks_${studentId}`;
       const ratingKey = `study_ratingData_${studentId}`;
+      const omissionsKey = `study_omissions_${studentId}`;
       const cachedMarks = localStorage.getItem(marksKey);
       const cachedRating = localStorage.getItem(ratingKey);
+      const cachedOmissions = localStorage.getItem(omissionsKey);
 
       if (cachedMarks) {
         // Cache hit — show cached data immediately, refresh in background
         try { setXmlMarks(JSON.parse(cachedMarks)); } catch { /* ignore */ }
         try { setRatingData(JSON.parse(cachedRating)); } catch { /* ignore */ }
+        try { if (cachedOmissions) setOmissionsData(JSON.parse(cachedOmissions)); } catch { /* ignore */ }
         fetchXmlMarksBackground(studentId);
       } else {
         // No cache — show loader and fetch
         setXmlMarks([]);
         setRatingData(null);
+        setOmissionsData(null);
         const timer = setTimeout(() => {
           fetchXmlMarks(studentId);
         }, 300);
@@ -124,19 +134,26 @@ export default function Study() {
       // No studentId — clear data
       setXmlMarks([]);
       setRatingData(null);
+      setOmissionsData(null);
     }
   }, [studentId]);
 
   const fetchXmlMarksBackground = async (cardNum) => {
     setIsRefreshing(true);
     try {
-      const [gradesData, ratingInfo] = await Promise.all([
+      const [gradesResult, ratingInfo] = await Promise.all([
         getStudentGrades(cardNum),
         fetchStudentRating(cardNum)
       ]);
-      setXmlMarks(gradesData);
+      const gradesData = gradesResult?.subjects || gradesResult || [];
+      const omissions = gradesResult?.omissions || null;
+      setXmlMarks(Array.isArray(gradesData) ? gradesData : []);
       setRatingData(ratingInfo);
-      localStorage.setItem(`study_xmlMarks_${cardNum}`, JSON.stringify(gradesData));
+      if (omissions) {
+        setOmissionsData(omissions);
+        localStorage.setItem(`study_omissions_${cardNum}`, JSON.stringify(omissions));
+      }
+      localStorage.setItem(`study_xmlMarks_${cardNum}`, JSON.stringify(Array.isArray(gradesData) ? gradesData : []));
       localStorage.setItem(`study_ratingData_${cardNum}`, JSON.stringify(ratingInfo));
     } catch (err) {
       console.error("Background refresh error:", err);
@@ -155,18 +172,24 @@ export default function Study() {
     
     try {
       // Parallel fetch for grades and rating
-      const [gradesData, ratingInfo] = await Promise.all([
+      const [gradesResult, ratingInfo] = await Promise.all([
         getStudentGrades(cardNum),
         fetchStudentRating(cardNum)
       ]);
       
-      console.log("getStudentGrades returned:", gradesData);
+      console.log("getStudentGrades returned:", gradesResult);
       console.log("fetchStudentRating returned:", ratingInfo);
       
-      setXmlMarks(gradesData);
+      const gradesData = gradesResult?.subjects || gradesResult || [];
+      const omissions = gradesResult?.omissions || null;
+      setXmlMarks(Array.isArray(gradesData) ? gradesData : []);
       setRatingData(ratingInfo);
+      if (omissions) {
+        setOmissionsData(omissions);
+        localStorage.setItem(`study_omissions_${cardNum}`, JSON.stringify(omissions));
+      }
       // Save to studentId-keyed cache
-      localStorage.setItem(`study_xmlMarks_${cardNum}`, JSON.stringify(gradesData));
+      localStorage.setItem(`study_xmlMarks_${cardNum}`, JSON.stringify(Array.isArray(gradesData) ? gradesData : []));
       localStorage.setItem(`study_ratingData_${cardNum}`, JSON.stringify(ratingInfo));
     } catch (err) {
       console.error("Error fetching XML marks or rating", err);
@@ -365,53 +388,60 @@ export default function Study() {
               <h2 className="font-semibold text-tg-text">Пропуски занятий (ИИС)</h2>
             </div>
             <div className="p-4">
-              <div className="bg-tg-bg p-4 rounded-xl border border-tg-button border-opacity-20 flex justify-between items-center">
-                <div className="flex flex-col">
-                  <span className="text-[10px] uppercase font-bold text-tg-hint tracking-wider">Всего пропущено</span>
-                  <div className="flex items-baseline gap-1 mt-0.5">
-                    <span className={`text-2xl font-black ${(grades?.total_iis_hours || 0) > 30 ? 'text-red-500' : 'text-tg-text'}`}>
-                      {grades?.total_iis_hours || 0}
-                    </span>
-                    <span className="text-xs text-tg-hint font-medium">акад. ч</span>
-                  </div>
-                  {grades?.total_respectful_hours > 0 && (
-                    <span className="text-[9px] text-tg-button font-bold bg-tg-button/10 px-1.5 py-0.5 rounded-md mt-1 italic">
-                      из них {grades.total_respectful_hours} ч — уваж.
-                    </span>
-                  )}
-                </div>
-                <div className="h-10 w-px bg-tg-hint opacity-10"></div>
-                <div className="flex flex-col text-right">
-                  <span className="text-[10px] uppercase font-bold text-tg-hint tracking-wider">Предметов</span>
-                  <div className="flex items-baseline justify-end gap-1 mt-0.5">
-                    <span className="text-xl font-black text-tg-text">
-                      {grades?.subjects?.filter(s => (s.skips_count || 0) > 0).length || 0}
-                    </span>
-                    <AlertTriangle size={14} className="text-red-500 opacity-20 mb-0.5" />
-                  </div>
-                </div>
-              </div>
-              
-              {grades?.subjects?.some((s) => (s.skip_hours || 0) > 0) && (
-                <div className="mt-4 space-y-2">
-                  <span className="text-[10px] uppercase font-black text-tg-hint tracking-widest ml-1">Детализация по предметам</span>
-                  {grades.subjects.filter(s => (s.skip_hours || 0) > 0).map(s => (
-                    <div key={s.subject} className="flex justify-between items-center p-3 bg-tg-bg/50 rounded-xl border border-tg-hint border-opacity-5">
-                      <span className="text-xs font-bold text-tg-text truncate max-w-[200px]">{s.subject}</span>
-                      <span className="text-xs font-black text-tg-button">{s.skip_hours} ч</span>
+              {omissionsData ? (
+                <>
+                  <div className="bg-tg-bg p-4 rounded-xl border border-tg-button border-opacity-20 flex justify-between items-center">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] uppercase font-bold text-tg-hint tracking-wider">Всего пропущено</span>
+                      <div className="flex items-baseline gap-1 mt-0.5">
+                        <span className={`text-2xl font-black ${(omissionsData.total_hours || 0) > 30 ? 'text-red-500' : 'text-tg-text'}`}>
+                          {omissionsData.total_hours || 0}
+                        </span>
+                        <span className="text-xs text-tg-hint font-medium">акад. ч</span>
+                      </div>
+                      {omissionsData.total_respectful_hours > 0 && (
+                        <span className="text-[9px] text-tg-button font-bold bg-tg-button/10 px-1.5 py-0.5 rounded-md mt-1 italic">
+                          из них {omissionsData.total_respectful_hours} ч — уваж.
+                        </span>
+                      )}
                     </div>
-                  ))}
-                </div>
-              )}
+                    <div className="h-10 w-px bg-tg-hint opacity-10"></div>
+                    <div className="flex flex-col text-right">
+                      <span className="text-[10px] uppercase font-bold text-tg-hint tracking-wider">Предметов</span>
+                      <div className="flex items-baseline justify-end gap-1 mt-0.5">
+                        <span className="text-xl font-black text-tg-text">
+                          {omissionsData.subjects?.length || 0}
+                        </span>
+                        <AlertTriangle size={14} className="text-red-500 opacity-20 mb-0.5" />
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {omissionsData.subjects?.length > 0 && (
+                    <div className="mt-4 space-y-2">
+                      <span className="text-[10px] uppercase font-black text-tg-hint tracking-widest ml-1">Детализация по предметам</span>
+                      {omissionsData.subjects.map(s => (
+                        <div key={s.subject} className="flex justify-between items-center p-3 bg-tg-bg/50 rounded-xl border border-tg-hint border-opacity-5">
+                          <span className="text-xs font-bold text-tg-text truncate max-w-[200px]">{s.subject}</span>
+                          <span className="text-xs font-black text-tg-button">{s.skip_hours} ч</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
 
-              {grades && grades.is_real && !grades?.total_iis_hours && (
-                <div className="text-center py-6">
-                  <div className="text-2xl mb-2">🎉</div>
-                  <div className="text-sm font-bold text-tg-text">Пропусков нет!</div>
-                  <div className="text-[11px] text-tg-hint mt-1">Официальные пропуски (нули в журнале) появятся здесь автоматически.</div>
+                  {omissionsData.total_hours === 0 && (
+                    <div className="text-center py-6">
+                      <div className="text-2xl mb-2">🎉</div>
+                      <div className="text-sm font-bold text-tg-text">Пропусков нет!</div>
+                      <div className="text-[11px] text-tg-hint mt-1">Официальные пропуски появятся здесь автоматически.</div>
+                    </div>
+                  )}
+                </>
+              ) : studentId ? (
+                <div className="text-center py-6 opacity-60">
+                  <div className="text-sm font-medium text-tg-hint">Загрузка данных о пропусках...</div>
                 </div>
-              )}
-              {(!grades || !grades.is_real) && (
+              ) : (
                 <div className="text-center py-6 opacity-60">
                   <div className="text-sm font-medium text-tg-hint">Нет данных из ИИС</div>
                   <div className="text-[10px] text-tg-hint mt-1">Убедитесь, что номер зачетки введен верно (8 цифр)</div>
