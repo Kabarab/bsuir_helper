@@ -56,28 +56,19 @@ class RatingService:
             print(f"RATING CACHE HIT for {student_card}")
             return cached['data']
 
-        session = await self.get_session()
         url = f"{self.base_url}/rating/studentRating?studentCardNumber={student_card}"
         try:
-            async with session.get(url) as resp:
-                if resp.status == 200:
-                    data = await resp.json()
-                    result = {"success": True, "data": data}
-                    _rating_cache[cache_key] = {'data': result, 'ts': time.time()}
-                    return result
-                
-                # If 401 or 500, try a CLEAN fetch without session cookies/auth
-                # sometimes IIS sessions get stuck or block automated requests
-                print(f"IIS status {resp.status} for {student_card}, retrying without session...")
-                async with aiohttp.ClientSession(headers=self.headers) as clean_session:
-                    async with clean_session.get(url) as resp2:
-                        if resp2.status == 200:
-                            data = await resp2.json()
-                            result = {"success": True, "data": data}
-                            _rating_cache[cache_key] = {'data': result, 'ts': time.time()}
-                            return result
-                        
-                return {"success": False, "error": f"IIS returned {resp.status} (retry: {resp.status if 'resp2' not in locals() else resp2.status})"}
+            # Using clean session without cookies/auth as this endpoint is public
+            # and authenticated sessions sometimes trigger IIS internal errors or blocks.
+            async with aiohttp.ClientSession(headers=self.headers) as session:
+                async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        result = {"success": True, "data": data}
+                        _rating_cache[cache_key] = {'data': result, 'ts': time.time()}
+                        return result
+                    
+                    return {"success": False, "error": f"IIS returned {resp.status}"}
         except Exception as e:
             print(f"Exception fetching student rating for {student_card}: {e}")
             return {"success": False, "error": str(e)}
