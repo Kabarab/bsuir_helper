@@ -65,16 +65,21 @@ class RatingService:
                     result = {"success": True, "data": data}
                     _rating_cache[cache_key] = {'data': result, 'ts': time.time()}
                     return result
-                elif resp.status == 401:
-                    # Session expired? Re-login and try once more
-                    await self._login()
-                    async with session.get(url) as resp2:
+                
+                # If 401 or 500, try a CLEAN fetch without session cookies/auth
+                # sometimes IIS sessions get stuck or block automated requests
+                print(f"IIS status {resp.status} for {student_card}, retrying without session...")
+                async with aiohttp.ClientSession(headers=self.headers) as clean_session:
+                    async with clean_session.get(url) as resp2:
                         if resp2.status == 200:
-                            result = {"success": True, "data": await resp2.json()}
+                            data = await resp2.json()
+                            result = {"success": True, "data": data}
                             _rating_cache[cache_key] = {'data': result, 'ts': time.time()}
                             return result
-                return {"success": False, "error": f"IIS returned {resp.status}"}
+                        
+                return {"success": False, "error": f"IIS returned {resp.status} (retry: {resp.status if 'resp2' not in locals() else resp2.status})"}
         except Exception as e:
+            print(f"Exception fetching student rating for {student_card}: {e}")
             return {"success": False, "error": str(e)}
 
     async def close(self):

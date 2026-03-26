@@ -635,52 +635,45 @@ async def grades(telegram_id: int, db: AsyncSession = Depends(get_db)):
     subjects = []
     raw_data = subjects_data.get("data")
     
-    # Update DB with latest data if successful
+    # Debug info
+    data_source = "IIS API"
     if subjects_data.get("success"):
         try:
-            import json
             user.average_grade = str(average)
             user.rating_position = ranking
+            import json
             user.grades_data = json.dumps(raw_data)
             user.last_rating_update = dt_datetime.now()
             await db.commit()
-            print(f"Updated stored grades for user {telegram_id}")
-        except Exception as e:
-            print(f"Failed to update user grades in DB: {e}")
+        except:
+            pass
+    elif user.grades_data:
+        try:
+            import json
+            raw_data = json.loads(user.grades_data)
+            average = float(user.average_grade or 0.0)
+            ranking = user.rating_position or 0
+            data_source = "Cache"
+        except:
+            pass
 
+    # Extract lessons more robustly
     lessons_list = []
     if isinstance(raw_data, list):
         lessons_list = raw_data
     elif isinstance(raw_data, dict):
+        # IIS often returns GradeBookStudentDto with 'lessons' key
         lessons_list = raw_data.get("lessons", [])
-        # If it's a nested structure like <lessons><lessons>...</lessons></lessons>
-        # then raw_data.get("lessons") will be a dict with key "lessons"
         if isinstance(lessons_list, dict):
             lessons_list = lessons_list.get("lessons", [])
-        if not lessons_list and raw_data: # If it's a single object that's not a list but holds the data
-            if not raw_data.get("lessons"):
-                lessons_list = [raw_data]
+        # If it is just a single lesson object (rare but possible in some API paths)
+        if not lessons_list and raw_data.get("id") and not raw_data.get("lessons"):
+            lessons_list = [raw_data]
 
-    # If fetch failed but we have stored data, use it
-    if not subjects_data.get("success") and user.grades_data:
-        try:
-            import json
-            lessons_list = json.loads(user.grades_data)
-            if isinstance(lessons_list, dict):
-                inner = lessons_list.get("lessons", [])
-                if isinstance(inner, dict):
-                    lessons_list = inner.get("lessons", [])
-                else:
-                    lessons_list = inner
-            average = float(user.average_grade or 0.0)
-            ranking = user.rating_position or 0
-            print(f"Using stored grades for user {telegram_id}")
-        except Exception as e:
-            print(f"Failed to parse stored grades: {e}")
-
-    if (subjects_data.get("success") or user.grades_data) and lessons_list:
-        seen_subjects = {} # subj_name -> {"marks": [...], "omissions": 0, "respectful_omissions": 0}
-        
+    fetch_success = subjects_data.get("success", False) or bool(user.grades_data)
+    
+    if lessons_list and isinstance(lessons_list, list):
+        seen_subjects = {} 
         for lesson in lessons_list:
             if not isinstance(lesson, dict): continue
             
@@ -691,7 +684,7 @@ async def grades(telegram_id: int, db: AsyncSession = Depends(get_db)):
             
             date_str = lesson.get("dateString")
             
-            # 1. Collect marks
+            # Marks
             raw_marks = lesson.get("marks", [])
             if not isinstance(raw_marks, list):
                 raw_marks = [raw_marks] if raw_marks is not None else []
@@ -708,8 +701,7 @@ async def grades(telegram_id: int, db: AsyncSession = Depends(get_db)):
                                 marks_with_dates.append({"val": num, "date": date_str})
                     except: continue
 
-            # 2. Collect omissions (skips)
-            # As explained by the user, gradeBookOmissions is inside each block
+            # Omissions (skips)
             omissions = lesson.get("gradeBookOmissions", 0)
             if not isinstance(omissions, (int, float)):
                 try: omissions = int(omissions)
@@ -727,13 +719,10 @@ async def grades(telegram_id: int, db: AsyncSession = Depends(get_db)):
             if is_respectful:
                 seen_subjects[subj_name]["respectful_omissions"] += omissions
 
-        # Finalize subjects list
         for name, data in seen_subjects.items():
-            sorted_marks = sorted(data["marks"], key=lambda x: x["val"], reverse=True)
             subjects.append({
                 "subject": name,
-                "marks": sorted_marks,
-                "skips_count": data["omissions"] // 2, # Assuming 2h per skip for the badge, but IIS gives hours
+                "marks": sorted(data["marks"], key=lambda x: x["val"], reverse=True),
                 "skip_hours": data["omissions"],
                 "respectful_hours": data["respectful_omissions"]
             })
@@ -741,18 +730,16 @@ async def grades(telegram_id: int, db: AsyncSession = Depends(get_db)):
     total_iis_hours = sum(s.get("skip_hours", 0) for s in subjects)
     total_respectful_hours = sum(s.get("respectful_hours", 0) for s in subjects)
 
-    grades_data = {
+    return {
         "average": average,
         "rating": ranking,
         "subjects": subjects,
         "total_iis_hours": total_iis_hours,
         "total_respectful_hours": total_respectful_hours,
-        "studentId": user.bsuir_id,
-        "is_real": subjects_data.get("success", False)
+        "is_real": fetch_success and len(lessons_list) > 0,
+        "source": data_source,
+        "error": subjects_data.get("error") if not subjects_data.get("success") else None
     }
-    # Cache the result
-    _grades_cache[cache_key] = {'data': grades_data, 'ts': time.time()}
-    return grades_data
 
 @app.get("/api/bsuir/week")
 async def current_week():
