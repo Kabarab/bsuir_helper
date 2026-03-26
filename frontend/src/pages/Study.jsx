@@ -238,7 +238,7 @@ export default function Study() {
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-tg-hint" size={16} />
                       <input 
                         type="text" 
-                        placeholder="Пример: 206554" 
+                        placeholder="Пример: 56841038 (8 цифр)" 
                         value={studentCard}
                         onChange={e => setStudentCard(e.target.value)}
                         className="w-full bg-tg-bg text-tg-text pl-9 pr-4 py-2.5 rounded-xl border border-tg-hint border-opacity-20 focus:outline-none focus:ring-2 focus:ring-tg-button text-sm"
@@ -251,6 +251,9 @@ export default function Study() {
                       OK
                     </button>
                   </div>
+                  {studentCard && studentCard.length !== 8 && (
+                    <p className="text-[10px] text-red-500 font-bold ml-1 animate-pulse">Обычно в номере зачетки 8 цифр</p>
+                  )}
                 </div>
               ) : (
                 <>
@@ -401,11 +404,17 @@ export default function Study() {
                 </div>
               )}
 
-              {!grades?.total_iis_hours && (
+              {grades && grades.is_real && !grades?.total_iis_hours && (
                 <div className="text-center py-6">
                   <div className="text-2xl mb-2">🎉</div>
                   <div className="text-sm font-bold text-tg-text">Пропусков нет!</div>
                   <div className="text-[11px] text-tg-hint mt-1">Официальные пропуски (нули в журнале) появятся здесь автоматически.</div>
+                </div>
+              )}
+              {(!grades || !grades.is_real) && (
+                <div className="text-center py-6 opacity-60">
+                  <div className="text-sm font-medium text-tg-hint">Нет данных из ИИС</div>
+                  <div className="text-[10px] text-tg-hint mt-1">Убедитесь, что номер зачетки введен верно (8 цифр)</div>
                 </div>
               )}
             </div>

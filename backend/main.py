@@ -748,7 +748,7 @@ async def grades(telegram_id: int, db: AsyncSession = Depends(get_db)):
         "total_iis_hours": total_iis_hours,
         "total_respectful_hours": total_respectful_hours,
         "studentId": user.bsuir_id,
-        "is_real": True
+        "is_real": subjects_data.get("success", False)
     }
     # Cache the result
     _grades_cache[cache_key] = {'data': grades_data, 'ts': time.time()}
