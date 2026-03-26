@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
-import { BookOpen, Star, GraduationCap, Settings, Info, Search, Trophy, Loader2, Clock, AlertTriangle, ChevronDown } from 'lucide-react';
+import { BookOpen, Star, GraduationCap, Settings, Info, Search, Trophy, Loader2, Clock, AlertTriangle, ChevronDown, CalendarDays } from 'lucide-react';
 import { useUser } from '../contexts/UserContext';
 import { useNavigate } from 'react-router-dom';
 import { getStudentGrades, fetchStudentRating } from '../utils/bsuirApi';
@@ -536,6 +536,80 @@ export default function Study() {
               )}
             </div>
           </div>
+
+          {/* This month's non-respectful omissions */}
+          {omissionsData && (() => {
+            const now = new Date();
+            const curMonth = String(now.getMonth() + 1).padStart(2, '0');
+            const curYear = String(now.getFullYear());
+            const monthNames = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+            const monthLabel = monthNames[now.getMonth()];
+
+            const thisMonthNonResp = (omissionsData.records || []).filter(r => {
+              if (r.isRespectful) return false;
+              if (!r.date) return false;
+              const parts = r.date.split('.');
+              if (parts.length < 3) return false;
+              return parts[1] === curMonth && parts[2] === curYear;
+            });
+
+            const totalHours = thisMonthNonResp.reduce((sum, r) => sum + (r.hours || 0), 0);
+
+            return (
+              <div className="bg-tg-secondaryBg rounded-2xl overflow-hidden shadow-sm">
+                <div className="p-4 border-b border-[var(--tg-theme-hint-color)] opacity-80 flex items-center gap-2">
+                  <CalendarDays size={20} className="text-red-500" />
+                  <h2 className="font-semibold text-tg-text">Неуваж. пропуски — {monthLabel}</h2>
+                </div>
+                <div className="p-4">
+                  {thisMonthNonResp.length > 0 ? (
+                    <>
+                      <div className="bg-red-500/5 border border-red-500/15 rounded-xl p-3 flex items-center justify-between mb-3">
+                        <div className="flex flex-col">
+                          <span className="text-[9px] uppercase font-bold text-red-500 tracking-wider opacity-80">За {monthLabel.toLowerCase()}</span>
+                          <div className="flex items-baseline gap-1 mt-0.5">
+                            <span className="text-2xl font-black text-red-500">{totalHours}</span>
+                            <span className="text-xs text-red-400 font-medium">акад. ч</span>
+                          </div>
+                        </div>
+                        <div className="flex flex-col text-right">
+                          <span className="text-[9px] uppercase font-bold text-red-500 tracking-wider opacity-80">Записей</span>
+                          <span className="text-xl font-black text-red-500 mt-0.5">{thisMonthNonResp.length}</span>
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        {thisMonthNonResp.map((r, idx) => (
+                          <div key={idx} className="flex items-center justify-between p-2.5 bg-tg-bg/50 rounded-xl border border-tg-hint border-opacity-5">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded flex-shrink-0 ${
+                                r.lessonType === 'ЛК' ? 'bg-purple-500/10 text-purple-500 border border-purple-500/15' :
+                                r.lessonType === 'ПЗ' ? 'bg-blue-500/10 text-blue-500 border border-blue-500/15' :
+                                r.lessonType === 'ЛР' ? 'bg-green-500/10 text-green-500 border border-green-500/15' :
+                                'bg-tg-hint/10 text-tg-hint border border-tg-hint/15'
+                              }`}>
+                                {r.lessonType || '—'}
+                              </span>
+                              <div className="flex flex-col min-w-0">
+                                <span className="text-xs font-bold text-tg-text truncate">{r.subject}</span>
+                                <span className="text-[10px] text-tg-hint">{r.date}</span>
+                              </div>
+                            </div>
+                            <span className="text-xs font-black text-red-500 flex-shrink-0 ml-2">{r.hours} ч</span>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-center py-6">
+                      <div className="text-2xl mb-2">✅</div>
+                      <div className="text-sm font-bold text-tg-text">Нет пропусков по неуваж. за {monthLabel.toLowerCase()}</div>
+                      <div className="text-[11px] text-tg-hint mt-1">Так держать!</div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
         </>
       )}
     </div>
