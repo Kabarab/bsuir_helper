@@ -670,7 +670,8 @@ async def grades(telegram_id: int, db: AsyncSession = Depends(get_db)):
             print(f"Failed to parse stored grades: {e}")
 
     if (subjects_data.get("success") or user.grades_data) and lessons_list:
-        seen_subjects = {} # subj_name -> list of {val, date}
+        seen_subjects = {} # subj_name -> {"marks": [...], "omissions": 0, "respectful_omissions": 0}
+        
         for lesson in lessons_list:
             if not isinstance(lesson, dict): continue
             
@@ -681,57 +682,62 @@ async def grades(telegram_id: int, db: AsyncSession = Depends(get_db)):
             
             date_str = lesson.get("dateString")
             
+            # 1. Collect marks
             raw_marks = lesson.get("marks", [])
             if not isinstance(raw_marks, list):
                 raw_marks = [raw_marks] if raw_marks is not None else []
             
-            # Extract numeric marks from mark objects
             marks_with_dates = []
             for m in raw_marks:
-                val = None
-                if isinstance(m, dict):
-                    val = m.get("mark")
-                else:
-                    val = m
-                
+                val = m.get("mark") if isinstance(m, dict) else m
                 if val is not None:
-
                     try:
-                        is_str = isinstance(val, str)
-                        clean_val = val.strip() if is_str else val
-                        if is_str and not clean_val.isdigit():
-                            continue
-                        num = int(clean_val)
-                        if 0 <= num <= 10:
-                            marks_with_dates.append({"val": num, "date": date_str})
+                        clean_val = str(val).strip()
+                        if clean_val.isdigit():
+                            num = int(clean_val)
+                            if 0 <= num <= 10:
+                                marks_with_dates.append({"val": num, "date": date_str})
+                    except: continue
 
-                    except (ValueError, TypeError):
-                        continue
+            # 2. Collect omissions (skips)
+            # As explained by the user, gradeBookOmissions is inside each block
+            omissions = lesson.get("gradeBookOmissions", 0)
+            if not isinstance(omissions, (int, float)):
+                try: omissions = int(omissions)
+                except: omissions = 0
             
-            if subj_name and marks_with_dates:
-                if subj_name not in seen_subjects:
-                    seen_subjects[subj_name] = []
-                seen_subjects[subj_name].extend(marks_with_dates)
+            is_respectful = lesson.get("isRespectfulOmission", False)
+            if isinstance(is_respectful, str):
+                is_respectful = is_respectful.lower() == "true"
 
-        for name, marks_in_subj in seen_subjects.items():
-            # Treat zeros as skips (each is 2 academic hours)
-            skips_in_subj = sum(1 for m in marks_in_subj if m["val"] == 0)
-            sorted_marks = sorted(marks_in_subj, key=lambda x: x["val"], reverse=True)
+            if subj_name not in seen_subjects:
+                seen_subjects[subj_name] = {"marks": [], "omissions": 0, "respectful_omissions": 0}
+            
+            seen_subjects[subj_name]["marks"].extend(marks_with_dates)
+            seen_subjects[subj_name]["omissions"] += omissions
+            if is_respectful:
+                seen_subjects[subj_name]["respectful_omissions"] += omissions
+
+        # Finalize subjects list
+        for name, data in seen_subjects.items():
+            sorted_marks = sorted(data["marks"], key=lambda x: x["val"], reverse=True)
             subjects.append({
                 "subject": name,
                 "marks": sorted_marks,
-                "skips_count": skips_in_subj,
-                "skip_hours": skips_in_subj * 2
+                "skips_count": data["omissions"] // 2, # Assuming 2h per skip for the badge, but IIS gives hours
+                "skip_hours": data["omissions"],
+                "respectful_hours": data["respectful_omissions"]
             })
 
-
     total_iis_hours = sum(s.get("skip_hours", 0) for s in subjects)
+    total_respectful_hours = sum(s.get("respectful_hours", 0) for s in subjects)
 
     grades_data = {
         "average": average,
         "rating": ranking,
         "subjects": subjects,
         "total_iis_hours": total_iis_hours,
+        "total_respectful_hours": total_respectful_hours,
         "studentId": user.bsuir_id,
         "is_real": True
     }

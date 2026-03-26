@@ -369,8 +369,13 @@ export default function Study() {
                     <span className={`text-2xl font-black ${(grades?.total_iis_hours || 0) > 30 ? 'text-red-500' : 'text-tg-text'}`}>
                       {grades?.total_iis_hours || 0}
                     </span>
-                    <span className="text-xs text-tg-hint font-medium">акад. часов</span>
+                    <span className="text-xs text-tg-hint font-medium">акад. ч</span>
                   </div>
+                  {grades?.total_respectful_hours > 0 && (
+                    <span className="text-[9px] text-tg-button font-bold bg-tg-button/10 px-1.5 py-0.5 rounded-md mt-1 italic">
+                      из них {grades.total_respectful_hours} ч — уваж.
+                    </span>
+                  )}
                 </div>
                 <div className="h-10 w-px bg-tg-hint opacity-10"></div>
                 <div className="flex flex-col text-right">
