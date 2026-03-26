@@ -653,16 +653,25 @@ async def grades(telegram_id: int, db: AsyncSession = Depends(get_db)):
         lessons_list = raw_data
     elif isinstance(raw_data, dict):
         lessons_list = raw_data.get("lessons", [])
+        # If it's a nested structure like <lessons><lessons>...</lessons></lessons>
+        # then raw_data.get("lessons") will be a dict with key "lessons"
+        if isinstance(lessons_list, dict):
+            lessons_list = lessons_list.get("lessons", [])
         if not lessons_list and raw_data: # If it's a single object that's not a list but holds the data
-            lessons_list = [raw_data]
+            if not raw_data.get("lessons"):
+                lessons_list = [raw_data]
 
     # If fetch failed but we have stored data, use it
     if not subjects_data.get("success") and user.grades_data:
         try:
             import json
             lessons_list = json.loads(user.grades_data)
-            if not isinstance(lessons_list, list) and isinstance(lessons_list, dict):
-                lessons_list = lessons_list.get("lessons", [])
+            if isinstance(lessons_list, dict):
+                inner = lessons_list.get("lessons", [])
+                if isinstance(inner, dict):
+                    lessons_list = inner.get("lessons", [])
+                else:
+                    lessons_list = inner
             average = float(user.average_grade or 0.0)
             ranking = user.rating_position or 0
             print(f"Using stored grades for user {telegram_id}")
