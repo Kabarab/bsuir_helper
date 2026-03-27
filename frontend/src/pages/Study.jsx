@@ -433,25 +433,7 @@ export default function Study() {
                       </div>
                     </div>
                     
-                    {/* Respectful / Non-respectful breakdown */}
-                    {omissionsData.total_hours > 0 && (
-                      <div className="flex gap-2 mt-3">
-                        <div className="flex-1 bg-red-500/10 rounded-lg p-2.5 border border-red-500/15">
-                          <div className="text-[9px] uppercase font-bold text-red-500 tracking-wider opacity-80">Неуваж.</div>
-                          <div className="text-lg font-black text-red-500 mt-0.5">
-                            {omissionsData.total_non_respectful_hours || 0}
-                            <span className="text-[10px] font-bold opacity-60 ml-1">ч</span>
-                          </div>
-                        </div>
-                        <div className="flex-1 bg-tg-button/10 rounded-lg p-2.5 border border-tg-button/15">
-                          <div className="text-[9px] uppercase font-bold text-tg-button tracking-wider opacity-80">Уваж.</div>
-                          <div className="text-lg font-black text-tg-button mt-0.5">
-                            {omissionsData.total_respectful_hours || 0}
-                            <span className="text-[10px] font-bold opacity-60 ml-1">ч</span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
+
                   </div>
                   
                   {/* Subject-level breakdown with expandable details */}
@@ -481,19 +463,7 @@ export default function Study() {
                                 />
                                 <span className="text-xs font-bold text-tg-text truncate">{s.subject}</span>
                               </div>
-                              <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
-                                {s.non_respectful_hours > 0 && (
-                                  <span className="text-[10px] font-black text-red-500 bg-red-500/10 px-1.5 py-0.5 rounded-md">
-                                    {s.non_respectful_hours} ч
-                                  </span>
-                                )}
-                                {s.respectful_hours > 0 && (
-                                  <span className="text-[10px] font-black text-tg-button bg-tg-button/10 px-1.5 py-0.5 rounded-md">
-                                    {s.respectful_hours} ч ув.
-                                  </span>
-                                )}
-                                <span className="text-xs font-black text-tg-hint opacity-60">{s.skip_hours} ч</span>
-                              </div>
+                              <span className="text-xs font-black text-red-500 flex-shrink-0 ml-2">{s.skip_hours} ч</span>
                             </button>
                             
                             {/* Expanded detail records */}
@@ -516,14 +486,7 @@ export default function Study() {
                                         {r.date || 'Нет даты'}
                                       </span>
                                     </div>
-                                    <div className="flex items-center gap-1.5 flex-shrink-0">
-                                      <span className="text-[10px] font-bold text-tg-hint">{r.hours} ч</span>
-                                      {r.isRespectful ? (
-                                        <span className="text-[8px] font-black uppercase text-tg-button bg-tg-button/10 px-1 py-0.5 rounded">ув.</span>
-                                      ) : (
-                                        <span className="text-[8px] font-black uppercase text-red-500 bg-red-500/10 px-1 py-0.5 rounded">н/у</span>
-                                      )}
-                                    </div>
+                                    <span className="text-[10px] font-bold text-red-500">{r.hours} ч</span>
                                   </div>
                                 ))}
                               </div>
@@ -564,7 +527,6 @@ export default function Study() {
             const monthLabel = monthNames[now.getMonth()];
 
             const thisMonthNonResp = (omissionsData.records || []).filter(r => {
-              if (r.isRespectful) return false;
               if (!r.date) return false;
               const parts = r.date.split('.');
               if (parts.length < 3) return false;
@@ -577,7 +539,7 @@ export default function Study() {
               <div className="bg-tg-secondaryBg rounded-2xl overflow-hidden shadow-sm">
                 <div className="p-4 border-b border-[var(--tg-theme-hint-color)] opacity-80 flex items-center gap-2">
                   <CalendarDays size={20} className="text-red-500" />
-                  <h2 className="font-semibold text-tg-text">Неуваж. пропуски — {monthLabel}</h2>
+                  <h2 className="font-semibold text-tg-text">Пропуски — {monthLabel}</h2>
                 </div>
                 <div className="p-4">
                   {thisMonthNonResp.length > 0 ? (
@@ -620,7 +582,7 @@ export default function Study() {
                   ) : (
                     <div className="text-center py-6">
                       <div className="text-2xl mb-2">✅</div>
-                      <div className="text-sm font-bold text-tg-text">Нет пропусков по неуваж. за {monthLabel.toLowerCase()}</div>
+                      <div className="text-sm font-bold text-tg-text">Нет пропусков за {monthLabel.toLowerCase()}</div>
                       <div className="text-[11px] text-tg-hint mt-1">Так держать!</div>
                     </div>
                   )}
