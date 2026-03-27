@@ -531,10 +531,9 @@ async def cmd_settings(message: Message, state: FSMContext):
         f"🎓 Группа: <b>{user.bsuir_group or 'не указана'}</b>\n"
         f"📋 Подгруппа: <b>{user.bsuir_subgroup or 'не выбрана'}</b>\n"
         f"🆔 Зачётка: <b>{user.bsuir_id or 'не указана'}</b>\n\n"
-        f"📝 Введи новый номер группы или отправь <code>-</code>, чтобы оставить текущую:",
-        reply_markup=get_app_kb("/#/settings")
+        f"📝 Введи новый номер группы или отправь <code>-</code>, чтобы оставить текущую:"
     )
-    await message.answer(current)
+    await message.answer(current, reply_markup=get_app_kb("/#/settings"))
     await state.set_state(SettingsStates.waiting_group)
 
 
