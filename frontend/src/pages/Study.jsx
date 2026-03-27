@@ -333,11 +333,29 @@ export default function Study() {
                         <div key={idx} className="p-4 bg-tg-bg rounded-2xl border border-tg-hint border-opacity-10 space-y-3">
                           <div className="flex justify-between items-center">
                             <span className="text-xs font-bold text-tg-hint uppercase tracking-tight">{m.subject}</span>
-                            {m.marks && m.marks.length > 3 && (
-                              <span className="text-[10px] text-tg-hint opacity-50 px-2 py-0.5 bg-tg-secondaryBg rounded-full border border-tg-hint border-opacity-10">
-                                {m.marks.length} оц.
-                              </span>
-                            )}
+                            <div className="flex items-center gap-1.5">
+                              {(() => {
+                                const vals = (m.marks || [])
+                                  .map(mk => (mk && typeof mk === 'object') ? mk.val : mk)
+                                  .filter(v => typeof v === 'number' && !isNaN(v));
+                                if (vals.length === 0) return null;
+                                const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+                                return (
+                                  <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${
+                                    avg >= 8 ? 'text-green-600 bg-green-500/10 border-green-500/20' :
+                                    avg >= 4 ? 'text-tg-button bg-tg-button/10 border-tg-button/20' :
+                                    'text-red-600 bg-red-500/10 border-red-500/20'
+                                  }`}>
+                                    Ø {avg.toFixed(1)}
+                                  </span>
+                                );
+                              })()}
+                              {m.marks && m.marks.length > 3 && (
+                                <span className="text-[10px] text-tg-hint opacity-50 px-2 py-0.5 bg-tg-secondaryBg rounded-full border border-tg-hint border-opacity-10">
+                                  {m.marks.length} оц.
+                                </span>
+                              )}
+                            </div>
                           </div>
                           
                           <div className="flex flex-wrap gap-2.5">
