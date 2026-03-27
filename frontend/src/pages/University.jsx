@@ -53,6 +53,7 @@ export default function University() {
   const daysRef = useRef(null);
   const scrollContainerRef = useRef(null);
   const [expandedLessonId, setExpandedLessonId] = useState(null);
+  const [avatarZoomUrl, setAvatarZoomUrl] = useState(null);
 
   // Helper to find next/prev occurrence in schedule
   const findOccurrence = (direction, subjectTitle, typeAbbrev, fromDate, targetSchedule, targetGroups = []) => {
@@ -467,6 +468,26 @@ export default function University() {
 
   return (
     <div className="p-4 relative min-h-[calc(100vh-4rem)] flex flex-col">
+      {/* Avatar Zoom Modal */}
+      {avatarZoomUrl && (
+        <div 
+          className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6 animate-in fade-in"
+          onClick={() => setAvatarZoomUrl(null)}
+        >
+          <button 
+            onClick={() => setAvatarZoomUrl(null)}
+            className="absolute top-4 right-4 p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors z-10"
+          >
+            <X size={24} />
+          </button>
+          <img 
+            src={avatarZoomUrl} 
+            alt="Фото преподавателя" 
+            className="max-w-full max-h-[80vh] rounded-2xl object-contain shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
       <h1 className="text-2xl font-bold flex items-center gap-2 mb-4 text-tg-text">
         <Building size={28} className="text-tg-button" />
         Университет
@@ -583,8 +604,9 @@ export default function University() {
                     <img 
                       src={selectedTeacher.photoLink || 'https://via.placeholder.com/100'} 
                       alt={selectedTeacher.fio} 
-                      className="w-20 h-20 rounded-xl object-cover border border-tg-hint border-opacity-20"
+                      className="w-20 h-20 rounded-xl object-cover border border-tg-hint border-opacity-20 cursor-pointer active:scale-95 transition-transform"
                       onError={(e) => { e.target.src = 'https://via.placeholder.com/100'; }}
+                      onClick={() => selectedTeacher.photoLink && setAvatarZoomUrl(selectedTeacher.photoLink)}
                     />
                     <div>
                       <h2 className="text-lg font-bold text-tg-text mb-1">{selectedTeacher.lastName} {selectedTeacher.firstName} {selectedTeacher.middleName}</h2>
