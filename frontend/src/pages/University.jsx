@@ -25,7 +25,14 @@ export default function University() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('teachers'); // teachers, faculties, groups, rating
   
-  // Teachers data
+  // Deep link tab support
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tabParam = params.get('tab');
+    if (tabParam && ['teachers', 'faculties', 'groups', 'rating'].includes(tabParam)) {
+      setActiveTab(tabParam);
+    }
+  }, [location]);
   const [teachers, setTeachers] = useState([]);
   const [teacherSearch, setTeacherSearch] = useState('');
   const [selectedTeacher, setSelectedTeacher] = useState(null);

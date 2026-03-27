@@ -74,6 +74,16 @@ async def get_or_create_user(telegram_id: int) -> User:
         return user
 
 
+# ──────────── Helper: App Keyboard ────────────
+
+def get_app_kb(path: str = "") -> InlineKeyboardMarkup:
+    """Create a keyboard with a button to open the Web App at a specific path."""
+    url = f"{WEBAPP_URL}{path}"
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📱 Открыть в приложении", web_app=WebAppInfo(url=url))]
+    ])
+
+
 # ──────────── Helper: format schedule ────────────
 
 def format_lesson(lesson: dict, subgroup: int = 0) -> str | None:
@@ -204,7 +214,7 @@ async def cmd_start(message: Message, state: FSMContext):
             f"📋 Подгруппа: <b>{user.bsuir_subgroup or 'не выбрана'}</b>\n"
             f"🆔 Зачётка: <b>{user.bsuir_id or 'не указана'}</b>\n\n"
             f"Используй /help для списка команд или /settings для изменения настроек.",
-            reply_markup=markup
+            reply_markup=get_app_kb("/#/schedule")
         )
         return
 
@@ -316,7 +326,7 @@ async def onboarding_subgroup(callback: CallbackQuery, state: FSMContext):
         f"🆔 Зачётка: <b>{id_text}</b>\n\n"
         f"Используй /help для списка всех команд.\n"
         f"Нажми кнопку ниже, чтобы открыть Web App! 👇",
-        reply_markup=markup
+        reply_markup=get_app_kb("/#/schedule")
     )
 
 
@@ -343,7 +353,8 @@ async def cmd_help(message: Message):
         "🔍 <b>Поиск</b>\n"
         "  /teacher <code>фамилия</code> — Поиск преподавателя\n"
         "  /groups <code>номер</code> — Поиск группы\n"
-        "  /faculties — Список факультетов\n"
+        "  /faculties — Список факультетов\n",
+        reply_markup=get_app_kb("/#/schedule")
     )
 
 
@@ -380,7 +391,7 @@ async def cmd_today(message: Message):
 
     date_str = now.strftime("%d.%m.%Y")
     header = f"📅 <b>Расписание на сегодня</b> ({date_str})\n🎓 Группа: {user.bsuir_group} · Неделя {week_num}"
-    await status_msg.edit_text(f"{header}\n{result}")
+    await status_msg.edit_text(f"{header}\n{result}", reply_markup=get_app_kb("/#/schedule"))
 
 
 # ──────────── /tomorrow ────────────
@@ -425,7 +436,7 @@ async def cmd_tomorrow(message: Message):
 
     date_str = tomorrow.strftime("%d.%m.%Y")
     header = f"📅 <b>Расписание на завтра</b> ({date_str})\n🎓 Группа: {user.bsuir_group} · Неделя {week_num}"
-    await status_msg.edit_text(f"{header}\n{result}")
+    await status_msg.edit_text(f"{header}\n{result}", reply_markup=get_app_kb("/#/schedule"))
 
 
 # ──────────── /week ────────────
@@ -465,9 +476,9 @@ async def cmd_week(message: Message):
                 user.bsuir_group, user.bsuir_subgroup or 0, week_num, [day_name]
             )
             if "Нет пар" not in day_result or True:
-                await message.answer(day_result)
+                await message.answer(day_result, reply_markup=get_app_kb("/#/schedule"))
     else:
-        await status_msg.edit_text(full_text)
+        await status_msg.edit_text(full_text, reply_markup=get_app_kb("/#/schedule"))
 
 
 # ──────────── /next_week ────────────
@@ -503,9 +514,9 @@ async def cmd_next_week(message: Message):
             day_result = await get_schedule_for_days(
                 user.bsuir_group, user.bsuir_subgroup or 0, next_week, [day_name]
             )
-            await message.answer(day_result)
+            await message.answer(day_result, reply_markup=get_app_kb("/#/schedule"))
     else:
-        await status_msg.edit_text(full_text)
+        await status_msg.edit_text(full_text, reply_markup=get_app_kb("/#/schedule"))
 
 
 # ──────────── /settings ────────────
@@ -520,7 +531,8 @@ async def cmd_settings(message: Message, state: FSMContext):
         f"🎓 Группа: <b>{user.bsuir_group or 'не указана'}</b>\n"
         f"📋 Подгруппа: <b>{user.bsuir_subgroup or 'не выбрана'}</b>\n"
         f"🆔 Зачётка: <b>{user.bsuir_id or 'не указана'}</b>\n\n"
-        f"📝 Введи новый номер группы или отправь <code>-</code>, чтобы оставить текущую:"
+        f"📝 Введи новый номер группы или отправь <code>-</code>, чтобы оставить текущую:",
+        reply_markup=get_app_kb("/#/settings")
     )
     await message.answer(current)
     await state.set_state(SettingsStates.waiting_group)
@@ -725,7 +737,7 @@ async def cmd_marks(message: Message):
         total_avg = sum(overall_marks) / len(overall_marks)
         lines.append(f"\n📈 <b>Общий средний балл: {total_avg:.2f}</b>")
 
-    await status_msg.edit_text("\n".join(lines))
+    await status_msg.edit_text("\n".join(lines), reply_markup=get_app_kb("/#/study"))
 
 
 # ──────────── /rating ────────────
@@ -821,7 +833,8 @@ async def cmd_rating(message: Message):
         f"🏆 <b>Рейтинг специальности</b> ({spec}, {course} курс)\n\n"
         f"📊 Твой средний балл: <b>{average:.1f}</b>\n"
         f"{pos_emoji} Твоя позиция: <b>{position}</b> из {total}\n\n"
-        f"👑 <b>Топ-3:</b>\n{top_str}"
+        f"👑 <b>Топ-3:</b>\n{top_str}",
+        reply_markup=get_app_kb("/?tab=rating#/university")
     )
 
     # Update cached data
@@ -912,7 +925,7 @@ async def cmd_teacher(message: Message):
         response = "👤 <b>Найденные преподаватели:</b>\n" + "\n".join(f"• {r}" for r in results[:5])
         if len(results) > 5:
             response += f"\n<i>И ещё {len(results) - 5}...</i>"
-        await message.answer(response)
+        await message.answer(response, reply_markup=get_app_kb("/?tab=teachers#/university"))
 
 
 # ──────────── /groups ────────────
@@ -937,7 +950,7 @@ async def cmd_groups(message: Message):
         await message.answer("🔍 Группа не найдена.")
     else:
         response = "🎓 <b>Найденные группы:</b>\n" + "\n".join(f"• <code>{r}</code>" for r in results[:10])
-        await message.answer(response)
+        await message.answer(response, reply_markup=get_app_kb("/?tab=groups#/university"))
 
 
 # ──────────── /faculties ────────────
@@ -952,7 +965,7 @@ async def cmd_faculties(message: Message):
     response = "🏛 <b>Факультеты БГУИР:</b>\n" + "\n".join(
         f"• {f.get('abbrev', '')} — {f.get('name', '')}" for f in facs
     )
-    await message.answer(response)
+    await message.answer(response, reply_markup=get_app_kb("/?tab=faculties#/university"))
 
 
 # ──────────── /specialities ────────────
@@ -969,4 +982,4 @@ async def cmd_specialities(message: Message):
     )
     if len(specs) > 15:
         response += "\n<i>Показаны первые 15</i>"
-    await message.answer(response)
+    await message.answer(response, reply_markup=get_app_kb("/?tab=faculties#/university"))
