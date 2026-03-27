@@ -187,12 +187,13 @@ export async function getStudentGrades(studentCardNumber) {
 
         const sub = l.lessonNameAbbrev || l.subject || l.subjectAbbrev || l.name || 'Unknown';
         const date = l.dateString || null;
+        const lessonType = l.lessonTypeAbbrev || null;
         const ms = extractMarks(l.marks);
         
         if (ms.length > 0) {
           if (!resMap[sub]) resMap[sub] = [];
-          // Wrap marks in objects with date
-          const marksWithDates = ms.map(val => ({ val, date }));
+          // Wrap marks in objects with date and lessonType
+          const marksWithDates = ms.map(val => ({ val, date, lessonType }));
           resMap[sub].push(...marksWithDates);
         }
       });

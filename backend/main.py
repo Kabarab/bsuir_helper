@@ -683,6 +683,7 @@ async def grades(telegram_id: int, db: AsyncSession = Depends(get_db)):
                          "Unknown")
             
             date_str = lesson.get("dateString")
+            lesson_type = lesson.get("lessonTypeAbbrev")
             
             # Marks
             raw_marks = lesson.get("marks", [])
@@ -698,7 +699,7 @@ async def grades(telegram_id: int, db: AsyncSession = Depends(get_db)):
                         if clean_val.isdigit():
                             num = int(clean_val)
                             if 0 <= num <= 10:
-                                marks_with_dates.append({"val": num, "date": date_str})
+                                marks_with_dates.append({"val": num, "date": date_str, "lessonType": lesson_type})
                     except: continue
 
             # Omissions (skips)

@@ -363,13 +363,20 @@ export default function Study() {
                               if (mark === null || mark === undefined) return null;
                               const val = (typeof mark === 'object' && mark !== null) ? mark.val : mark;
                               const date = (typeof mark === 'object' && mark !== null) ? mark.date : null;
+                              const lessonType = (typeof mark === 'object' && mark !== null) ? mark.lessonType : null;
                               if (val === undefined || val === null) return null;
 
                               return (
-                                <div key={midx} className="flex flex-col items-center gap-1.5">
+                                <div key={midx} className="flex flex-col items-center gap-1">
                                   <span 
                                     title={date ? `Выставлена: ${date}` : ''}
-                                    onClick={() => date && WebApp.showAlert(`Оценка ${val} выставлена ${date}`)}
+                                    onClick={() => {
+                                      const parts = [];
+                                      parts.push(`Оценка ${val}`);
+                                      if (lessonType) parts.push(`Тип: ${lessonType === 'ЛК' ? 'Лекция' : lessonType === 'ПЗ' ? 'Практика' : lessonType === 'ЛР' ? 'Лаб. работа' : lessonType}`);
+                                      if (date) parts.push(`Дата: ${date}`);
+                                      WebApp.showAlert(parts.join('\n'));
+                                    }}
                                     className={`w-10 h-10 flex items-center justify-center rounded-xl text-sm font-black border shadow-sm transition-all active:scale-90 ${
                                       val >= 8 ? 'bg-green-500/10 text-green-600 border-green-500/20' : 
                                       val >= 4 ? 'bg-tg-button/10 text-tg-button border-tg-button/20' : 
@@ -378,6 +385,16 @@ export default function Study() {
                                   >
                                     {val}
                                   </span>
+                                  {lessonType && (
+                                    <span className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded-md border ${
+                                      lessonType === 'ЛК' ? 'bg-purple-500/10 text-purple-500 border-purple-500/15' :
+                                      lessonType === 'ПЗ' ? 'bg-blue-500/10 text-blue-500 border-blue-500/15' :
+                                      lessonType === 'ЛР' ? 'bg-green-500/10 text-green-500 border-green-500/15' :
+                                      'bg-tg-hint/10 text-tg-hint border-tg-hint/15'
+                                    }`}>
+                                      {lessonType}
+                                    </span>
+                                  )}
                                   {date && typeof date === 'string' && (
                                     <span className="text-[8px] text-tg-hint opacity-70 font-bold bg-tg-secondaryBg/30 px-1.5 py-0.5 rounded-md border border-tg-hint border-opacity-5">
                                       {date.includes('.') ? date.split('.').slice(0, 2).join('.') : date}

@@ -1400,18 +1400,41 @@ export default function University() {
                 </div>
               ) : studentMarks.length > 0 ? (
                 studentMarks.map((m, idx) => (
-                  <div key={idx} className="flex justify-between items-center p-3 bg-tg-bg rounded-xl border border-tg-hint border-opacity-10">
-                    <span className="text-sm font-medium">{m.subject}</span>
-                    <div className="flex gap-1.5 overflow-x-auto max-w-[50%] justify-end">
-                      {m.marks.length > 0 ? m.marks.map((mark, midx) => (
-                        <span key={midx} className={`w-8 h-8 flex items-center justify-center rounded-lg text-xs font-bold border ${
-                          mark >= 8 ? 'bg-green-500/10 text-green-600 border-green-500/20' : 
-                          mark >= 4 ? 'bg-tg-button/10 text-tg-button border-tg-button/20' : 
-                          'bg-red-500/10 text-red-600 border-red-500/20'
-                        }`}>
-                          {mark}
-                        </span>
-                      )) : (
+                  <div key={idx} className="p-3 bg-tg-bg rounded-xl border border-tg-hint border-opacity-10 space-y-2">
+                    <span className="text-sm font-medium block">{m.subject}</span>
+                    <div className="flex flex-wrap gap-2 justify-start">
+                      {m.marks.length > 0 ? m.marks.map((mark, midx) => {
+                        const val = (typeof mark === 'object' && mark !== null) ? mark.val : mark;
+                        const lessonType = (typeof mark === 'object' && mark !== null) ? mark.lessonType : null;
+                        const date = (typeof mark === 'object' && mark !== null) ? mark.date : null;
+                        if (val === undefined || val === null) return null;
+                        return (
+                          <div key={midx} className="flex flex-col items-center gap-0.5">
+                            <span className={`w-8 h-8 flex items-center justify-center rounded-lg text-xs font-bold border ${
+                              val >= 8 ? 'bg-green-500/10 text-green-600 border-green-500/20' : 
+                              val >= 4 ? 'bg-tg-button/10 text-tg-button border-tg-button/20' : 
+                              'bg-red-500/10 text-red-600 border-red-500/20'
+                            }`}>
+                              {val}
+                            </span>
+                            {lessonType && (
+                              <span className={`text-[7px] font-black uppercase px-1 py-0.5 rounded border ${
+                                lessonType === 'ЛК' ? 'bg-purple-500/10 text-purple-500 border-purple-500/15' :
+                                lessonType === 'ПЗ' ? 'bg-blue-500/10 text-blue-500 border-blue-500/15' :
+                                lessonType === 'ЛР' ? 'bg-green-500/10 text-green-500 border-green-500/15' :
+                                'bg-tg-hint/10 text-tg-hint border-tg-hint/15'
+                              }`}>
+                                {lessonType}
+                              </span>
+                            )}
+                            {date && typeof date === 'string' && (
+                              <span className="text-[7px] text-tg-hint opacity-60 font-medium">
+                                {date.includes('.') ? date.split('.').slice(0, 2).join('.') : date}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      }) : (
                         <span className="text-[10px] text-tg-hint italic">нет оценок</span>
                       )}
                     </div>
