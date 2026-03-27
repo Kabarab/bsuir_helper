@@ -8,7 +8,7 @@ from pydantic import BaseModel
 
 from database.core import engine, Base, get_db
 from database.models import User, Task, CustomEvent, AttendanceRecord
-from bot.bot import bot, dp, setup_menu_button
+from bot.bot import bot, dp, setup_menu_button, register_commands
 from services.calculator import calculate_ip
 from services.bsuir_api import (
     fetch_schedule, get_mock_grades, fetch_current_week,
@@ -169,6 +169,12 @@ async def startup_event():
             
     # Настройка кнопки меню (WebApp)
     await setup_menu_button()
+    
+    # Регистрация команд бота для автокомплита
+    try:
+        await register_commands()
+    except Exception as e:
+        print(f"Failed to register commands: {e}", flush=True)
     
     # Настройка Webhook
     if os.getenv("BACKEND_URL"):
