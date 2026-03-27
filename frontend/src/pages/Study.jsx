@@ -405,6 +405,7 @@ export default function Study() {
             <div className="p-4 border-b border-[var(--tg-theme-hint-color)] opacity-80 flex items-center gap-2">
               <Clock size={20} className="text-tg-button" />
               <h2 className="font-semibold text-tg-text">Пропуски занятий (ИИС)</h2>
+              {(isRefreshing || loadingXml) && <Loader2 size={14} className="animate-spin text-tg-hint ml-auto" />}
             </div>
             <div className="p-4">
               {omissionsData ? (
@@ -540,6 +541,7 @@ export default function Study() {
                 <div className="p-4 border-b border-[var(--tg-theme-hint-color)] opacity-80 flex items-center gap-2">
                   <CalendarDays size={20} className="text-red-500" />
                   <h2 className="font-semibold text-tg-text">Пропуски — {monthLabel}</h2>
+                  {(isRefreshing || loadingXml) && <Loader2 size={14} className="animate-spin text-tg-hint ml-auto" />}
                 </div>
                 <div className="p-4">
                   {thisMonthNonResp.length > 0 ? (
