@@ -1,4 +1,4 @@
-import os
+import asyncio
 import json
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
@@ -42,6 +42,7 @@ from services.bsuir_api import (
     fetch_group_rating, get_group_info
 )
 from services.rating import rating_service
+from services.rating_update import rating_update_service
 from database.core import engine, SessionLocal
 from database.models import User
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -620,6 +621,129 @@ async def settings_subgroup(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text(f"✅ Настройки обновлены! Подгруппа: <b>{sub_text}</b>")
 
 
+# ──────────── /marks Helper ────────────
+
+def format_grades_text(grades_json: str, bsuir_id: str, last_update: datetime = None, is_refreshing: bool = False) -> str:
+    """Format grades from JSON string for Telegram display."""
+    if not grades_json:
+        return "⌛ Загружаю оценки..." if is_refreshing else "📭 Оценки не найдены."
+
+    try:
+        raw_data = json.loads(grades_json)
+        lessons_list = []
+        if isinstance(raw_data, list):
+            lessons_list = raw_data
+        elif isinstance(raw_data, dict):
+            lessons_list = raw_data.get("lessons", [])
+
+        subjects = []
+        seen = {}
+        for lesson in lessons_list:
+            if not isinstance(lesson, dict):
+                continue
+            subj = (lesson.get("lessonNameAbbrev") or lesson.get("subject") or 
+                    lesson.get("subjectAbbrev") or "?")
+            raw_marks = lesson.get("marks", [])
+            if not isinstance(raw_marks, list):
+                raw_marks = [raw_marks] if raw_marks else []
+            
+            marks = []
+            for m in raw_marks:
+                val = m.get("mark") if isinstance(m, dict) else m
+                if val is not None:
+                    try:
+                        v = int(str(val).strip())
+                        if 0 <= v <= 10:
+                            marks.append(v)
+                    except:
+                        pass
+            
+            if subj not in seen:
+                seen[subj] = []
+            seen[subj].extend(marks)
+
+        for name, marks in seen.items():
+            if marks:
+                avg = sum(marks) / len(marks)
+                subjects.append({"name": name, "marks": marks, "avg": avg})
+
+        if not subjects:
+            return "📭 Оценки не найдены."
+
+        # Format output
+        header = f"📊 <b>Оценки</b> (зачётка: {bsuir_id})\n"
+        if last_update:
+            # Shift to Minsk time for display
+            minsk_time = last_update.astimezone(MINSK_TZ)
+            header += f"🕒 Обновлено: {minsk_time.strftime('%d.%m %H:%M')}\n"
+        
+        if is_refreshing:
+            header += "🔄 <i>Обновляю... (может занять до 5 минут)</i>\n"
+        
+        lines = [header]
+        overall_marks = []
+        for s in sorted(subjects, key=lambda x: x["avg"], reverse=True):
+            marks_str = ", ".join(str(m) for m in s["marks"])
+            avg_emoji = "🟢" if s["avg"] >= 8 else "🟡" if s["avg"] >= 6 else "🔴"
+            lines.append(f"{avg_emoji} <b>{s['name']}</b>: {marks_str} (ср. {s['avg']:.1f})")
+            overall_marks.extend(s["marks"])
+
+        if overall_marks:
+            total_avg = sum(overall_marks) / len(overall_marks)
+            lines.append(f"\n📈 <b>Общий средний балл: {total_avg:.2f}</b>")
+
+        return "\n".join(lines)
+    except Exception as e:
+        print(f"Error formatting grades: {e}")
+        return "❌ Ошибка при обработке данных оценок."
+
+
+async def refresh_marks_background(chat_id: int, message_id: int, user_id: int):
+    """Fetch new grades from IIS in the background and update the message."""
+    await asyncio.sleep(1) # Small delay to ensure DB session is free
+    
+    async with SessionLocal() as db:
+        result = await db.execute(select(User).where(User.id == user_id))
+        user = result.scalars().first()
+        if not user or not user.bsuir_id:
+            return
+
+        try:
+            # Perform update using service
+            await rating_update_service.update_user_data(db, user)
+            await db.commit()
+            
+            # Refresh user object
+            await db.refresh(user)
+            
+            # Format new text
+            new_text = format_grades_text(user.grades_data, user.bsuir_id, user.last_rating_update, is_refreshing=False)
+            
+            # Update message
+            await bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=message_id,
+                text=new_text,
+                reply_markup=get_app_kb("/#/study")
+            )
+        except Exception as e:
+            print(f"Background grades refresh failed for user {user_id}: {e}")
+            # Try to notify about error in the same message if possible
+            try:
+                # We don't want to replace cached grades with an error, 
+                # just remove the "refreshing" indicator or add an error note at the bottom.
+                current_text = format_grades_text(user.grades_data, user.bsuir_id, user.last_rating_update, is_refreshing=False)
+                error_note = f"\n\n⚠️ <i>Не удалось обновить данные: {str(e)[:100]}</i>"
+                await bot.edit_message_text(
+                    chat_id=chat_id,
+                    message_id=message_id,
+                    text=current_text + error_note,
+                    reply_markup=get_app_kb("/#/study")
+                )
+            except:
+                pass
+
+
 # ──────────── /marks ────────────
 
 @dp.message(Command("marks"))
@@ -633,110 +757,14 @@ async def cmd_marks(message: Message):
         )
         return
 
-    status_msg = await message.answer("⌛ Загружаю оценки...")
+    # 1. Output cache immediately (if exists)
+    is_refreshing = True
+    text = format_grades_text(user.grades_data, user.bsuir_id, user.last_rating_update, is_refreshing=is_refreshing)
+    
+    status_msg = await message.answer(text, reply_markup=get_app_kb("/#/study"))
 
-    # Try to use cached grades_data first, fetch if needed
-    subjects = []
-    source = "Cache"
-
-    if user.grades_data:
-        try:
-            raw_data = json.loads(user.grades_data)
-            lessons_list = []
-            if isinstance(raw_data, list):
-                lessons_list = raw_data
-            elif isinstance(raw_data, dict):
-                lessons_list = raw_data.get("lessons", [])
-
-            seen = {}
-            for lesson in lessons_list:
-                if not isinstance(lesson, dict):
-                    continue
-                subj = (lesson.get("lessonNameAbbrev") or lesson.get("subject") or 
-                        lesson.get("subjectAbbrev") or "?")
-                raw_marks = lesson.get("marks", [])
-                if not isinstance(raw_marks, list):
-                    raw_marks = [raw_marks] if raw_marks else []
-                
-                marks = []
-                for m in raw_marks:
-                    val = m.get("mark") if isinstance(m, dict) else m
-                    if val is not None:
-                        try:
-                            v = int(str(val).strip())
-                            if 0 <= v <= 10:
-                                marks.append(v)
-                        except:
-                            pass
-                
-                if subj not in seen:
-                    seen[subj] = []
-                seen[subj].extend(marks)
-
-            for name, marks in seen.items():
-                if marks:
-                    avg = sum(marks) / len(marks)
-                    subjects.append({"name": name, "marks": marks, "avg": avg})
-        except:
-            pass
-
-    if not subjects:
-        # Try to fetch live
-        source = "IIS API"
-        rating_res = await rating_service.fetch_student_rating(user.bsuir_id)
-        if rating_res.get("success"):
-            raw_data = rating_res["data"]
-            lessons_list = []
-            if isinstance(raw_data, list):
-                lessons_list = raw_data
-            elif isinstance(raw_data, dict):
-                lessons_list = raw_data.get("lessons", [])
-
-            seen = {}
-            for lesson in lessons_list:
-                if not isinstance(lesson, dict):
-                    continue
-                subj = (lesson.get("lessonNameAbbrev") or lesson.get("subject") or "?")
-                raw_marks = lesson.get("marks", [])
-                if not isinstance(raw_marks, list):
-                    raw_marks = [raw_marks] if raw_marks else []
-                marks = []
-                for m in raw_marks:
-                    val = m.get("mark") if isinstance(m, dict) else m
-                    if val is not None:
-                        try:
-                            v = int(str(val).strip())
-                            if 0 <= v <= 10:
-                                marks.append(v)
-                        except:
-                            pass
-                if subj not in seen:
-                    seen[subj] = []
-                seen[subj].extend(marks)
-
-            for name, marks in seen.items():
-                if marks:
-                    avg = sum(marks) / len(marks)
-                    subjects.append({"name": name, "marks": marks, "avg": avg})
-
-    if not subjects:
-        await status_msg.edit_text("📭 Оценки не найдены. Убедись, что номер зачётки указан верно (/setid).")
-        return
-
-    # Format output
-    lines = [f"📊 <b>Оценки</b> (зачётка: {user.bsuir_id})\n"]
-    overall_marks = []
-    for s in sorted(subjects, key=lambda x: x["avg"], reverse=True):
-        marks_str = ", ".join(str(m) for m in s["marks"])
-        avg_emoji = "🟢" if s["avg"] >= 8 else "🟡" if s["avg"] >= 6 else "🔴"
-        lines.append(f"{avg_emoji} <b>{s['name']}</b>: {marks_str} (ср. {s['avg']:.1f})")
-        overall_marks.extend(s["marks"])
-
-    if overall_marks:
-        total_avg = sum(overall_marks) / len(overall_marks)
-        lines.append(f"\n📈 <b>Общий средний балл: {total_avg:.2f}</b>")
-
-    await status_msg.edit_text("\n".join(lines), reply_markup=get_app_kb("/#/study"))
+    # 2. Trigger background update
+    asyncio.create_task(refresh_marks_background(message.chat.id, status_msg.message_id, user.id))
 
 
 # ──────────── /rating ────────────

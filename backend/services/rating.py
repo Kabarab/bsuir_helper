@@ -61,7 +61,7 @@ class RatingService:
             # Using clean session without cookies/auth as this endpoint is public
             # and authenticated sessions sometimes trigger IIS internal errors or blocks.
             async with aiohttp.ClientSession(headers=self.headers) as session:
-                async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                async with session.get(url, timeout=aiohttp.ClientTimeout(total=300)) as resp:
                     if resp.status == 200:
                         data = await resp.json()
                         result = {"success": True, "data": data}
