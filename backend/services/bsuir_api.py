@@ -55,7 +55,10 @@ async def fetch_schedule(group: str):
     url = f"https://iis.bsuir.by/api/v1/schedule?studentGroup={group}"
     headers = {"Accept": "application/json"}
     try:
-        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:
+        async with aiohttp.ClientSession(
+            timeout=aiohttp.ClientTimeout(total=10),
+            connector=aiohttp.TCPConnector(ssl=False)
+        ) as session:
             async with session.get(url, headers=headers) as response:
                 if response.status == 200:
                     data = await response.json()
@@ -74,7 +77,10 @@ async def fetch_current_week():
 
     url = "https://iis.bsuir.by/api/v1/schedule/current-week"
     try:
-        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:
+        async with aiohttp.ClientSession(
+            timeout=aiohttp.ClientTimeout(total=10),
+            connector=aiohttp.TCPConnector(ssl=False)
+        ) as session:
             async with session.get(url) as response:
                 if response.status == 200:
                     data = await response.json()
@@ -93,7 +99,10 @@ async def fetch_all_employees():
 
     url = "https://iis.bsuir.by/api/v1/employees/all"
     try:
-        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:
+        async with aiohttp.ClientSession(
+            timeout=aiohttp.ClientTimeout(total=10),
+            connector=aiohttp.TCPConnector(ssl=False)
+        ) as session:
             async with session.get(url) as response:
                 if response.status == 200:
                     data = await response.json()
@@ -112,7 +121,10 @@ async def fetch_employee_schedule(url_id: str):
 
     url = f"https://iis.bsuir.by/api/v1/employees/schedule/{url_id}"
     try:
-        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:
+        async with aiohttp.ClientSession(
+            timeout=aiohttp.ClientTimeout(total=10),
+            connector=aiohttp.TCPConnector(ssl=False)
+        ) as session:
             async with session.get(url) as response:
                 if response.status == 200:
                     data = await response.json()
@@ -131,7 +143,10 @@ async def fetch_group_rating(sdef: int, course: int):
 
     url = f"https://iis.bsuir.by/api/v1/rating?sdef={sdef}&course={course}"
     try:
-        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:
+        async with aiohttp.ClientSession(
+            timeout=aiohttp.ClientTimeout(total=10),
+            connector=aiohttp.TCPConnector(ssl=False)
+        ) as session:
             async with session.get(url) as response:
                 if response.status == 200:
                     data = await response.json()
@@ -158,7 +173,10 @@ async def fetch_student_groups():
     url = "https://iis.bsuir.by/api/v1/student-groups"
     headers = {"Accept": "application/json"}
     try:
-        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=15)) as session:
+        async with aiohttp.ClientSession(
+            timeout=aiohttp.ClientTimeout(total=15),
+            connector=aiohttp.TCPConnector(ssl=False)
+        ) as session:
             async with session.get(url, headers=headers) as response:
                 if response.status == 200:
                     data = await response.json()
@@ -188,7 +206,10 @@ async def fetch_faculties():
 
     url = "https://iis.bsuir.by/api/v1/faculties"
     try:
-        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:
+        async with aiohttp.ClientSession(
+            timeout=aiohttp.ClientTimeout(total=10),
+            connector=aiohttp.TCPConnector(ssl=False)
+        ) as session:
             async with session.get(url) as response:
                 if response.status == 200:
                     data = await response.json()
@@ -207,7 +228,10 @@ async def fetch_specialities():
 
     url = "https://iis.bsuir.by/api/v1/specialities"
     try:
-        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:
+        async with aiohttp.ClientSession(
+            timeout=aiohttp.ClientTimeout(total=10),
+            connector=aiohttp.TCPConnector(ssl=False)
+        ) as session:
             async with session.get(url) as response:
                 if response.status == 200:
                     data = await response.json()

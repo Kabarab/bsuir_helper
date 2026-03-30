@@ -26,7 +26,11 @@ class RatingService:
 
     async def get_session(self) -> aiohttp.ClientSession:
         if self._session is None or self._session.closed:
-            self._session = aiohttp.ClientSession(headers=self.headers, timeout=aiohttp.ClientTimeout(total=300))
+            self._session = aiohttp.ClientSession(
+                headers=self.headers, 
+                timeout=aiohttp.ClientTimeout(total=300),
+                connector=aiohttp.TCPConnector(ssl=False)
+            )
             # Login immediately
             await self._login()
         return self._session
@@ -60,7 +64,10 @@ class RatingService:
         try:
             # Using clean session without cookies/auth as this endpoint is public
             # and authenticated sessions sometimes trigger IIS internal errors or blocks.
-            async with aiohttp.ClientSession(headers=self.headers) as session:
+            async with aiohttp.ClientSession(
+                headers=self.headers,
+                connector=aiohttp.TCPConnector(ssl=False)
+            ) as session:
                 async with session.get(url, timeout=aiohttp.ClientTimeout(total=300)) as resp:
                     if resp.status == 200:
                         data = await resp.json()
