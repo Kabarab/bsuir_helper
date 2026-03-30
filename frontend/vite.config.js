@@ -9,7 +9,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icons/icon.svg'],
+      includeAssets: ['icons/icon.png'],
       manifest: {
         name: 'BSUIR Nexus',
         short_name: 'Nexus',
@@ -19,9 +19,9 @@ export default defineConfig({
         display: 'standalone',
         icons: [
           {
-            src: 'icons/icon.svg',
+            src: 'icons/icon.png',
             sizes: '192x192 512x512',
-            type: 'image/svg+xml',
+            type: 'image/png',
             purpose: 'any maskable'
           }
         ]
