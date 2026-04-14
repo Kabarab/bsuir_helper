@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useUser } from '../contexts/UserContext';
 import { Settings as SettingsIcon, Save, ChevronLeft, GraduationCap, Search, Check } from 'lucide-react';
+import icon from '../assets/icon.png';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import WebApp from '@twa-dev/sdk';
@@ -217,7 +218,9 @@ export default function Settings() {
               </div>
             ) : teacherUrlId && (
               <div className="p-3 bg-tg-button/5 border border-tg-button/10 rounded-xl flex items-center gap-3">
-                 <GraduationCap size={20} className="text-tg-button" />
+                 <div className="w-8 h-8 bg-tg-button/10 rounded-lg flex items-center justify-center overflow-hidden">
+                    <img src={icon} alt="Logo" className="w-5 h-5 object-contain" />
+                 </div>
                  <div className="text-sm font-bold text-tg-text">Профиль преподавателя активен</div>
               </div>
             )}

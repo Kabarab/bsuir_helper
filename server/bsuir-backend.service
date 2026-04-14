@@ -1,0 +1,17 @@
+[Unit]
+Description=BSUIR Nexus Backend (FastAPI + Telegram Bot)
+After=network.target
+
+[Service]
+Type=simple
+User=admin
+WorkingDirectory=/opt/bsuir-nexus/backend
+EnvironmentFile=/opt/bsuir-nexus/backend/.env
+ExecStart=/opt/bsuir-nexus/backend/venv/bin/python -m uvicorn main:app --host 0.0.0.0 --port 8000
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -26,6 +26,9 @@ out/
 .DS_Store
 Thumbs.db
 
+# Database files
+*.db
+
 # Project specific
 cloudflared
 cloudflared.tgz
@@ -41,3 +44,8 @@ start.sh
 node_modules
 frontend/node_modules/
 frontend/dist/
+old_logs/
+backend/debug_output*.txt
+backend/test_output*.txt
+backend/final_test_output*.txt
+

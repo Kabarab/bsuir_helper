@@ -2,6 +2,7 @@ import { useState } from 'react';
 import axios from 'axios';
 import { useUser } from '../contexts/UserContext';
 import { GraduationCap, ArrowRight } from 'lucide-react';
+import icon from '../assets/icon.png';
 
 export default function Onboarding() {
   const { updatePreferences } = useUser();
@@ -67,8 +68,8 @@ export default function Onboarding() {
       <div className="absolute bottom-[-10%] right-[-10%] w-64 h-64 bg-emerald-500 rounded-full blur-[100px] opacity-10"></div>
       
       <div className="relative z-10 flex flex-col items-center w-full max-w-sm">
-        <div className="w-20 h-20 bg-tg-button/10 rounded-3xl flex items-center justify-center mb-6 shadow-inner border border-tg-button/20">
-          <GraduationCap size={40} className="text-tg-button" />
+        <div className="w-20 h-20 bg-tg-button/10 rounded-3xl flex items-center justify-center mb-6 shadow-inner border border-tg-button/20 overflow-hidden">
+          <img src={icon} alt="Logo" className="w-12 h-12 object-contain" />
         </div>
         
         <h1 className="text-3xl font-black mb-2 text-center text-tg-text">Добро пожаловать</h1>

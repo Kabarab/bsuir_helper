@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { BookOpen, Star, GraduationCap, Settings, Info, Search, Trophy, Loader2, Clock, AlertTriangle, ChevronDown, CalendarDays } from 'lucide-react';
+import icon from '../assets/icon.png';
 import { useUser } from '../contexts/UserContext';
 import { useNavigate } from 'react-router-dom';
 import { getStudentGrades, fetchStudentRating } from '../utils/bsuirApi';
@@ -222,9 +223,9 @@ export default function Study() {
       </div>
 
       {isTeacher ? (
-        <div className="flex flex-col items-center justify-center text-center py-20 px-6 space-y-4 bg-tg-secondaryBg rounded-3xl border border-tg-hint border-opacity-10">
+        <div className="flex flex-col items-center justify-center text-center py-20 px-6 space-y-4 bg-tg-secondaryBg rounded-3xl border border-tg-hint border-opacity-10 overflow-hidden">
           <div className="w-20 h-20 bg-tg-button/10 rounded-full flex items-center justify-center">
-            <GraduationCap size={40} className="text-tg-button" />
+            <img src={icon} alt="Logo" className="w-12 h-12 object-contain" />
           </div>
           <h2 className="text-xl font-bold text-tg-text">Вы — преподаватель</h2>
           <p className="text-tg-hint text-sm leading-relaxed max-w-xs">
