@@ -26,21 +26,16 @@ sudo pacman -S --needed --noconfirm \
 
 echo "✅ Зависимости установлены"
 
-# ─── 2. Клонирование проекта ───
+# ─── 2. Проверка проекта ───
 echo ""
-echo "📥 [2/9] Клонирование проекта..."
-if [ -d "$PROJECT_DIR" ]; then
-    echo "Директория уже существует, обновляю..."
-    cd "$PROJECT_DIR"
-    git pull origin main
+echo "📥 [2/9] Проверка файлов проекта..."
+if [ -f "$PROJECT_DIR/backend/main.py" ]; then
+    echo "✅ Файлы проекта найдены"
 else
-    sudo mkdir -p "$PROJECT_DIR"
-    sudo chown admin:admin "$PROJECT_DIR"
-    git clone "$REPO_URL" "$PROJECT_DIR"
-    cd "$PROJECT_DIR"
+    echo "❌ Файлы проекта не найдены в $PROJECT_DIR"
+    echo "   Скопируй проект с мака: rsync -avz ... admin@server:/opt/bsuir-nexus/"
+    exit 1
 fi
-
-echo "✅ Проект клонирован/обновлён"
 
 # ─── 3. Настройка бекенда ───
 echo ""
