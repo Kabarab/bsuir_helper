@@ -1,5 +1,4 @@
 import asyncio
-import logging
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
@@ -12,20 +11,17 @@ from bot.bot import bot
 from services.bsuir_api import fetch_schedule, fetch_current_week
 from services.time_machine import time_machine
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 class NotificationService:
     def __init__(self):
         self.notified_pairs = set() # (user_id, date, start_time) to avoid double notifications
 
     async def start(self):
-        logger.info("Notification service started")
         while True:
             try:
                 await self.check_notifications()
             except Exception as e:
-                logger.error(f"Error in notification check: {e}")
+                pass
             await asyncio.sleep(60) # Check every minute
 
     async def check_notifications(self, dry_run=False):
@@ -116,7 +112,6 @@ class NotificationService:
                         task.overdue_notified = True
                         stats["sent"] += 1
                     except Exception as e:
-                        logger.error(f"Failed to send overdue notification to {user.telegram_id}: {e}")
                         stats["errors"].append(str(e))
                 continue
 
@@ -191,7 +186,6 @@ class NotificationService:
                         # (they will trigger sequentially in next checks if needed)
                         break
                     except Exception as e:
-                        logger.error(f"Failed to send task notification to {user.telegram_id}: {e}")
                         stats["errors"].append(str(e))
         return stats
 
@@ -263,9 +257,7 @@ class NotificationService:
                             await bot.send_message(user.telegram_id, msg)
                         self.notified_pairs.add(notif_key)
                         res["sent"] += 1
-                        logger.info(f"Sent 1h reminder to {user.telegram_id} for {subject}")
                     except Exception as e:
-                        logger.error(f"Failed to send 1h reminder to {user.telegram_id}: {e}")
                         res["errors"].append(str(e))
 
             # 2. Regular notification based on user.notification_offset
@@ -291,7 +283,6 @@ class NotificationService:
                         self.notified_pairs.add(notif_key)
                         res["sent"] += 1
                     except Exception as e:
-                        logger.error(f"Failed to send schedule notification to {user.telegram_id}: {e}")
                         res["errors"].append(str(e))
         
         # Cleanup old notified pairs occasionally
