@@ -16,11 +16,15 @@ export default function Study() {
   const getCacheKey = (base, id) => id ? `${base}_${id}` : base;
 
   // Load cached data from localStorage on mount (keyed by current studentId)
+  // Try backend cache first (study_grades_<telegramId>), then fall back to per-studentId cache
   const [grades, setGrades] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('study_grades')); } catch { return null; }
+    try { return JSON.parse(localStorage.getItem(`study_grades_${telegramId}`)) || JSON.parse(localStorage.getItem('study_grades')); } catch { return null; }
   });
   const [xmlMarks, setXmlMarks] = useState(() => {
     try {
+      // Priority: backend grades cache (has subjects) → per-studentId cache
+      const backendCache = JSON.parse(localStorage.getItem(`study_grades_${telegramId}`));
+      if (backendCache?.subjects?.length > 0) return backendCache.subjects;
       const key = studentId ? `study_xmlMarks_${studentId}` : 'study_xmlMarks';
       return JSON.parse(localStorage.getItem(key)) || [];
     } catch { return []; }
@@ -36,6 +40,16 @@ export default function Study() {
   });
   const [ratingData, setRatingData] = useState(() => {
     try {
+      // Priority: backend grades cache → per-studentId cache
+      const backendCache = JSON.parse(localStorage.getItem(`study_grades_${telegramId}`));
+      if (backendCache?.is_real && backendCache?.average) {
+        return {
+          rank: backendCache.rating || '-',
+          total: '-',
+          student: { average: backendCache.average },
+          specName: backendCache.specName || null
+        };
+      }
       const key = studentId ? `study_ratingData_${studentId}` : 'study_ratingData';
       return JSON.parse(localStorage.getItem(key));
     } catch { return null; }
@@ -66,6 +80,7 @@ export default function Study() {
   }, [ratingData, xmlMarks]);
 
   useEffect(() => {
+    if (!telegramId) return;
     // Получаем реальные оценки через наш бэкенд (он сам делает авторизацию в IIS)
     axios.get(`/api/bsuir/grades/${telegramId}`)
       .then(res => {
@@ -78,6 +93,8 @@ export default function Study() {
         }
 
         setGrades(data);
+        // Cache by telegramId for fast restore on next mount
+        localStorage.setItem(`study_grades_${telegramId}`, JSON.stringify(data));
         localStorage.setItem('study_grades', JSON.stringify(data));
         
         // Update display data if subjects are present
@@ -97,7 +114,21 @@ export default function Study() {
           }
         }
 
-
+        // Save omissions from backend response if present
+        if (data.total_iis_hours !== undefined && data.subjects) {
+          const omissions = {
+            total_hours: data.total_iis_hours || 0,
+            total_respectful_hours: data.total_respectful_hours || 0,
+            subjects: data.subjects.filter(s => (s.skip_hours || 0) > 0).map(s => ({
+              subject: s.subject,
+              skip_hours: s.skip_hours || 0,
+              respectful_hours: s.respectful_hours || 0
+            }))
+          };
+          setOmissionsData(omissions);
+          const omissionsKey = studentId ? `study_omissions_${studentId}` : 'study_omissions';
+          localStorage.setItem(omissionsKey, JSON.stringify(omissions));
+        }
       })
       .catch(err => console.error("Backend grades fetch error:", err));
 

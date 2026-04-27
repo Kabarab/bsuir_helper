@@ -55,11 +55,21 @@ function parseXml(xmlString) {
   return doc;
 }
 
+const TTL_GRADES = 5 * 60 * 1000;  // 5 min
+
 /**
  * Task 1: Parse Student Grades
  * @param {string} studentCardNumber 
  */
 export async function getStudentGrades(studentCardNumber) {
+  // Check in-memory cache first
+  const gradeCacheKey = `grades:${studentCardNumber}`;
+  const cached = cacheGet(gradeCacheKey, TTL_GRADES);
+  if (cached) {
+    console.log("getStudentGrades: returning cached data for", studentCardNumber);
+    return cached;
+  }
+
   const url = `https://iis.bsuir.by/api/v1/rating/studentRating?studentCardNumber=${studentCardNumber}`;
   console.log("Fetching marks for card:", studentCardNumber);
   const data = await fetchRaw(url);
@@ -199,7 +209,9 @@ export async function getStudentGrades(studentCardNumber) {
       });
       
       const subjects = Object.entries(resMap).map(([subject, marks]) => ({ subject, marks }));
-      return { subjects, omissions };
+      const result = { subjects, omissions };
+      cacheSet(gradeCacheKey, result);
+      return result;
     } catch(e) {
       console.error("JSON processing error in getStudentGrades:", e);
     }
@@ -287,7 +299,9 @@ export async function getStudentGrades(studentCardNumber) {
     subject,
     marks: Array.isArray(marks) && typeof marks[0] === 'object' ? marks : marks.map(m => ({ val: m, date: null }))
   }));
-  return { subjects, omissions: emptyResult.omissions };
+  const xmlResult = { subjects, omissions: emptyResult.omissions };
+  cacheSet(gradeCacheKey, xmlResult);
+  return xmlResult;
 }
 
 /**

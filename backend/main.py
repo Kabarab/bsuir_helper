@@ -40,26 +40,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.middleware("http")
-async def log_requests(request, call_next):
-    start_time = time.time()
-    try:
-        response = await call_next(request)
-    except Exception as e:
-        import traceback
-        error_traceback = traceback.format_exc()
-        print(f"ERROR: {request.method} {request.url.path} | Unhandled Exception:\n{error_traceback}", flush=True)
-        # Ensure error still returned as JSON to client
-        from fastapi.responses import JSONResponse
-        return JSONResponse(
-            status_code=500,
-            content={"detail": f"SERVER ERROR:\n{error_traceback}"},
-            headers={"Access-Control-Allow-Origin": "*" }
-        )
-    
-    duration = time.time() - start_time
-    print(f"DEBUG: {request.method} {request.url.path} | Status: {response.status_code} | Duration: {duration:.3f}s", flush=True)
-    return response
+
 
 # --- Routes - Basics ---
 @app.get("/health")
@@ -113,8 +94,6 @@ WEBHOOK_URL = os.getenv("BACKEND_URL", "") + WEBHOOK_PATH
 @app.on_event("startup")
 
 async def startup_event():
-    print(f"STARTUP: PORT env = {os.getenv('PORT', 'NOT SET')}", flush=True)
-    print("STARTUP: Starting application initialization...", flush=True)
     # Инициализация таблиц
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -134,9 +113,7 @@ async def startup_event():
                 if not exists:
                     default_clause = f" DEFAULT {default}" if default is not None else ""
                     await conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}{default_clause};"))
-                    print(f"Added column {table}.{column}", flush=True)
-            except Exception as e:
-                print(f"Schema update notice ({table}.{column}): {e}", flush=True)
+            except Exception as e: pass
         
         await safe_add_column("custom_events", "is_recurring", "BOOLEAN", "false")
         await safe_add_column("custom_events", "recurrence_type", "VARCHAR", None)
@@ -160,9 +137,7 @@ async def startup_event():
                 # only Postgres actually needs this manual alteration for BIGINT
                 if hasattr(engine.dialect, "name") and engine.dialect.name == "postgresql":
                     await conn.execute(text(f"ALTER TABLE {table} ALTER COLUMN {column} TYPE {new_type};"))
-                    print(f"Altered column {table}.{column} to {new_type}", flush=True)
-            except Exception as e:
-                print(f"Schema alter notice ({table}.{column}): {e}", flush=True)
+            except Exception as e: pass
                 
         await alter_column_type_pgsql("tasks", "created_at", "BIGINT")
         await alter_column_type_pgsql("users", "telegram_id", "BIGINT")
@@ -173,15 +148,12 @@ async def startup_event():
     # Регистрация команд бота для автокомплита
     try:
         await register_commands()
-    except Exception as e:
-        print(f"Failed to register commands: {e}", flush=True)
+    except Exception as e: pass
     
     # Настройка Webhook
     if os.getenv("BACKEND_URL"):
         await bot.set_webhook(url=WEBHOOK_URL)
-        print(f"Webhook set to: {WEBHOOK_URL}")
-    else:
-        print("WARNING: BACKEND_URL not set, skipping webhook setup")
+    else: pass
     
     # Запуск сервиса уведомлений
     asyncio.create_task(notification_service.start())
@@ -340,17 +312,14 @@ async def get_tasks(telegram_id: int, db: AsyncSession = Depends(get_db)):
 
 @app.post("/api/tasks/{telegram_id}", response_model=TaskResponse)
 async def create_task(telegram_id: int, task: TaskCreate, db: AsyncSession = Depends(get_db)):
-    print(f"REQUEST [POST /api/tasks/{telegram_id}]: {task.title}", flush=True)
     user_result = await db.execute(select(User).where(User.telegram_id == telegram_id))
     user = user_result.scalars().first()
     if not user:
-        print(f"Creating user for TG_ID: {telegram_id}", flush=True)
         user = User(telegram_id=telegram_id)
         db.add(user)
         await db.commit()
         await db.refresh(user)
     
-    print(f"Saving task for UserID: {user.id}", flush=True)
     
     new_task = Task(
         user_id=user.id, 
@@ -737,7 +706,7 @@ async def grades(telegram_id: int, db: AsyncSession = Depends(get_db)):
     total_iis_hours = sum(s.get("skip_hours", 0) for s in subjects)
     total_respectful_hours = sum(s.get("respectful_hours", 0) for s in subjects)
 
-    return {
+    response_data = {
         "average": average,
         "rating": ranking,
         "subjects": subjects,
@@ -747,6 +716,12 @@ async def grades(telegram_id: int, db: AsyncSession = Depends(get_db)):
         "source": data_source,
         "error": subjects_data.get("error") if not subjects_data.get("success") else None
     }
+
+    # Store in cache so next request within TTL is instant
+    if response_data["is_real"]:
+        _grades_cache[cache_key] = {"data": response_data, "ts": time.time()}
+
+    return response_data
 
 @app.get("/api/bsuir/week")
 async def current_week():
@@ -819,10 +794,8 @@ async def bsuir_proxy(url: str):
             # If it's XML, stay compatible with frontend expectation
             media_type = "application/json" if "json" in content_type.lower() else "text/xml"
             
-            print(f"PROXY SUCCESS: {url} | Type: {media_type} | Length: {len(content)}")
             return Response(content=content, media_type=media_type)
     except Exception as e:
-        print(f"PROXY ERROR FOR {url}: {e}")
         raise HTTPException(status_code=502, detail=f"Failed to fetch from BSUIR: {str(e)}")
 
 if __name__ == "__main__":
