@@ -47,6 +47,26 @@ app.add_middleware(
 async def health():
     return {"status": "ok", "port": os.getenv("PORT", "not set")}
 
+@app.get("/api/bot/status")
+async def bot_status():
+    """Diagnostic endpoint to check bot and webhook status."""
+    try:
+        webhook_info = await bot.get_webhook_info()
+        bot_info = await bot.get_me()
+        return {
+            "bot_username": bot_info.username,
+            "webhook_url": webhook_info.url,
+            "webhook_configured_url": WEBHOOK_URL,
+            "webhook_match": webhook_info.url == WEBHOOK_URL,
+            "pending_updates": webhook_info.pending_update_count,
+            "last_error_date": webhook_info.last_error_date,
+            "last_error_message": webhook_info.last_error_message,
+            "max_connections": webhook_info.max_connections,
+            "backend_url_env": os.getenv("BACKEND_URL", "NOT SET"),
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
 @app.get("/api/time")
 async def server_time():
     now = time_machine.now(MINSK_TZ)
@@ -64,6 +84,26 @@ async def set_debug_time(data: dict):
 async def trigger_notifications():
     stats = await notification_service.check_notifications(dry_run=True)
     return {"status": "ok", "stats": stats}
+
+@app.post("/api/debug/reset_webhook")
+async def reset_webhook():
+    """Force re-register the webhook URL with Telegram."""
+    try:
+        # First delete the old webhook
+        await bot.delete_webhook(drop_pending_updates=False)
+        # Set the new one
+        await bot.set_webhook(url=WEBHOOK_URL, drop_pending_updates=False)
+        # Verify
+        info = await bot.get_webhook_info()
+        return {
+            "status": "ok",
+            "webhook_url": info.url,
+            "expected_url": WEBHOOK_URL,
+            "match": info.url == WEBHOOK_URL,
+            "pending_updates": info.pending_update_count,
+        }
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
 
 @app.post("/api/debug/test_setup")
 async def setup_test_data(data: dict, db: AsyncSession = Depends(get_db)):
@@ -152,8 +192,16 @@ async def startup_event():
     
     # Настройка Webhook
     if os.getenv("BACKEND_URL"):
-        await bot.set_webhook(url=WEBHOOK_URL)
-    else: pass
+        print(f"Setting webhook to: {WEBHOOK_URL}", flush=True)
+        try:
+            await bot.set_webhook(url=WEBHOOK_URL, drop_pending_updates=False)
+            # Verify webhook was set correctly
+            webhook_info = await bot.get_webhook_info()
+            print(f"Webhook set successfully! URL: {webhook_info.url}, pending: {webhook_info.pending_update_count}", flush=True)
+        except Exception as e:
+            print(f"ERROR setting webhook: {e}", flush=True)
+    else:
+        print("WARNING: BACKEND_URL not set, webhook not configured!", flush=True)
     
     # Запуск сервиса уведомлений
     asyncio.create_task(notification_service.start())
@@ -162,11 +210,22 @@ async def startup_event():
     asyncio.create_task(rating_update_service.start())
 
 from aiogram.types import Update
+import logging
+
+logger = logging.getLogger("bsuir-nexus")
+logging.basicConfig(level=logging.INFO)
 
 @app.post(WEBHOOK_PATH)
 async def bot_webhook(update: dict):
-    telegram_update = Update.model_validate(update, context={"bot": bot})
-    await dp.feed_update(bot, telegram_update)
+    try:
+        logger.info(f"Webhook received update: {update.get('update_id', '?')} | message: {update.get('message', {}).get('text', '')[:50] if update.get('message') else 'callback/other'}")
+        telegram_update = Update.model_validate(update, context={"bot": bot})
+        await dp.feed_update(bot, telegram_update)
+        return {"ok": True}
+    except Exception as e:
+        logger.error(f"Webhook processing error: {e}", exc_info=True)
+        # Return 200 so Telegram doesn't retry and flood us
+        return {"ok": False, "error": str(e)}
 
 from typing import Optional
 
