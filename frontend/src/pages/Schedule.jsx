@@ -133,10 +133,10 @@ export default function Schedule() {
     }
 
     if (type.toLowerCase().includes('экзамен')) {
-      return COLOR_PRESETS.rose;
+      return COLOR_PRESETS.amber;
     }
     if (type.toLowerCase().includes('консультация')) {
-      return COLOR_PRESETS.amber;
+      return COLOR_PRESETS.slate;
     }
 
     switch (type) {
