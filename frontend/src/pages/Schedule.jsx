@@ -209,18 +209,27 @@ export default function Schedule() {
               if (endDate && startOfDay(currentDate) > startOfDay(endDate)) return false;
             }
 
-            // Check "вычитаны" note date cutoff
-            if (l.note) {
-              const noteLower = l.note.toLowerCase();
-              if (noteLower.includes('по состоянию на') && noteLower.includes('вычитан')) {
-                const match = noteLower.match(/(?:по состоянию на\s*)(\d{2})\.(\d{2})/);
-                if (match) {
-                  const day = parseInt(match[1], 10);
-                  const month = parseInt(match[2], 10) - 1;
-                  const cutoffDate = new Date(currentDate.getFullYear(), month, day);
-                  if (startOfDay(currentDate) > startOfDay(cutoffDate)) return false;
-                }
+            // Check "вычитаны" note date cutoff globally
+            const subjectKey = (l.subject || '').toLowerCase().trim();
+            const teacherKeys = (l.employees || []).map(e => (e.lastName || '').toLowerCase().trim());
+            let hasCutoff = false;
+            let cutoffDate = null;
+            teacherKeys.forEach(tKey => {
+              const key = `${subjectKey}_${tKey}`;
+              if (globalCutoffs[key]) {
+                hasCutoff = true;
+                cutoffDate = globalCutoffs[key];
               }
+            });
+            if (teacherKeys.length === 0) {
+              const key = `${subjectKey}_no_teacher`;
+              if (globalCutoffs[key]) {
+                hasCutoff = true;
+                cutoffDate = globalCutoffs[key];
+              }
+            }
+            if (hasCutoff && cutoffDate) {
+              if (startOfDay(currentDate) > startOfDay(cutoffDate)) return false;
             }
             
             return l.subject === subjectTitle && l.lessonTypeAbbrev === typeAbbrev;
@@ -331,6 +340,48 @@ export default function Schedule() {
   const bsuirDayNames = ["Воскресенье", "Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота"];
   const selectedDayName = bsuirDayNames[selectedDayIndex];
 
+  // Global map of "вычитаны" cutoff dates per subject and teacher
+  const globalCutoffs = useMemo(() => {
+    const cutoffs = {};
+    if (!schedule?.schedules) return cutoffs;
+    
+    Object.values(schedule.schedules).forEach(dayLessons => {
+      dayLessons.forEach(l => {
+        if (l.note) {
+          const noteLower = l.note.toLowerCase();
+          if (noteLower.includes('по состоянию на') && noteLower.includes('вычитан')) {
+            const match = noteLower.match(/(?:по состоянию на\s*)(\d{2})\.(\d{2})/);
+            if (match) {
+              const day = parseInt(match[1], 10);
+              const month = parseInt(match[2], 10) - 1;
+              const year = selectedDate.getFullYear();
+              const cutoffDate = new Date(year, month, day);
+              
+              const subjectKey = (l.subject || '').toLowerCase().trim();
+              const teacherKeys = (l.employees || []).map(e => (e.lastName || '').toLowerCase().trim());
+              
+              teacherKeys.forEach(tKey => {
+                const key = `${subjectKey}_${tKey}`;
+                if (!cutoffs[key] || cutoffDate < cutoffs[key]) {
+                  cutoffs[key] = cutoffDate;
+                }
+              });
+              
+              if (teacherKeys.length === 0) {
+                const key = `${subjectKey}_no_teacher`;
+                if (!cutoffs[key] || cutoffDate < cutoffs[key]) {
+                  cutoffs[key] = cutoffDate;
+                }
+              }
+            }
+          }
+        }
+      });
+    });
+    
+    return cutoffs;
+  }, [schedule, selectedDate]);
+
   // Get active lessons for the selected day and week
   const activeLessons = useMemo(() => {
     let lessons = [];
@@ -365,18 +416,27 @@ export default function Schedule() {
           if (endDate && startOfDay(selectedDate) > startOfDay(endDate)) return false;
         }
 
-        // Check "вычитаны" note date cutoff
-        if (lesson.note) {
-          const noteLower = lesson.note.toLowerCase();
-          if (noteLower.includes('по состоянию на') && noteLower.includes('вычитан')) {
-            const match = noteLower.match(/(?:по состоянию на\s*)(\d{2})\.(\d{2})/);
-            if (match) {
-              const day = parseInt(match[1], 10);
-              const month = parseInt(match[2], 10) - 1;
-              const cutoffDate = new Date(selectedDate.getFullYear(), month, day);
-              if (startOfDay(selectedDate) > startOfDay(cutoffDate)) return false;
-            }
+        // Check "вычитаны" note date cutoff globally
+        const subjectKey = (lesson.subject || '').toLowerCase().trim();
+        const teacherKeys = (lesson.employees || []).map(e => (e.lastName || '').toLowerCase().trim());
+        let hasCutoff = false;
+        let cutoffDate = null;
+        teacherKeys.forEach(tKey => {
+          const key = `${subjectKey}_${tKey}`;
+          if (globalCutoffs[key]) {
+            hasCutoff = true;
+            cutoffDate = globalCutoffs[key];
           }
+        });
+        if (teacherKeys.length === 0) {
+          const key = `${subjectKey}_no_teacher`;
+          if (globalCutoffs[key]) {
+            hasCutoff = true;
+            cutoffDate = globalCutoffs[key];
+          }
+        }
+        if (hasCutoff && cutoffDate) {
+          if (startOfDay(selectedDate) > startOfDay(cutoffDate)) return false;
         }
 
         return true;
