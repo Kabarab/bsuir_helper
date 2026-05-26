@@ -170,6 +170,88 @@ export default function Schedule() {
       });
   };
   
+  // Global map of "вычитаны" cutoff dates per subject and teacher
+  const globalCutoffs = useMemo(() => {
+    const cutoffs = {};
+    if (!schedule?.schedules) return cutoffs;
+    
+    Object.values(schedule.schedules).forEach(dayLessons => {
+      dayLessons.forEach(l => {
+        if (l.note) {
+          const noteLower = l.note.toLowerCase();
+          if (noteLower.includes('по состоянию на') && noteLower.includes('вычитан')) {
+            const match = noteLower.match(/(?:по состоянию на\s*)(\d{2})\.(\d{2})/);
+            if (match) {
+              const day = parseInt(match[1], 10);
+              const month = parseInt(match[2], 10) - 1;
+              const year = selectedDate.getFullYear();
+              const cutoffDate = new Date(year, month, day);
+              
+              const subjectKey = (l.subject || '').toLowerCase().trim();
+              const teacherKeys = (l.employees || []).map(e => (e.lastName || '').toLowerCase().trim());
+              
+              teacherKeys.forEach(tKey => {
+                const key = `${subjectKey}_${tKey}`;
+                if (!cutoffs[key] || cutoffDate < cutoffs[key]) {
+                  cutoffs[key] = cutoffDate;
+                }
+              });
+              
+              if (teacherKeys.length === 0) {
+                const key = `${subjectKey}_no_teacher`;
+                if (!cutoffs[key] || cutoffDate < cutoffs[key]) {
+                  cutoffs[key] = cutoffDate;
+                }
+              }
+            }
+          }
+        }
+      });
+    });
+    
+    return cutoffs;
+  }, [schedule, selectedDate]);
+
+  // Global map of transferred lessons
+  const globalTransfers = useMemo(() => {
+    const transfers = [];
+    if (!schedule?.schedules) return transfers;
+    
+    Object.values(schedule.schedules).forEach(dayLessons => {
+      dayLessons.forEach(l => {
+        if (l.note) {
+          const noteLower = l.note.toLowerCase();
+          if (noteLower.includes('перенос с') && noteLower.includes('на')) {
+            const match = l.note.match(/(?:перенос с\s*)(\d{2})\.(\d{2})(?:\s*на\s*)(\d{2})\.(\d{2})(?:\s*(\d{2}):(\d{2}))?(?:\s*,\s*([^\s]+))?/i);
+            if (match) {
+              const fromDay = parseInt(match[1], 10);
+              const fromMonth = parseInt(match[2], 10) - 1;
+              const toDay = parseInt(match[3], 10);
+              const toMonth = parseInt(match[4], 10) - 1;
+              
+              const year = selectedDate.getFullYear();
+              const fromDate = new Date(year, fromMonth, fromDay);
+              const toDate = new Date(year, toMonth, toDay);
+              
+              const newTime = match[5] && match[6] ? `${match[5]}:${match[6]}` : null;
+              const newRoom = match[7] ? match[7].trim() : null;
+              
+              transfers.push({
+                originalLesson: l,
+                fromDate,
+                toDate,
+                newTime,
+                newRoom
+              });
+            }
+          }
+        }
+      });
+    });
+    
+    return transfers;
+  }, [schedule, selectedDate]);
+
   // Helpers to find next/prev occurrence in schedule
   const findOccurrence = (direction, subjectTitle, typeAbbrev, fromDate, targetGroups = []) => {
     if (!schedule?.schedules) return null;
@@ -231,6 +313,20 @@ export default function Schedule() {
             if (hasCutoff && cutoffDate) {
               if (startOfDay(currentDate) > startOfDay(cutoffDate)) return false;
             }
+
+            // Check if this lesson has been transferred from the current date
+            const hasTransferFrom = globalTransfers.some(t => {
+              const sameSubject = (t.originalLesson.subject || '').toLowerCase().trim() === (l.subject || '').toLowerCase().trim();
+              if (!sameSubject) return false;
+              
+              const tTeachers = (t.originalLesson.employees || []).map(e => (e.lastName || '').toLowerCase().trim());
+              const lTeachers = (l.employees || []).map(e => (e.lastName || '').toLowerCase().trim());
+              const sameTeachers = tTeachers.length === lTeachers.length && tTeachers.every(t => lTeachers.includes(t));
+              
+              return sameTeachers && isSameDay(t.fromDate, currentDate);
+            });
+            
+            if (hasTransferFrom) return false;
             
             return l.subject === subjectTitle && l.lessonTypeAbbrev === typeAbbrev;
          });
@@ -340,48 +436,6 @@ export default function Schedule() {
   const bsuirDayNames = ["Воскресенье", "Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота"];
   const selectedDayName = bsuirDayNames[selectedDayIndex];
 
-  // Global map of "вычитаны" cutoff dates per subject and teacher
-  const globalCutoffs = useMemo(() => {
-    const cutoffs = {};
-    if (!schedule?.schedules) return cutoffs;
-    
-    Object.values(schedule.schedules).forEach(dayLessons => {
-      dayLessons.forEach(l => {
-        if (l.note) {
-          const noteLower = l.note.toLowerCase();
-          if (noteLower.includes('по состоянию на') && noteLower.includes('вычитан')) {
-            const match = noteLower.match(/(?:по состоянию на\s*)(\d{2})\.(\d{2})/);
-            if (match) {
-              const day = parseInt(match[1], 10);
-              const month = parseInt(match[2], 10) - 1;
-              const year = selectedDate.getFullYear();
-              const cutoffDate = new Date(year, month, day);
-              
-              const subjectKey = (l.subject || '').toLowerCase().trim();
-              const teacherKeys = (l.employees || []).map(e => (e.lastName || '').toLowerCase().trim());
-              
-              teacherKeys.forEach(tKey => {
-                const key = `${subjectKey}_${tKey}`;
-                if (!cutoffs[key] || cutoffDate < cutoffs[key]) {
-                  cutoffs[key] = cutoffDate;
-                }
-              });
-              
-              if (teacherKeys.length === 0) {
-                const key = `${subjectKey}_no_teacher`;
-                if (!cutoffs[key] || cutoffDate < cutoffs[key]) {
-                  cutoffs[key] = cutoffDate;
-                }
-              }
-            }
-          }
-        }
-      });
-    });
-    
-    return cutoffs;
-  }, [schedule, selectedDate]);
-
   // Get active lessons for the selected day and week
   const activeLessons = useMemo(() => {
     let lessons = [];
@@ -438,6 +492,20 @@ export default function Schedule() {
         if (hasCutoff && cutoffDate) {
           if (startOfDay(selectedDate) > startOfDay(cutoffDate)) return false;
         }
+
+        // Check if this lesson has been transferred from the selected date
+        const hasTransferFrom = globalTransfers.some(t => {
+          const sameSubject = (t.originalLesson.subject || '').toLowerCase().trim() === (lesson.subject || '').toLowerCase().trim();
+          if (!sameSubject) return false;
+          
+          const tTeachers = (t.originalLesson.employees || []).map(e => (e.lastName || '').toLowerCase().trim());
+          const lTeachers = (lesson.employees || []).map(e => (e.lastName || '').toLowerCase().trim());
+          const sameTeachers = tTeachers.length === lTeachers.length && tTeachers.every(t => lTeachers.includes(t));
+          
+          return sameTeachers && isSameDay(t.fromDate, selectedDate);
+        });
+        
+        if (hasTransferFrom) return false;
 
         return true;
       });
@@ -575,8 +643,40 @@ export default function Schedule() {
       isExam: true
     }));
 
-    return [...lessons, ...formattedPlans, ...formattedExams].sort((a, b) => a.startLessonTime.localeCompare(b.startLessonTime));
-  }, [schedule, selectedDayName, selectedWeekNumber, subgroup, customPlans, selectedDate, englishTeacherId]);
+    // Add transferred lessons that are scheduled for this day
+    const transferredLessons = [];
+    globalTransfers.forEach(t => {
+      if (isSameDay(t.toDate, selectedDate)) {
+        let startLessonTime = t.originalLesson.startLessonTime;
+        let endLessonTime = t.originalLesson.endLessonTime;
+        
+        if (t.newTime) {
+          startLessonTime = t.newTime;
+          const [h, m] = t.newTime.split(':').map(Number);
+          const startDate = new Date();
+          startDate.setHours(h, m, 0, 0);
+          const endDate = addMinutes(startDate, 85);
+          const endH = endDate.getHours().toString().padStart(2, '0');
+          const endM = endDate.getMinutes().toString().padStart(2, '0');
+          endLessonTime = `${endH}:${endM}`;
+        }
+        
+        const auditories = t.newRoom ? [t.newRoom] : t.originalLesson.auditories;
+        
+        transferredLessons.push({
+          ...t.originalLesson,
+          pseudoId: `transferred_${t.originalLesson.id || t.originalLesson.subject}_${format(selectedDate, 'yyyy-MM-dd')}`,
+          startLessonTime,
+          endLessonTime,
+          auditories,
+          note: `Перенесено с ${format(t.fromDate, 'dd.MM')}`,
+          isTransferred: true
+        });
+      }
+    });
+
+    return [...lessons, ...formattedPlans, ...formattedExams, ...transferredLessons].sort((a, b) => a.startLessonTime.localeCompare(b.startLessonTime));
+  }, [schedule, selectedDayName, selectedWeekNumber, subgroup, customPlans, selectedDate, englishTeacherId, globalTransfers]);
 
   const sortedExams = useMemo(() => {
     if (!schedule?.exams || !Array.isArray(schedule.exams)) return [];
