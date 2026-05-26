@@ -1,9 +1,18 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { CalendarDays, ChevronLeft, Clock, Calendar as CalendarIcon, List } from 'lucide-react';
-import { format, addDays, subDays, isSameDay, getDay, differenceInCalendarWeeks } from 'date-fns';
+import { format, addDays, subDays, isSameDay, getDay, differenceInCalendarWeeks, parse, startOfDay, addMinutes } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { getMinskNow } from '../utils/minskTime';
+
+const parseBsuirDate = (dateStr) => {
+  if (!dateStr) return null;
+  try {
+    return parse(dateStr, 'dd.MM.yyyy', new Date());
+  } catch (e) {
+    return null;
+  }
+};
 
 const COLOR_PRESETS = {
   blue: { bg: 'bg-blue-500', text: 'text-blue-500', border: 'border-blue-500/30', light: 'bg-blue-500/10' },
@@ -145,12 +154,25 @@ export default function University() {
   };
 
   const getLessonColor = (lesson) => {
-    const type = lesson.lessonTypeAbbrev;
+    const type = lesson.lessonTypeAbbrev || '';
+    const customColor = lesson.color;
+
+    if (customColor && COLOR_PRESETS[customColor]) {
+      return COLOR_PRESETS[customColor];
+    }
+
+    if (type.toLowerCase().includes('экзамен')) {
+      return COLOR_PRESETS.amber;
+    }
+    if (type.toLowerCase().includes('консультация')) {
+      return COLOR_PRESETS.slate;
+    }
+
     switch (type) {
       case 'ЛК': return COLOR_PRESETS.emerald;
       case 'ПЗ': return COLOR_PRESETS.blue;
-      case 'ЛР': return COLOR_PRESETS.rose;
-      default: return COLOR_PRESETS.blue;
+      case 'ЛР': return COLOR_PRESETS.violet;
+      default: return COLOR_PRESETS.slate;
     }
   };
 
@@ -674,15 +696,190 @@ export default function University() {
                         const bsuirDayNames = ["Воскресенье", "Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота"];
                         const selectedDayName = bsuirDayNames[getDay(selectedDate)];
                         
-                        let activeLessons = [];
-                        if (teacherSchedule.schedules[selectedDayName]) {
-                          activeLessons = teacherSchedule.schedules[selectedDayName].filter(lesson => {
+                        // Parse cutoffs for teacherSchedule
+                        const globalCutoffs = {};
+                        if (teacherSchedule.schedules) {
+                          Object.values(teacherSchedule.schedules).forEach(dayLessons => {
+                            dayLessons.forEach(l => {
+                              if (l.note) {
+                                const noteLower = l.note.toLowerCase();
+                                if (noteLower.includes('по состоянию на') && noteLower.includes('вычитан')) {
+                                  const match = noteLower.match(/(?:по состоянию на\s*)(\d{2})\.(\d{2})/);
+                                  if (match) {
+                                    const day = parseInt(match[1], 10);
+                                    const month = parseInt(match[2], 10) - 1;
+                                    const year = selectedDate.getFullYear();
+                                    const cutoffDate = new Date(year, month, day);
+                                    
+                                    const subjectKey = (l.subject || '').toLowerCase().trim();
+                                    const teacherKeys = (l.employees || []).map(e => (e.lastName || '').toLowerCase().trim());
+                                    
+                                    teacherKeys.forEach(tKey => {
+                                      const key = `${subjectKey}_${tKey}`;
+                                      if (!globalCutoffs[key] || cutoffDate < globalCutoffs[key]) {
+                                        globalCutoffs[key] = cutoffDate;
+                                      }
+                                    });
+                                    
+                                    if (teacherKeys.length === 0) {
+                                      const key = `${subjectKey}_no_teacher`;
+                                      if (!globalCutoffs[key] || cutoffDate < globalCutoffs[key]) {
+                                        globalCutoffs[key] = cutoffDate;
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            });
+                          });
+                        }
+
+                        // Parse transfers for teacherSchedule
+                        const globalTransfers = [];
+                        if (teacherSchedule.schedules) {
+                          Object.values(teacherSchedule.schedules).forEach(dayLessons => {
+                            dayLessons.forEach(l => {
+                              if (l.note) {
+                                const noteLower = l.note.toLowerCase();
+                                if (noteLower.includes('перенос с') && noteLower.includes('на')) {
+                                  const match = l.note.match(/(?:перенос с\s*)(\d{2})\.(\d{2})(?:\s*на\s*)(\d{2})\.(\d{2})(?:\s*(\d{2}):(\d{2}))?(?:\s*,\s*([^\s]+))?/i);
+                                  if (match) {
+                                    const fromDay = parseInt(match[1], 10);
+                                    const fromMonth = parseInt(match[2], 10) - 1;
+                                    const toDay = parseInt(match[3], 10);
+                                    const toMonth = parseInt(match[4], 10) - 1;
+                                    
+                                    const year = selectedDate.getFullYear();
+                                    const fromDate = new Date(year, fromMonth, fromDay);
+                                    const toDate = new Date(year, toMonth, toDay);
+                                    
+                                    const newTime = match[5] && match[6] ? `${match[5]}:${match[6]}` : null;
+                                    const newRoom = match[7] ? match[7].trim() : null;
+                                    
+                                    globalTransfers.push({
+                                      originalLesson: l,
+                                      fromDate,
+                                      toDate,
+                                      newTime,
+                                      newRoom
+                                    });
+                                  }
+                                }
+                              }
+                            });
+                          });
+                        }
+
+                        let lessons = [];
+                        if (teacherSchedule.schedules && teacherSchedule.schedules[selectedDayName]) {
+                          lessons = teacherSchedule.schedules[selectedDayName].filter(lesson => {
                             if (lesson.weekNumber && lesson.weekNumber.length > 0) {
                               if (!lesson.weekNumber.includes(selectedWeekNumber)) return false;
                             }
+
+                            // Check active date range
+                            if (lesson.dateLesson) {
+                              const lDate = parseBsuirDate(lesson.dateLesson);
+                              if (lDate && !isSameDay(lDate, selectedDate)) return false;
+                            }
+                            if (lesson.startLessonDate) {
+                              const startDate = parseBsuirDate(lesson.startLessonDate);
+                              if (startDate && startOfDay(selectedDate) < startOfDay(startDate)) return false;
+                            }
+                            if (lesson.endLessonDate) {
+                              const endDate = parseBsuirDate(lesson.endLessonDate);
+                              if (endDate && startOfDay(selectedDate) > startOfDay(endDate)) return false;
+                            }
+
+                            // Check "вычитаны" note date cutoff globally
+                            const subjectKey = (lesson.subject || '').toLowerCase().trim();
+                            const teacherKeys = (lesson.employees || []).map(e => (e.lastName || '').toLowerCase().trim());
+                            let hasCutoff = false;
+                            let cutoffDate = null;
+                            teacherKeys.forEach(tKey => {
+                              const key = `${subjectKey}_${tKey}`;
+                              if (globalCutoffs[key]) {
+                                hasCutoff = true;
+                                cutoffDate = globalCutoffs[key];
+                              }
+                            });
+                            if (teacherKeys.length === 0) {
+                              const key = `${subjectKey}_no_teacher`;
+                              if (globalCutoffs[key]) {
+                                hasCutoff = true;
+                                cutoffDate = globalCutoffs[key];
+                              }
+                            }
+                            if (hasCutoff && cutoffDate) {
+                              if (startOfDay(selectedDate) > startOfDay(cutoffDate)) return false;
+                            }
+
+                            // Check if transferred
+                            const hasTransferFrom = globalTransfers.some(t => {
+                              const sameSubject = (t.originalLesson.subject || '').toLowerCase().trim() === (lesson.subject || '').toLowerCase().trim();
+                              if (!sameSubject) return false;
+                              
+                              const tTeachers = (t.originalLesson.employees || []).map(e => (e.lastName || '').toLowerCase().trim());
+                              const lTeachers = (lesson.employees || []).map(e => (e.lastName || '').toLowerCase().trim());
+                              const sameTeachers = tTeachers.length === lTeachers.length && tTeachers.every(t => lTeachers.includes(t));
+                              
+                              return sameTeachers && isSameDay(t.fromDate, selectedDate);
+                            });
+                            
+                            if (hasTransferFrom) return false;
+
                             return true;
-                          }).sort((a,b) => a.startLessonTime.localeCompare(b.startLessonTime));
+                          });
                         }
+
+                        // Add transferred lessons
+                        const transferredLessons = [];
+                        globalTransfers.forEach(t => {
+                          if (isSameDay(t.toDate, selectedDate)) {
+                            let startLessonTime = t.originalLesson.startLessonTime;
+                            let endLessonTime = t.originalLesson.endLessonTime;
+                            
+                            if (t.newTime) {
+                              startLessonTime = t.newTime;
+                              const [h, m] = t.newTime.split(':').map(Number);
+                              const startDate = new Date();
+                              startDate.setHours(h, m, 0, 0);
+                              const endDate = addMinutes(startDate, 85);
+                              const endH = endDate.getHours().toString().padStart(2, '0');
+                              const endM = endDate.getMinutes().toString().padStart(2, '0');
+                              endLessonTime = `${endH}:${endM}`;
+                            }
+                            
+                            const auditories = t.newRoom ? [t.newRoom] : t.originalLesson.auditories;
+                            
+                            transferredLessons.push({
+                              ...t.originalLesson,
+                              pseudoId: `transferred_${t.originalLesson.id || t.originalLesson.subject}_${format(selectedDate, 'yyyy-MM-dd')}`,
+                              startLessonTime,
+                              endLessonTime,
+                              auditories,
+                              note: `Перенесено с ${format(t.fromDate, 'dd.MM')}`,
+                              isTransferred: true
+                            });
+                          }
+                        });
+
+                        // Add exams for the selected date
+                        let examsForDay = [];
+                        if (teacherSchedule.exams && Array.isArray(teacherSchedule.exams)) {
+                          examsForDay = teacherSchedule.exams.filter(exam => {
+                            const examDate = parseBsuirDate(exam.dateLesson);
+                            return examDate && isSameDay(examDate, selectedDate);
+                          });
+                        }
+
+                        const formattedExams = examsForDay.map((exam, idx) => ({
+                          ...exam,
+                          pseudoId: exam.pseudoId || `exam_${idx}_${format(selectedDate, 'yyyy-MM-dd')}`,
+                          isExam: true
+                        }));
+
+                        const activeLessons = [...lessons, ...transferredLessons, ...formattedExams].sort((a,b) => a.startLessonTime.localeCompare(b.startLessonTime));
                         return activeLessons.length > 0 ? (
                           <div className="space-y-4 mt-2">
                             <h2 className="font-bold text-lg text-tg-text capitalize">{format(selectedDate, 'EEEE, d MMMM', { locale: ru })}</h2>
@@ -1025,16 +1222,192 @@ export default function University() {
                         const bsuirDayNames = ["Воскресенье", "Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота"];
                         const selectedDayName = bsuirDayNames[getDay(selectedDate)];
                         
-                        let activeLessons = [];
-                        if (groupSchedule.schedules[selectedDayName]) {
-                          activeLessons = groupSchedule.schedules[selectedDayName].filter(lesson => {
+                        // Parse cutoffs for groupSchedule
+                        const globalCutoffs = {};
+                        if (groupSchedule.schedules) {
+                          Object.values(groupSchedule.schedules).forEach(dayLessons => {
+                            dayLessons.forEach(l => {
+                              if (l.note) {
+                                const noteLower = l.note.toLowerCase();
+                                if (noteLower.includes('по состоянию на') && noteLower.includes('вычитан')) {
+                                  const match = noteLower.match(/(?:по состоянию на\s*)(\d{2})\.(\d{2})/);
+                                  if (match) {
+                                    const day = parseInt(match[1], 10);
+                                    const month = parseInt(match[2], 10) - 1;
+                                    const year = selectedDate.getFullYear();
+                                    const cutoffDate = new Date(year, month, day);
+                                    
+                                    const subjectKey = (l.subject || '').toLowerCase().trim();
+                                    const teacherKeys = (l.employees || []).map(e => (e.lastName || '').toLowerCase().trim());
+                                    
+                                    teacherKeys.forEach(tKey => {
+                                      const key = `${subjectKey}_${tKey}`;
+                                      if (!globalCutoffs[key] || cutoffDate < globalCutoffs[key]) {
+                                        globalCutoffs[key] = cutoffDate;
+                                      }
+                                    });
+                                    
+                                    if (teacherKeys.length === 0) {
+                                      const key = `${subjectKey}_no_teacher`;
+                                      if (!globalCutoffs[key] || cutoffDate < globalCutoffs[key]) {
+                                        globalCutoffs[key] = cutoffDate;
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            });
+                          });
+                        }
+
+                        // Parse transfers for groupSchedule
+                        const globalTransfers = [];
+                        if (groupSchedule.schedules) {
+                          Object.values(groupSchedule.schedules).forEach(dayLessons => {
+                            dayLessons.forEach(l => {
+                              if (l.note) {
+                                const noteLower = l.note.toLowerCase();
+                                if (noteLower.includes('перенос с') && noteLower.includes('на')) {
+                                  const match = l.note.match(/(?:перенос с\s*)(\d{2})\.(\d{2})(?:\s*на\s*)(\d{2})\.(\d{2})(?:\s*(\d{2}):(\d{2}))?(?:\s*,\s*([^\s]+))?/i);
+                                  if (match) {
+                                    const fromDay = parseInt(match[1], 10);
+                                    const fromMonth = parseInt(match[2], 10) - 1;
+                                    const toDay = parseInt(match[3], 10);
+                                    const toMonth = parseInt(match[4], 10) - 1;
+                                    
+                                    const year = selectedDate.getFullYear();
+                                    const fromDate = new Date(year, fromMonth, fromDay);
+                                    const toDate = new Date(year, toMonth, toDay);
+                                    
+                                    const newTime = match[5] && match[6] ? `${match[5]}:${match[6]}` : null;
+                                    const newRoom = match[7] ? match[7].trim() : null;
+                                    
+                                    globalTransfers.push({
+                                      originalLesson: l,
+                                      fromDate,
+                                      toDate,
+                                      newTime,
+                                      newRoom
+                                    });
+                                  }
+                                }
+                              }
+                            });
+                          });
+                        }
+
+                        let lessons = [];
+                        if (groupSchedule.schedules && groupSchedule.schedules[selectedDayName]) {
+                          lessons = groupSchedule.schedules[selectedDayName].filter(lesson => {
                             if (selectedSubgroup !== 0 && lesson.numSubgroup !== 0 && lesson.numSubgroup !== selectedSubgroup) return false;
                             if (lesson.weekNumber && lesson.weekNumber.length > 0) {
                               if (!lesson.weekNumber.includes(selectedWeekNumber)) return false;
                             }
+
+                            // Check active date range
+                            if (lesson.dateLesson) {
+                              const lDate = parseBsuirDate(lesson.dateLesson);
+                              if (lDate && !isSameDay(lDate, selectedDate)) return false;
+                            }
+                            if (lesson.startLessonDate) {
+                              const startDate = parseBsuirDate(lesson.startLessonDate);
+                              if (startDate && startOfDay(selectedDate) < startOfDay(startDate)) return false;
+                            }
+                            if (lesson.endLessonDate) {
+                              const endDate = parseBsuirDate(lesson.endLessonDate);
+                              if (endDate && startOfDay(selectedDate) > startOfDay(endDate)) return false;
+                            }
+
+                            // Check "вычитаны" note date cutoff globally
+                            const subjectKey = (lesson.subject || '').toLowerCase().trim();
+                            const teacherKeys = (lesson.employees || []).map(e => (e.lastName || '').toLowerCase().trim());
+                            let hasCutoff = false;
+                            let cutoffDate = null;
+                            teacherKeys.forEach(tKey => {
+                              const key = `${subjectKey}_${tKey}`;
+                              if (globalCutoffs[key]) {
+                                hasCutoff = true;
+                                cutoffDate = globalCutoffs[key];
+                              }
+                            });
+                            if (teacherKeys.length === 0) {
+                              const key = `${subjectKey}_no_teacher`;
+                              if (globalCutoffs[key]) {
+                                hasCutoff = true;
+                                cutoffDate = globalCutoffs[key];
+                              }
+                            }
+                            if (hasCutoff && cutoffDate) {
+                              if (startOfDay(selectedDate) > startOfDay(cutoffDate)) return false;
+                            }
+
+                            // Check if transferred
+                            const hasTransferFrom = globalTransfers.some(t => {
+                              const sameSubject = (t.originalLesson.subject || '').toLowerCase().trim() === (lesson.subject || '').toLowerCase().trim();
+                              if (!sameSubject) return false;
+                              
+                              const tTeachers = (t.originalLesson.employees || []).map(e => (e.lastName || '').toLowerCase().trim());
+                              const lTeachers = (lesson.employees || []).map(e => (e.lastName || '').toLowerCase().trim());
+                              const sameTeachers = tTeachers.length === lTeachers.length && tTeachers.every(t => lTeachers.includes(t));
+                              
+                              return sameTeachers && isSameDay(t.fromDate, selectedDate);
+                            });
+                            
+                            if (hasTransferFrom) return false;
+
                             return true;
-                          }).sort((a,b) => a.startLessonTime.localeCompare(b.startLessonTime));
+                          });
                         }
+
+                        // Add transferred lessons
+                        const transferredLessons = [];
+                        globalTransfers.forEach(t => {
+                          if (isSameDay(t.toDate, selectedDate)) {
+                            let startLessonTime = t.originalLesson.startLessonTime;
+                            let endLessonTime = t.originalLesson.endLessonTime;
+                            
+                            if (t.newTime) {
+                              startLessonTime = t.newTime;
+                              const [h, m] = t.newTime.split(':').map(Number);
+                              const startDate = new Date();
+                              startDate.setHours(h, m, 0, 0);
+                              const endDate = addMinutes(startDate, 85);
+                              const endH = endDate.getHours().toString().padStart(2, '0');
+                              const endM = endDate.getMinutes().toString().padStart(2, '0');
+                              endLessonTime = `${endH}:${endM}`;
+                            }
+                            
+                            const auditories = t.newRoom ? [t.newRoom] : t.originalLesson.auditories;
+                            
+                            transferredLessons.push({
+                              ...t.originalLesson,
+                              pseudoId: `transferred_${t.originalLesson.id || t.originalLesson.subject}_${format(selectedDate, 'yyyy-MM-dd')}`,
+                              startLessonTime,
+                              endLessonTime,
+                              auditories,
+                              note: `Перенесено с ${format(t.fromDate, 'dd.MM')}`,
+                              isTransferred: true
+                            });
+                          }
+                        });
+
+                        // Add exams for the selected date
+                        let examsForDay = [];
+                        if (groupSchedule.exams && Array.isArray(groupSchedule.exams)) {
+                          examsForDay = groupSchedule.exams.filter(exam => {
+                            if (selectedSubgroup !== 0 && exam.numSubgroup !== 0 && exam.numSubgroup !== selectedSubgroup) return false;
+                            const examDate = parseBsuirDate(exam.dateLesson);
+                            return examDate && isSameDay(examDate, selectedDate);
+                          });
+                        }
+
+                        const formattedExams = examsForDay.map((exam, idx) => ({
+                          ...exam,
+                          pseudoId: exam.pseudoId || `exam_${idx}_${format(selectedDate, 'yyyy-MM-dd')}`,
+                          isExam: true
+                        }));
+
+                        const activeLessons = [...lessons, ...transferredLessons, ...formattedExams].sort((a,b) => a.startLessonTime.localeCompare(b.startLessonTime));
 
                         return activeLessons.length > 0 ? (
                           <div className="space-y-4 mt-2">
