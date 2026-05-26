@@ -125,11 +125,18 @@ export default function Schedule() {
   }, [telegramId]);
 
   const getLessonColor = (lesson) => {
-    const type = lesson.lessonTypeAbbrev;
+    const type = lesson.lessonTypeAbbrev || '';
     const customColor = lesson.color;
 
     if (customColor && COLOR_PRESETS[customColor]) {
       return COLOR_PRESETS[customColor];
+    }
+
+    if (type.toLowerCase().includes('экзамен')) {
+      return COLOR_PRESETS.rose;
+    }
+    if (type.toLowerCase().includes('консультация')) {
+      return COLOR_PRESETS.amber;
     }
 
     switch (type) {
@@ -464,7 +471,23 @@ export default function Schedule() {
       isCustom: true
     }));
 
-    return [...lessons, ...formattedPlans].sort((a, b) => a.startLessonTime.localeCompare(b.startLessonTime));
+    // Add exams for the selected date
+    let examsForDay = [];
+    if (schedule?.exams && Array.isArray(schedule.exams)) {
+      examsForDay = schedule.exams.filter(exam => {
+        if (subgroup !== 0 && exam.numSubgroup !== 0 && exam.numSubgroup !== subgroup) return false;
+        const examDate = parseBsuirDate(exam.dateLesson);
+        return examDate && isSameDay(examDate, selectedDate);
+      });
+    }
+
+    const formattedExams = examsForDay.map((exam, idx) => ({
+      ...exam,
+      pseudoId: exam.pseudoId || `exam_${idx}_${format(selectedDate, 'yyyy-MM-dd')}`,
+      isExam: true
+    }));
+
+    return [...lessons, ...formattedPlans, ...formattedExams].sort((a, b) => a.startLessonTime.localeCompare(b.startLessonTime));
   }, [schedule, selectedDayName, selectedWeekNumber, subgroup, customPlans, selectedDate, englishTeacherId]);
 
   const sortedExams = useMemo(() => {
