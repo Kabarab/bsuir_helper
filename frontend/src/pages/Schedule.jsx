@@ -208,6 +208,20 @@ export default function Schedule() {
               const endDate = parseBsuirDate(l.endLessonDate);
               if (endDate && startOfDay(currentDate) > startOfDay(endDate)) return false;
             }
+
+            // Check "вычитаны" note date cutoff
+            if (l.note) {
+              const noteLower = l.note.toLowerCase();
+              if (noteLower.includes('по состоянию на') && noteLower.includes('вычитан')) {
+                const match = noteLower.match(/(?:по состоянию на\s*)(\d{2})\.(\d{2})/);
+                if (match) {
+                  const day = parseInt(match[1], 10);
+                  const month = parseInt(match[2], 10) - 1;
+                  const cutoffDate = new Date(currentDate.getFullYear(), month, day);
+                  if (startOfDay(currentDate) > startOfDay(cutoffDate)) return false;
+                }
+              }
+            }
             
             return l.subject === subjectTitle && l.lessonTypeAbbrev === typeAbbrev;
          });
@@ -349,6 +363,20 @@ export default function Schedule() {
         if (lesson.endLessonDate) {
           const endDate = parseBsuirDate(lesson.endLessonDate);
           if (endDate && startOfDay(selectedDate) > startOfDay(endDate)) return false;
+        }
+
+        // Check "вычитаны" note date cutoff
+        if (lesson.note) {
+          const noteLower = lesson.note.toLowerCase();
+          if (noteLower.includes('по состоянию на') && noteLower.includes('вычитан')) {
+            const match = noteLower.match(/(?:по состоянию на\s*)(\d{2})\.(\d{2})/);
+            if (match) {
+              const day = parseInt(match[1], 10);
+              const month = parseInt(match[2], 10) - 1;
+              const cutoffDate = new Date(selectedDate.getFullYear(), month, day);
+              if (startOfDay(selectedDate) > startOfDay(cutoffDate)) return false;
+            }
+          }
         }
 
         return true;
