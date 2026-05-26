@@ -136,7 +136,7 @@ export default function Schedule() {
       return COLOR_PRESETS.amber;
     }
     if (type.toLowerCase().includes('консультация')) {
-      return COLOR_PRESETS.rose;
+      return COLOR_PRESETS.violet;
     }
 
     switch (type) {
