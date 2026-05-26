@@ -136,7 +136,7 @@ export default function Schedule() {
       return COLOR_PRESETS.amber;
     }
     if (type.toLowerCase().includes('консультация')) {
-      return COLOR_PRESETS.slate;
+      return COLOR_PRESETS.rose;
     }
 
     switch (type) {
@@ -632,6 +632,16 @@ export default function Schedule() {
     if (schedule?.exams && Array.isArray(schedule.exams)) {
       examsForDay = schedule.exams.filter(exam => {
         if (subgroup !== 0 && exam.numSubgroup !== 0 && exam.numSubgroup !== subgroup) return false;
+
+        // English teacher filtering for exams
+        const subject = (exam.subject || "").toLowerCase();
+        const note = (exam.note || "").toLowerCase();
+        const isEnglish = subject.includes("иностр") || subject.includes("иняз") || note.includes("иностр") || note.includes("иняз");
+        if (isEnglish && englishTeacherId) {
+          const hasSelectedTeacher = exam.employees?.some(emp => emp.urlId === englishTeacherId);
+          if (!hasSelectedTeacher) return false;
+        }
+
         const examDate = parseBsuirDate(exam.dateLesson);
         return examDate && isSameDay(examDate, selectedDate);
       });
@@ -687,6 +697,19 @@ export default function Schedule() {
         exam => exam.numSubgroup === 0 || exam.numSubgroup === subgroup
       );
     }
+
+    // English teacher filtering for session list
+    if (englishTeacherId) {
+      filteredExams = filteredExams.filter(exam => {
+        const subject = (exam.subject || "").toLowerCase();
+        const note = (exam.note || "").toLowerCase();
+        const isEnglish = subject.includes("иностр") || subject.includes("иняз") || note.includes("иностр") || note.includes("иняз");
+        if (isEnglish) {
+          return exam.employees?.some(emp => emp.urlId === englishTeacherId);
+        }
+        return true;
+      });
+    }
     
     return [...filteredExams].sort((a, b) => {
       const dateA = parseBsuirDate(a.dateLesson) || new Date(0);
@@ -696,7 +719,7 @@ export default function Schedule() {
       }
       return a.startLessonTime.localeCompare(b.startLessonTime);
     });
-  }, [schedule?.exams, subgroup]);
+  }, [schedule?.exams, subgroup, englishTeacherId]);
 
   const handleAddPlan = () => {
     if (!newPlan.title) return;
@@ -1171,7 +1194,9 @@ export default function Schedule() {
               </button>
             )}
             <span className="text-[11px] font-bold text-tg-hint bg-tg-secondaryBg px-2 py-1 rounded-lg uppercase tracking-wider border border-[var(--tg-theme-hint-color)] border-opacity-10">
-              {viewMode === 'exams' ? sortedExams.length : activeLessons.length} {viewMode === 'exams' ? 'Экзаменов' : 'Событий'}
+              {viewMode === 'exams' 
+                ? sortedExams.filter(exam => (exam.lessonTypeAbbrev || '').toLowerCase().includes('экзамен')).length 
+                : activeLessons.length} {viewMode === 'exams' ? 'Экзаменов' : 'Событий'}
             </span>
           </div>
         </div>
@@ -1209,7 +1234,7 @@ export default function Schedule() {
                         {isPast && <div className="absolute inset-0 bg-black opacity-10" />}
                         
                         {/* Type Banner */}
-                        <div className={`absolute top-0 right-0 px-3 py-1 rounded-bl-xl font-black text-[10px] tracking-widest uppercase ${isPast ? colors.bg : 'bg-white/40'} ${isPast ? 'text-white' : colors.text} shadow-sm z-10`}>
+                        <div className={`absolute top-0 right-0 px-3 py-1 rounded-bl-xl font-black text-[10px] tracking-widest uppercase ${colors.bg} text-white shadow-sm z-10`}>
                           {exam.lessonTypeAbbrev}
                         </div>
 
@@ -1222,12 +1247,12 @@ export default function Schedule() {
                         
                         <div className="flex flex-col gap-3">
                           {/* Date and Time */}
-                          <div className="flex flex-wrap gap-2 items-center">
-                            <div className={`flex items-center gap-1.5 font-bold text-xs ${colors.text} bg-white/45 w-max px-2 py-1 rounded-lg shadow-sm`}>
+                          <div className={`flex flex-wrap gap-2 items-center ${exam.numSubgroup !== 0 ? 'pr-[160px]' : 'pr-[110px]'}`}>
+                            <div className={`flex items-center gap-1.5 font-bold text-xs ${colors.text} ${colors.light} border ${colors.border} w-max px-2 py-1 rounded-lg shadow-sm`}>
                               <Clock size={12} />
                               {exam.startLessonTime} - {exam.endLessonTime}
                             </div>
-                            <div className={`flex items-center gap-1.5 font-bold text-xs text-tg-text bg-white/45 w-max px-2 py-1 rounded-lg shadow-sm`}>
+                            <div className={`flex items-center gap-1.5 font-bold text-xs text-tg-text bg-tg-bg/50 border border-[var(--tg-theme-hint-color)] border-opacity-10 w-max px-2 py-1 rounded-lg shadow-sm`}>
                               <CalendarIcon size={12} className="text-tg-button" />
                               {exam.dateLesson} {examDate && `(${format(examDate, 'eee', { locale: ru })})`}
                             </div>
@@ -1347,7 +1372,7 @@ export default function Schedule() {
                         <div className="absolute inset-0 bg-black opacity-10" />
                       )}
                       {/* Lesson Type Banner */}
-                      <div className={`absolute top-0 right-0 px-3 py-1 rounded-bl-xl font-black text-[10px] tracking-widest uppercase ${isPast ? colors.bg : 'bg-white/40'} ${isPast ? 'text-white' : colors.text} shadow-sm z-10`}>
+                      <div className={`absolute top-0 right-0 px-3 py-1 rounded-bl-xl font-black text-[10px] tracking-widest uppercase ${colors.bg} text-white shadow-sm z-10`}>
                         {lesson.lessonTypeAbbrev}
                       </div>
 
@@ -1360,7 +1385,7 @@ export default function Schedule() {
                        
                       <div className="flex flex-col gap-3">
                         {/* Time */}
-                        <div className={`flex items-center gap-1.5 font-bold text-sm ${isPast ? colors.text : colors.text} ${isPast ? colors.light : 'bg-white/40'} w-max px-2 py-1 rounded-lg`}>
+                        <div className={`flex items-center gap-1.5 font-bold text-sm ${colors.text} ${colors.light} border ${colors.border} w-max px-2 py-1 rounded-lg`}>
                           <Clock size={14} />
                           {lesson.startLessonTime} <span className="opacity-50 mx-0.5">-</span> {lesson.endLessonTime}
                         </div>

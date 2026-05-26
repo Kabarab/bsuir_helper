@@ -165,7 +165,7 @@ export default function University() {
       return COLOR_PRESETS.amber;
     }
     if (type.toLowerCase().includes('консультация')) {
-      return COLOR_PRESETS.slate;
+      return COLOR_PRESETS.rose;
     }
 
     switch (type) {
@@ -913,7 +913,7 @@ export default function University() {
                                         <div className="absolute inset-0 bg-black opacity-10" />
                                       )}
                                       {/* Lesson Type Banner */}
-                                      <div className={`absolute top-0 right-0 px-3 py-1 rounded-bl-xl font-black text-[10px] tracking-widest uppercase ${isPast ? colors.bg : 'bg-white/40'} ${isPast ? 'text-white' : colors.text} shadow-sm z-10`}>
+                                      <div className={`absolute top-0 right-0 px-3 py-1 rounded-bl-xl font-black text-[10px] tracking-widest uppercase ${colors.bg} text-white shadow-sm z-10`}>
                                         {lesson.lessonTypeAbbrev}
                                       </div>
 
@@ -926,7 +926,7 @@ export default function University() {
 
                                       <div className="flex flex-col gap-3">
                                         {/* Time */}
-                                        <div className={`flex items-center gap-1.5 font-bold text-sm ${isPast ? colors.text : colors.text} ${isPast ? colors.light : 'bg-white/40'} w-max px-2 py-1 rounded-lg`}>
+                                        <div className={`flex items-center gap-1.5 font-bold text-sm ${colors.text} ${colors.light} border ${colors.border} w-max px-2 py-1 rounded-lg`}>
                                           <Clock size={14} />
                                           {lesson.startLessonTime} <span className="opacity-50 mx-0.5">-</span> {lesson.endLessonTime}
                                         </div>
@@ -1442,7 +1442,7 @@ export default function University() {
                                         <div className="absolute inset-0 bg-black opacity-10" />
                                       )}
                                       {/* Lesson Type Banner */}
-                                      <div className={`absolute top-0 right-0 px-3 py-1 rounded-bl-xl font-black text-[10px] tracking-widest uppercase ${isPast ? colors.bg : 'bg-white/40'} ${isPast ? 'text-white' : colors.text} shadow-sm z-10`}>
+                                      <div className={`absolute top-0 right-0 px-3 py-1 rounded-bl-xl font-black text-[10px] tracking-widest uppercase ${colors.bg} text-white shadow-sm z-10`}>
                                         {lesson.lessonTypeAbbrev}
                                       </div>
 
@@ -1455,7 +1455,7 @@ export default function University() {
 
                                       <div className="flex flex-col gap-3">
                                         {/* Time */}
-                                        <div className={`flex items-center gap-1.5 font-bold text-sm ${isPast ? colors.text : colors.text} ${isPast ? colors.light : 'bg-white/40'} w-max px-2 py-1 rounded-lg`}>
+                                        <div className={`flex items-center gap-1.5 font-bold text-sm ${colors.text} ${colors.light} border ${colors.border} w-max px-2 py-1 rounded-lg`}>
                                           <Clock size={14} />
                                           {lesson.startLessonTime} <span className="opacity-50 mx-0.5">-</span> {lesson.endLessonTime}
                                         </div>
