@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import axios from 'axios';
-import { CalendarDays, ChevronLeft, ChevronRight, Clock, MapPin, Users, Plus, X, List, Calendar as CalendarIcon, Trash2, Settings, Edit2, ClipboardList, MoreVertical, CheckCircle2, Bell, LayoutGrid } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, Clock, MapPin, Users, Plus, X, List, Calendar as CalendarIcon, Trash2, Settings, Edit2, ClipboardList, MoreVertical, CheckCircle2, Bell, LayoutGrid, GraduationCap } from 'lucide-react';
 import { format, addDays, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, getDay, differenceInCalendarWeeks, parse, addMinutes, startOfDay, endOfDay, differenceInHours, differenceInMonths, differenceInYears } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
@@ -8,6 +8,15 @@ import { useUser } from '../contexts/UserContext';
 import { getMinskNow } from '../utils/minskTime';
 import SegmentedDateInput from '../components/SegmentedDateInput';
 import SegmentedTimeInput from '../components/SegmentedTimeInput';
+
+const parseBsuirDate = (dateStr) => {
+  if (!dateStr) return null;
+  try {
+    return parse(dateStr, 'dd.MM.yyyy', new Date());
+  } catch (e) {
+    return null;
+  }
+};
 
 const COLOR_PRESETS = {
   blue: { bg: 'bg-blue-500', text: 'text-blue-500', border: 'border-blue-500/30', light: 'bg-blue-500/10' },
@@ -125,7 +134,7 @@ export default function Schedule() {
 
     switch (type) {
       case 'ЛК': return COLOR_PRESETS.emerald;
-      case 'ПЗ': return COLOR_PRESETS.blue;
+      case 'ПЗ': return COLOR_PRESETS.violet;
       case 'ЛР': return COLOR_PRESETS.rose;
       default: return COLOR_PRESETS.blue;
     }
@@ -177,6 +186,20 @@ export default function Schedule() {
             if (isTeacher && targetGroups.length > 0) {
                const lessonGroupNames = l.studentGroups?.map(g => g.name) || [];
                if (!targetGroups.some(tg => lessonGroupNames.includes(tg))) return false;
+            }
+            
+            // Check active date range
+            if (l.dateLesson) {
+              const lDate = parseBsuirDate(l.dateLesson);
+              if (lDate && !isSameDay(lDate, currentDate)) return false;
+            }
+            if (l.startLessonDate) {
+              const startDate = parseBsuirDate(l.startLessonDate);
+              if (startDate && startOfDay(currentDate) < startOfDay(startDate)) return false;
+            }
+            if (l.endLessonDate) {
+              const endDate = parseBsuirDate(l.endLessonDate);
+              if (endDate && startOfDay(currentDate) > startOfDay(endDate)) return false;
             }
             
             return l.subject === subjectTitle && l.lessonTypeAbbrev === typeAbbrev;
@@ -307,6 +330,20 @@ export default function Schedule() {
           if (!hasSelectedTeacher) return false;
         }
 
+        // Check active date range
+        if (lesson.dateLesson) {
+          const lDate = parseBsuirDate(lesson.dateLesson);
+          if (lDate && !isSameDay(lDate, selectedDate)) return false;
+        }
+        if (lesson.startLessonDate) {
+          const startDate = parseBsuirDate(lesson.startLessonDate);
+          if (startDate && startOfDay(selectedDate) < startOfDay(startDate)) return false;
+        }
+        if (lesson.endLessonDate) {
+          const endDate = parseBsuirDate(lesson.endLessonDate);
+          if (endDate && startOfDay(selectedDate) > startOfDay(endDate)) return false;
+        }
+
         return true;
       });
     }
@@ -429,6 +466,26 @@ export default function Schedule() {
 
     return [...lessons, ...formattedPlans].sort((a, b) => a.startLessonTime.localeCompare(b.startLessonTime));
   }, [schedule, selectedDayName, selectedWeekNumber, subgroup, customPlans, selectedDate, englishTeacherId]);
+
+  const sortedExams = useMemo(() => {
+    if (!schedule?.exams || !Array.isArray(schedule.exams)) return [];
+    
+    let filteredExams = schedule.exams;
+    if (subgroup !== 0) {
+      filteredExams = filteredExams.filter(
+        exam => exam.numSubgroup === 0 || exam.numSubgroup === subgroup
+      );
+    }
+    
+    return [...filteredExams].sort((a, b) => {
+      const dateA = parseBsuirDate(a.dateLesson) || new Date(0);
+      const dateB = parseBsuirDate(b.dateLesson) || new Date(0);
+      if (dateA.getTime() !== dateB.getTime()) {
+        return dateA.getTime() - dateB.getTime();
+      }
+      return a.startLessonTime.localeCompare(b.startLessonTime);
+    });
+  }, [schedule?.exams, subgroup]);
 
   const handleAddPlan = () => {
     if (!newPlan.title) return;
@@ -805,14 +862,23 @@ export default function Schedule() {
             <button 
               onClick={() => setViewMode('list')}
               className={`p-1.5 rounded-lg transition-all ${viewMode === 'list' ? 'bg-[var(--tg-theme-bg-color)] text-tg-button shadow-sm' : 'text-tg-hint hover:text-tg-text'}`}
+              title="Список"
             >
               <List size={18} />
             </button>
             <button 
               onClick={() => setViewMode('calendar')}
               className={`p-1.5 rounded-lg transition-all ${viewMode === 'calendar' ? 'bg-[var(--tg-theme-bg-color)] text-tg-button shadow-sm' : 'text-tg-hint hover:text-tg-text'}`}
+              title="Календарь"
             >
               <LayoutGrid size={18} />
+            </button>
+            <button 
+              onClick={() => setViewMode('exams')}
+              className={`p-1.5 rounded-lg transition-all ${viewMode === 'exams' ? 'bg-[var(--tg-theme-bg-color)] text-tg-button shadow-sm' : 'text-tg-hint hover:text-tg-text'}`}
+              title="Сессия"
+            >
+              <GraduationCap size={18} />
             </button>
             
             <div className="w-px h-4 bg-[var(--tg-theme-hint-color)] opacity-20 mx-1" />
@@ -838,57 +904,63 @@ export default function Schedule() {
       </div>
 
       {/* DATE STRIP */}
-      <div className="-mx-4 px-4 mb-6">
-        <div 
-          ref={daysRef}
-          className="flex overflow-x-auto gap-2 pb-2 hide-scrollbar snap-x snap-mandatory px-4 md:px-0"
-        >
-          {dateStrip.map((date, i) => {
-            const isSelected = isSameDay(date, selectedDate);
-            const isToday = isSameDay(date, now);
-            
-            return (
-              <button
-                key={i}
-                onClick={() => setSelectedDate(date)}
-                className={`flex flex-col items-center min-w-[50px] p-2 rounded-2xl snap-center transition-all duration-200 border ${
-                  isSelected 
-                    ? 'bg-tg-button text-tg-buttonText border-tg-button shadow-md active-date scale-105' 
-                    : isToday 
-                      ? 'bg-[var(--tg-theme-bg-color)] border-tg-button text-tg-text' 
-                      : 'bg-tg-secondaryBg border-transparent text-tg-text hover:bg-[var(--tg-theme-bg-color)]'
-                }`}
-              >
-                <span className={`text-[10px] font-bold uppercase mb-1 ${isSelected ? 'text-tg-buttonText opacity-90' : 'text-tg-hint'}`}>
-                  {format(date, 'eee', { locale: ru })}
-                </span>
-                <span className={`text-lg font-black ${isSelected ? 'text-tg-buttonText' : ''}`}>
-                  {format(date, 'd')}
-                </span>
-                {isToday && !isSelected && <div className="w-1 h-1 rounded-full bg-tg-button mt-1"></div>}
-                {isSelected && <div className="w-1 h-1 rounded-full bg-white mt-1 opacity-80"></div>}
-              </button>
-            );
-          })}
+      {viewMode !== 'exams' && (
+        <div className="-mx-4 px-4 mb-6">
+          <div 
+            ref={daysRef}
+            className="flex overflow-x-auto gap-2 pb-2 hide-scrollbar snap-x snap-mandatory px-4 md:px-0"
+          >
+            {dateStrip.map((date, i) => {
+              const isSelected = isSameDay(date, selectedDate);
+              const isToday = isSameDay(date, now);
+              
+              return (
+                <button
+                  key={i}
+                  onClick={() => setSelectedDate(date)}
+                  className={`flex flex-col items-center min-w-[50px] p-2 rounded-2xl snap-center transition-all duration-200 border ${
+                    isSelected 
+                      ? 'bg-tg-button text-tg-buttonText border-tg-button shadow-md active-date scale-105' 
+                      : isToday 
+                        ? 'bg-[var(--tg-theme-bg-color)] border-tg-button text-tg-text' 
+                        : 'bg-tg-secondaryBg border-transparent text-tg-text hover:bg-[var(--tg-theme-bg-color)]'
+                  }`}
+                >
+                  <span className={`text-[10px] font-bold uppercase mb-1 ${isSelected ? 'text-tg-buttonText opacity-90' : 'text-tg-hint'}`}>
+                    {format(date, 'eee', { locale: ru })}
+                  </span>
+                  <span className={`text-lg font-black ${isSelected ? 'text-tg-buttonText' : ''}`}>
+                    {format(date, 'd')}
+                  </span>
+                  {isToday && !isSelected && <div className="w-1 h-1 rounded-full bg-tg-button mt-1"></div>}
+                  {isSelected && <div className="w-1 h-1 rounded-full bg-white mt-1 opacity-80"></div>}
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* CONTENT AREA */}
       <div className="flex-1 overflow-y-auto hide-scrollbar pb-20">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="font-bold text-lg text-tg-text capitalize">{format(selectedDate, 'EEEE, d MMMM', { locale: ru })}</h2>
+          <h2 className="font-bold text-lg text-tg-text capitalize">
+            {viewMode === 'exams' ? 'Расписание сессии' : format(selectedDate, 'EEEE, d MMMM', { locale: ru })}
+          </h2>
           <div className="flex items-center gap-3">
-            <button 
-              onClick={() => {
-                setNewPlan({ title: '', startTime: '09:00', endTime: '10:30', type: 'CUSTOM', color: 'blue', date: format(selectedDate, 'yyyy-MM-dd'), is_recurring: false, recurrence_type: 'weekly', recurrence_end_date: '', recurrence_interval: 1 });
-                setIsModalOpen(true);
-              }}
-              className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-tg-button hover:bg-tg-button hover:text-tg-buttonText px-2 py-1 rounded-lg transition-all border border-tg-button"
-            >
-              <Plus size={14} /> План
-            </button>
+            {viewMode !== 'exams' && (
+              <button 
+                onClick={() => {
+                  setNewPlan({ title: '', startTime: '09:00', endTime: '10:30', type: 'CUSTOM', color: 'blue', date: format(selectedDate, 'yyyy-MM-dd'), is_recurring: false, recurrence_type: 'weekly', recurrence_end_date: '', recurrence_interval: 1 });
+                  setIsModalOpen(true);
+                }}
+                className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-tg-button hover:bg-tg-button hover:text-tg-buttonText px-2 py-1 rounded-lg transition-all border border-tg-button"
+              >
+                <Plus size={14} /> План
+              </button>
+            )}
             <span className="text-[11px] font-bold text-tg-hint bg-tg-secondaryBg px-2 py-1 rounded-lg uppercase tracking-wider border border-[var(--tg-theme-hint-color)] border-opacity-10">
-              {activeLessons.length} Событий
+              {viewMode === 'exams' ? sortedExams.length : activeLessons.length} {viewMode === 'exams' ? 'Экзаменов' : 'Событий'}
             </span>
           </div>
         </div>
@@ -897,6 +969,136 @@ export default function Schedule() {
           <div className="flex flex-col items-center justify-center py-20 text-tg-hint">
             <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-tg-button mb-4"></div>
             <p className="font-medium text-sm animate-pulse">Загрузка расписания...</p>
+          </div>
+        ) : viewMode === 'exams' ? (
+          /* EXAMS VIEW */
+          <div className="space-y-4">
+            {sortedExams.length > 0 ? (
+              <div className="space-y-3 relative touch-pan-y before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-[var(--tg-theme-hint-color)] before:to-transparent before:opacity-20">
+                {sortedExams.map((exam, idx) => {
+                  const colors = exam.lessonTypeAbbrev?.toLowerCase().includes('экзамен') ? COLOR_PRESETS.rose : COLOR_PRESETS.amber;
+                  const examDate = parseBsuirDate(exam.dateLesson);
+                  const isPast = examDate && startOfDay(examDate) < startOfDay(now);
+                  const isToday = examDate && isSameDay(examDate, now);
+                  
+                  return (
+                    <div key={exam.pseudoId || idx} className={`relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group transition-opacity duration-300 ${isPast ? 'opacity-50' : ''}`}>
+                      {/* Timeline dot */}
+                      <div className={`flex items-center justify-center w-10 h-10 rounded-full border-4 border-tg-bg shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10 transition-transform group-hover:scale-110 ${isToday ? 'bg-tg-button border-tg-button scale-110' : 'bg-[var(--tg-theme-bg-color)] group-hover:border-tg-button'}`}>
+                        <span className={`text-xs font-black ${isToday ? 'text-tg-buttonText' : colors.text}`}>
+                          {isPast ? '✓' : idx + 1}
+                        </span>
+                      </div>
+                      
+                      {/* Card */}
+                      <div 
+                        onClick={() => setExpandedLessonId(expandedLessonId === `exam_${idx}` ? null : `exam_${idx}`)}
+                        className={`w-[calc(100%-3rem)] md:w-[calc(50%-2.5rem)] rounded-2xl p-4 shadow-sm border border-opacity-10 relative overflow-hidden select-none transition-all cursor-pointer hover:shadow-md hover:-translate-y-1 backdrop-blur-md ${isPast ? 'bg-tg-secondaryBg border-[var(--tg-theme-hint-color)] opacity-60' : `${colors.bg} bg-opacity-10 ${colors.border} shadow-lg scale-[1.01]`}`}
+                      >
+                        {isPast && <div className="absolute inset-0 bg-black opacity-10" />}
+                        
+                        {/* Type Banner */}
+                        <div className={`absolute top-0 right-0 px-3 py-1 rounded-bl-xl font-black text-[10px] tracking-widest uppercase ${isPast ? colors.bg : 'bg-white/40'} ${isPast ? 'text-white' : colors.text} shadow-sm z-10`}>
+                          {exam.lessonTypeAbbrev}
+                        </div>
+
+                        {/* Subgroup Badge */}
+                        {exam.numSubgroup !== 0 && (
+                          <div className="absolute top-0 right-[6rem] px-2 py-1 rounded-bl-xl font-black text-[10px] uppercase bg-orange-500 text-white z-10">
+                            {exam.numSubgroup} ПОДГР
+                          </div>
+                        )}
+                        
+                        <div className="flex flex-col gap-3">
+                          {/* Date and Time */}
+                          <div className="flex flex-wrap gap-2 items-center">
+                            <div className={`flex items-center gap-1.5 font-bold text-xs ${colors.text} bg-white/45 w-max px-2 py-1 rounded-lg shadow-sm`}>
+                              <Clock size={12} />
+                              {exam.startLessonTime} - {exam.endLessonTime}
+                            </div>
+                            <div className={`flex items-center gap-1.5 font-bold text-xs text-tg-text bg-white/45 w-max px-2 py-1 rounded-lg shadow-sm`}>
+                              <CalendarIcon size={12} className="text-tg-button" />
+                              {exam.dateLesson} {examDate && `(${format(examDate, 'eee', { locale: ru })})`}
+                            </div>
+                          </div>
+
+                          {/* Subject */}
+                          <div className="pr-4">
+                            <h3 className="font-bold text-[15px] leading-tight text-tg-text">
+                              {exam.subject}
+                            </h3>
+                            {exam.subjectFullName && exam.subjectFullName !== exam.subject && (
+                              <p className="text-xs mt-1 text-tg-hint line-clamp-2">{exam.subjectFullName}</p>
+                            )}
+                            {exam.employees && exam.employees.length > 0 && (
+                              <p className="text-xs mt-1 font-semibold text-tg-text/80">
+                                {exam.employees.map(e => `${e.lastName} ${e.firstName?.[0] || ''}.${e.middleName ? ` ${e.middleName[0]}.` : ''}`).join(', ')}
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Auditory */}
+                          {exam.auditories && exam.auditories.length > 0 && (
+                            <div className="flex items-center gap-1.5 text-xs text-tg-text/80 font-medium">
+                              <MapPin size={13} className="text-tg-hint shrink-0" />
+                              <span>{exam.auditories.join(', ')}</span>
+                            </div>
+                          )}
+
+                          {/* Expanded Details (Teachers info) */}
+                          <div className={`grid transition-all duration-300 ease-in-out ${expandedLessonId === `exam_${idx}` ? 'grid-rows-[1fr] opacity-100 mt-2' : 'grid-rows-[0fr] opacity-0 mt-0 pointer-events-none'}`}>
+                            <div className="overflow-hidden">
+                              {exam.employees && exam.employees.length > 0 && (
+                                <div className="flex flex-col gap-2 pt-3 border-t border-[var(--tg-theme-hint-color)] border-opacity-10">
+                                  <span className="text-[9px] font-black uppercase text-tg-hint tracking-wider">Преподаватели</span>
+                                  <div className="flex flex-col gap-2">
+                                    {exam.employees.map((emp, i) => (
+                                      <div 
+                                        key={i} 
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          if (emp.urlId) {
+                                            navigate('/university', { state: { teacherUrlId: emp.urlId } });
+                                          }
+                                        }}
+                                        className="flex items-center gap-2 bg-tg-bg/50 p-2 rounded-xl border border-[var(--tg-theme-hint-color)] border-opacity-5 cursor-pointer hover:bg-tg-bg transition-colors active:scale-[0.98]"
+                                      >
+                                        {emp.photoLink ? (
+                                          <img src={emp.photoLink} alt="Avatar" className="w-8 h-8 rounded-full object-cover shrink-0" onError={(e) => { e.target.onerror = null; e.target.src = 'https://ui-avatars.com/api/?name=' + emp.lastName + '&background=random'; }} />
+                                        ) : (
+                                          <div className="w-8 h-8 rounded-full bg-tg-button/20 text-tg-button flex items-center justify-center font-bold text-xs shrink-0">
+                                            {emp.lastName?.[0] || '?'}
+                                          </div>
+                                        )}
+                                        <div className="flex flex-col flex-1">
+                                          <span className="text-xs font-bold text-tg-text">{emp.lastName} {emp.firstName} {emp.middleName}</span>
+                                          {emp.degree && <span className="text-[9px] text-tg-hint leading-tight">{emp.degree}</span>}
+                                        </div>
+                                        <ChevronRight size={12} className="text-tg-hint opacity-50" />
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-16 text-tg-hint bg-tg-secondaryBg rounded-3xl border border-dashed border-[var(--tg-theme-hint-color)] border-opacity-30">
+                <div className="w-16 h-16 bg-[var(--tg-theme-bg-color)] rounded-full flex items-center justify-center mb-4 shadow-inner">
+                  <span className="text-2xl opacity-60">🎉</span>
+                </div>
+                <h3 className="text-lg font-bold text-tg-text mb-1">Экзаменов нет!</h3>
+                <p className="text-sm font-medium opacity-80 text-center max-w-[200px]">
+                  Похоже, у вас пока не запланировано экзаменов.
+                </p>
+              </div>
+            )}
           </div>
         ) : viewMode === 'list' ? (
           activeLessons.length > 0 ? (
@@ -999,7 +1201,7 @@ export default function Schedule() {
                                 </div>
                               )}
                               {lesson.note && (
-                                <span className={`text-[10px] px-1.5 py-0.5 rounded truncate max-w-[120px] ${isPast ? 'bg-[var(--tg-theme-bg-color)] text-tg-hint' : 'bg-white/40 text-tg-text'}`}>
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded text-right whitespace-normal break-words max-w-[220px] ${isPast ? 'bg-[var(--tg-theme-bg-color)] text-tg-hint' : 'bg-white/40 text-tg-text'}`}>
                                   {lesson.note}
                                 </span>
                              )}
