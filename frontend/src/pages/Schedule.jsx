@@ -141,9 +141,9 @@ export default function Schedule() {
 
     switch (type) {
       case 'ЛК': return COLOR_PRESETS.emerald;
-      case 'ПЗ': return COLOR_PRESETS.violet;
-      case 'ЛР': return COLOR_PRESETS.rose;
-      default: return COLOR_PRESETS.blue;
+      case 'ПЗ': return COLOR_PRESETS.blue;
+      case 'ЛР': return COLOR_PRESETS.violet;
+      default: return COLOR_PRESETS.slate;
     }
   };
 
@@ -1027,7 +1027,7 @@ export default function Schedule() {
             {sortedExams.length > 0 ? (
               <div className="space-y-3 relative touch-pan-y before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-[var(--tg-theme-hint-color)] before:to-transparent before:opacity-20">
                 {sortedExams.map((exam, idx) => {
-                  const colors = exam.lessonTypeAbbrev?.toLowerCase().includes('экзамен') ? COLOR_PRESETS.rose : COLOR_PRESETS.amber;
+                  const colors = getLessonColor(exam);
                   const examDate = parseBsuirDate(exam.dateLesson);
                   const isPast = examDate && startOfDay(examDate) < startOfDay(now);
                   const isToday = examDate && isSameDay(examDate, now);
