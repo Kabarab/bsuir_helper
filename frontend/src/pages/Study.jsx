@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
-import { BookOpen, Star, GraduationCap, Settings, Info, Search, Trophy, Loader2, Clock, AlertTriangle, ChevronDown, CalendarDays, Users } from 'lucide-react';
+import { BookOpen, Star, GraduationCap, Settings, Info, Search, Trophy, Loader2, Clock, AlertTriangle, ChevronDown, CalendarDays, Users, Trash2, UserPlus, RefreshCw, X, ChevronRight } from 'lucide-react';
 import icon from '../assets/icon.png';
 import { useUser } from '../contexts/UserContext';
 import { useNavigate } from 'react-router-dom';
@@ -11,6 +11,23 @@ import WebApp from '@twa-dev/sdk';
 export default function Study() {
   const { group, telegramId, studentId, isTeacher, updatePreferences } = useUser();
   const navigate = useNavigate();
+
+  // Friends Rating Leaderboard states
+  const [showFriendsRating, setShowFriendsRating] = useState(false);
+  const [friendsList, setFriendsList] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('rating_friends_list')) || [];
+    } catch {
+      return [];
+    }
+  });
+  const [friendSearch, setFriendSearch] = useState('');
+  const [isAddingFriend, setIsAddingFriend] = useState(false);
+  const [refreshingFriends, setRefreshingFriends] = useState(false);
+  const [addFriendError, setAddFriendError] = useState('');
+  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [studentMarks, setStudentMarks] = useState([]);
+  const [loadingFriendMarks, setLoadingFriendMarks] = useState(false);
 
   // Helper to get cache keys bound to a specific studentId
   const getCacheKey = (base, id) => id ? `${base}_${id}` : base;
@@ -233,6 +250,102 @@ export default function Study() {
     }
   };
 
+  const handleAddFriend = async (cardNumberToSearch) => {
+    const cardToSearch = cardNumberToSearch || friendSearch;
+    if (!cardToSearch || !cardToSearch.trim()) return;
+    
+    const cleanCard = cardToSearch.replace(/[^0-9]/g, '');
+    if (cleanCard.length < 4) {
+      setAddFriendError('Номер студенческого слишком короткий');
+      return;
+    }
+
+    setAddFriendError('');
+    // Check if duplicate
+    const isDuplicate = friendsList.some(f => f.studentCardNumber?.replace(/[^0-9]/g, '') === cleanCard);
+    if (isDuplicate) {
+      setAddFriendError('Студент уже добавлен в ваш список');
+      return;
+    }
+
+    setIsAddingFriend(true);
+    try {
+      const result = await fetchStudentRating(cleanCard);
+      if (result && result.student) {
+        const friendObj = {
+          fio: result.student.fio,
+          average: result.student.average,
+          studentCardNumber: result.student.studentCardNumber,
+          specName: result.specName || 'Специальность определена'
+        };
+        const newList = [...friendsList, friendObj].sort((a, b) => b.average - a.average);
+        setFriendsList(newList);
+        localStorage.setItem('rating_friends_list', JSON.stringify(newList));
+        if (!cardNumberToSearch) setFriendSearch('');
+      } else {
+        setAddFriendError('Студент не найден. Проверьте номер студенческого.');
+      }
+    } catch (err) {
+      console.error(err);
+      setAddFriendError('Ошибка поиска студента. Попробуйте еще раз.');
+    } finally {
+      setIsAddingFriend(false);
+    }
+  };
+
+  const handleRemoveFriend = (cardToRemove) => {
+    const newList = friendsList.filter(f => f.studentCardNumber !== cardToRemove);
+    setFriendsList(newList);
+    localStorage.setItem('rating_friends_list', JSON.stringify(newList));
+  };
+
+  const handleRefreshFriends = async () => {
+    if (friendsList.length === 0) return;
+    setRefreshingFriends(true);
+    try {
+      const updatedList = await Promise.all(
+        friendsList.map(async (friend) => {
+          try {
+            const result = await fetchStudentRating(friend.studentCardNumber);
+            if (result && result.student) {
+              return {
+                ...friend,
+                average: result.student.average,
+                fio: result.student.fio,
+                specName: result.specName || friend.specName
+              };
+            }
+          } catch (e) {
+            console.error(`Failed to refresh friend ${friend.studentCardNumber}:`, e);
+          }
+          return friend;
+        })
+      );
+      const sortedList = updatedList.sort((a, b) => b.average - a.average);
+      setFriendsList(sortedList);
+      localStorage.setItem('rating_friends_list', JSON.stringify(sortedList));
+    } catch (err) {
+      console.error('Error refreshing friends list:', err);
+    } finally {
+      setRefreshingFriends(false);
+    }
+  };
+
+  const fetchFriendMarks = async (student) => {
+    setSelectedStudent(student);
+    setStudentMarks([]);
+    setLoadingFriendMarks(true);
+    try {
+      const marks = await getStudentGrades(student.studentCardNumber);
+      const marksData = marks?.subjects || marks || [];
+      setStudentMarks(Array.isArray(marksData) ? marksData : []);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingFriendMarks(false);
+    }
+  };
+
   const handleSaveStudentId = async () => {
     if (!studentCard) return;
     const success = await updatePreferences(group, 0, studentCard);
@@ -354,11 +467,149 @@ export default function Study() {
                           <div className="h-px bg-tg-hint opacity-10 my-3"></div>
 
                           <button 
-                            onClick={() => navigate('/university?tab=rating&subtab=friends')}
-                            className="w-full py-2 bg-tg-button/10 text-tg-button hover:bg-tg-button hover:text-tg-buttonText rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 active:scale-95"
+                            onClick={() => setShowFriendsRating(!showFriendsRating)}
+                            className="w-full py-2 bg-tg-button/10 text-tg-button hover:bg-tg-button hover:text-tg-buttonText rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 active:scale-95 mb-2"
                           >
-                            <Users size={14} /> Соревноваться с друзьями
+                            <Users size={14} /> {showFriendsRating ? 'Скрыть рейтинг' : 'Соревноваться с друзьями'}
                           </button>
+
+                          {showFriendsRating && (
+                            <div className="space-y-4 mt-4 pt-4 border-t border-tg-hint border-opacity-10 animate-in fade-in duration-200">
+                              {/* Add Friend Form */}
+                              <div className="bg-tg-secondaryBg p-3 rounded-xl border border-tg-hint border-opacity-10 space-y-2 text-left">
+                                <div className="flex justify-between items-center">
+                                  <label className="text-[9px] uppercase font-bold text-tg-hint ml-0.5 tracking-wider">Добавить друга в рейтинг</label>
+                                  {studentId && !friendsList.some(f => f.studentCardNumber?.replace(/[^0-9]/g, '') === studentId.replace(/[^0-9]/g, '')) && (
+                                    <button 
+                                      onClick={() => handleAddFriend(studentId)}
+                                      disabled={isAddingFriend}
+                                      className="text-[9px] font-bold text-tg-button hover:underline flex items-center gap-1 active:scale-95 transition-all"
+                                    >
+                                      <UserPlus size={10} /> Добавить себя
+                                    </button>
+                                  )}
+                                </div>
+                                <form 
+                                  onSubmit={(e) => { e.preventDefault(); handleAddFriend(); }} 
+                                  className="flex gap-2"
+                                >
+                                  <div className="relative flex-1">
+                                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-tg-hint" size={14} />
+                                    <input 
+                                      type="text" 
+                                      placeholder="Номер зачетки друга..." 
+                                      value={friendSearch}
+                                      onChange={e => setFriendSearch(e.target.value)}
+                                      className="w-full bg-tg-bg text-tg-text pl-8 pr-3 py-2 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-tg-button border border-tg-hint border-opacity-15"
+                                    />
+                                  </div>
+                                  <button 
+                                    type="submit"
+                                    disabled={isAddingFriend || !friendSearch.trim()}
+                                    className="bg-tg-button text-tg-buttonText px-3 py-2 rounded-lg text-xs font-bold shadow-sm active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center w-10 shrink-0"
+                                  >
+                                    {isAddingFriend ? '...' : <UserPlus size={14} />}
+                                  </button>
+                                </form>
+
+                                {addFriendError && (
+                                  <div className="text-[9px] text-red-500 font-bold ml-0.5 animate-pulse">{addFriendError}</div>
+                                )}
+                              </div>
+
+                              {/* Friends Leaderboard List */}
+                              {friendsList.length > 0 ? (
+                                <div className="space-y-2">
+                                  <div className="flex justify-between items-center px-1">
+                                    <h3 className="font-bold text-xs flex items-center gap-1.5">
+                                      <Trophy size={14} className="text-yellow-500" /> Рейтинг с друзьями
+                                      <span className="text-[9px] text-tg-hint font-normal">({friendsList.length})</span>
+                                    </h3>
+                                    <button 
+                                      onClick={handleRefreshFriends}
+                                      disabled={refreshingFriends}
+                                      className={`p-1.5 bg-tg-secondaryBg text-tg-hint hover:text-tg-button rounded-lg border border-[var(--tg-theme-hint-color)] border-opacity-10 shadow-sm active:scale-90 transition-all ${refreshingFriends ? 'opacity-50' : ''}`}
+                                      title="Обновить баллы"
+                                    >
+                                      <RefreshCw size={12} className={refreshingFriends ? "animate-spin" : ""} />
+                                    </button>
+                                  </div>
+
+                                  <div className="bg-tg-secondaryBg rounded-xl overflow-hidden shadow-sm divide-y divide-tg-hint divide-opacity-10 text-left">
+                                    {friendsList.map((student, idx) => {
+                                      const isYou = studentId && student.studentCardNumber?.replace(/[^0-9]/g, '') === studentId.replace(/[^0-9]/g, '');
+                                      
+                                      return (
+                                        <div 
+                                          key={student.studentCardNumber} 
+                                          onClick={() => fetchFriendMarks(student)}
+                                          className={`p-3 flex items-center gap-3 active:bg-tg-bg transition-all cursor-pointer group relative ${isYou ? 'bg-tg-button/5 border-l-2 border-tg-button' : ''}`}
+                                        >
+                                          {/* Rank badge */}
+                                          <div className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-[10px] shrink-0 ${
+                                            idx === 0 ? 'bg-yellow-500/20 text-yellow-600 border border-yellow-500/30' : 
+                                            idx === 1 ? 'bg-gray-400/20 text-gray-500 border border-gray-400/30' : 
+                                            idx === 2 ? 'bg-orange-600/20 text-orange-700 border border-orange-600/30' : 
+                                            'bg-tg-bg text-tg-hint'
+                                          }`}>
+                                            {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : idx + 1}
+                                          </div>
+
+                                          <div className="flex-1 min-w-0">
+                                            <div className="font-bold text-xs text-tg-text group-hover:text-tg-button transition-colors flex items-center gap-1">
+                                              <span className="truncate">{student.fio}</span>
+                                              {isYou && (
+                                                <span className="text-[7px] font-black uppercase bg-tg-button text-tg-buttonText px-1 py-0.5 rounded shadow-sm shrink-0">Ты</span>
+                                              )}
+                                            </div>
+                                            <div className="text-[9px] text-tg-hint truncate mt-0.5">
+                                              Зачетка: {student.studentCardNumber} • {student.specName}
+                                            </div>
+                                          </div>
+
+                                          <div className="flex items-center gap-2 shrink-0">
+                                            <span className="font-black text-sm text-tg-button">{student.average.toFixed(1)}</span>
+                                            <button 
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleRemoveFriend(student.studentCardNumber);
+                                              }}
+                                              className="p-1 text-red-500 hover:bg-red-500/10 rounded transition-colors opacity-0 group-hover:opacity-100 max-sm:opacity-100"
+                                              title="Удалить из рейтинга"
+                                            >
+                                              <Trash2 size={12} />
+                                            </button>
+                                            <ChevronRight size={12} className="text-tg-hint opacity-30 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="text-center py-8 text-tg-hint text-xs bg-tg-secondaryBg rounded-2xl border border-dashed border-[var(--tg-theme-hint-color)] border-opacity-15 flex flex-col items-center gap-2 px-4">
+                                  <div className="w-10 h-10 bg-tg-button/10 rounded-full flex items-center justify-center text-tg-button">
+                                    <Users size={20} />
+                                  </div>
+                                  <div className="space-y-0.5">
+                                    <h4 className="font-bold text-tg-text">Соревнуйтесь с друзьями!</h4>
+                                    <p className="text-[10px] text-tg-hint max-w-[200px] mx-auto leading-relaxed">
+                                      Добавьте друзей по номеру студенческого, чтобы соревноваться по среднему баллу!
+                                    </p>
+                                  </div>
+                                  {studentId && (
+                                    <button 
+                                      onClick={() => handleAddFriend(studentId)}
+                                      disabled={isAddingFriend}
+                                      className="mt-1 px-4 py-2 bg-tg-button text-tg-buttonText rounded-lg font-bold text-[10px] shadow-sm active:scale-95 transition-all flex items-center gap-1"
+                                    >
+                                      <UserPlus size={12} /> Добавить себя первым
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </>
                       ) : null}
                     </div>
@@ -651,6 +902,93 @@ export default function Study() {
             );
           })()}
         </>
+      )}
+
+      {/* Student Marks Modal */}
+      {selectedStudent && (
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-tg-secondaryBg w-full max-w-md rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl animate-in slide-in-from-bottom duration-300">
+            <div className="p-4 border-b border-tg-hint border-opacity-10 flex justify-between items-center bg-tg-bg">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-tg-button/10 flex items-center justify-center text-tg-button">
+                  <GraduationCap size={24} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm line-clamp-1">{selectedStudent.fio}</h3>
+                  <div className="text-[10px] text-tg-hint">Ср. балл: {selectedStudent.average.toFixed(2)}</div>
+                </div>
+              </div>
+              <button 
+                onClick={() => setSelectedStudent(null)}
+                className="p-2 hover:bg-tg-bg rounded-full text-tg-hint transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="p-4 max-h-[60vh] overflow-y-auto space-y-3 bg-tg-secondaryBg">
+              {loadingFriendMarks ? (
+                <div className="py-12 flex flex-col items-center justify-center gap-3">
+                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-tg-button"></div>
+                   <span className="text-xs text-tg-hint">Загрузка оценок...</span>
+                </div>
+              ) : studentMarks.length > 0 ? (
+                studentMarks.map((m, idx) => (
+                  <div key={idx} className="p-3 bg-tg-bg rounded-xl border border-tg-hint border-opacity-10 space-y-2">
+                    <span className="text-sm font-medium block">{m.subject}</span>
+                    <div className="flex flex-wrap gap-2 justify-start">
+                      {m.marks && m.marks.length > 0 ? m.marks.map((mark, midx) => {
+                        const val = (typeof mark === 'object' && mark !== null) ? mark.val : mark;
+                        const lessonType = (typeof mark === 'object' && mark !== null) ? mark.lessonType : null;
+                        const date = (typeof mark === 'object' && mark !== null) ? mark.date : null;
+                        if (val === undefined || val === null) return null;
+                        return (
+                          <div key={midx} className="flex flex-col items-center gap-0.5">
+                            <span className={`w-8 h-8 flex items-center justify-center rounded-lg text-xs font-bold border ${
+                              val >= 8 ? 'bg-green-500/10 text-green-600 border-green-500/20' : 
+                              val >= 4 ? 'bg-tg-button/10 text-tg-button border-tg-button/20' : 
+                              'bg-red-500/10 text-red-600 border-red-500/20'
+                            }`}>
+                              {val}
+                            </span>
+                            {lessonType && (
+                              <span className={`text-[7px] font-black uppercase px-1 py-0.5 rounded border ${
+                                lessonType === 'ЛК' ? 'bg-purple-500/10 text-purple-500 border-purple-500/15' :
+                                lessonType === 'ПЗ' ? 'bg-blue-500/10 text-blue-500 border-blue-500/15' :
+                                lessonType === 'ЛР' ? 'bg-green-500/10 text-green-500 border-green-500/15' :
+                                'bg-tg-hint/10 text-tg-hint border-tg-hint/15'
+                              }`}>
+                                {lessonType}
+                              </span>
+                            )}
+                            {date && typeof date === 'string' && (
+                              <span className="text-[7px] text-tg-hint opacity-60 font-medium">
+                                {date.includes('.') ? date.split('.').slice(0, 2).join('.') : date}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      }) : (
+                        <span className="text-[10px] text-tg-hint italic">нет оценок</span>
+                      )}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-12 text-tg-hint text-sm">Оценки не найдены</div>
+              )}
+            </div>
+            
+            <div className="p-4 bg-tg-bg border-t border-tg-hint border-opacity-10">
+              <button 
+                onClick={() => setSelectedStudent(null)}
+                className="w-full py-3 bg-tg-button text-white rounded-xl font-bold shadow-lg shadow-tg-button/20 active:scale-[0.98] transition-all"
+              >
+                Закрыть
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
