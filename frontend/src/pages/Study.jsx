@@ -275,7 +275,7 @@ export default function Study() {
       const result = await fetchStudentRating(cleanCard);
       if (result && result.student) {
         const friendObj = {
-          fio: result.student.fio,
+          fio: result.student.fio?.trim() || null,
           average: result.student.average,
           studentCardNumber: result.student.studentCardNumber,
           specName: result.specName || 'Специальность определена'
@@ -313,7 +313,7 @@ export default function Study() {
               return {
                 ...friend,
                 average: result.student.average,
-                fio: result.student.fio,
+                fio: result.student.fio?.trim() || null,
                 specName: result.specName || friend.specName
               };
             }
@@ -596,7 +596,7 @@ export default function Study() {
                                             ) : (
                                               <>
                                                 <div className="font-bold text-xs text-tg-text group-hover:text-tg-button transition-colors flex items-center gap-1">
-                                                  <span className="truncate">{student.nickname || student.fio || 'Студент БГУИР'}</span>
+                                                  <span className="truncate">{student.nickname || student.fio || `Студент ${student.studentCardNumber}`}</span>
                                                   {isYou && (
                                                     <span className="text-[7px] font-black uppercase bg-tg-button text-tg-buttonText px-1 py-0.5 rounded shadow-sm shrink-0">Ты</span>
                                                   )}
