@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
-import { BookOpen, Star, GraduationCap, Settings, Info, Search, Trophy, Loader2, Clock, AlertTriangle, ChevronDown, CalendarDays, Users, Trash2, UserPlus, RefreshCw, X, ChevronRight } from 'lucide-react';
+import { BookOpen, Star, GraduationCap, Settings, Info, Search, Trophy, Loader2, Clock, AlertTriangle, ChevronDown, CalendarDays, Users, Trash2, UserPlus, RefreshCw, X, ChevronRight, Pencil } from 'lucide-react';
 import icon from '../assets/icon.png';
 import { useUser } from '../contexts/UserContext';
 import { useNavigate } from 'react-router-dom';
@@ -28,6 +28,8 @@ export default function Study() {
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [studentMarks, setStudentMarks] = useState([]);
   const [loadingFriendMarks, setLoadingFriendMarks] = useState(false);
+  const [editingFriendCard, setEditingFriendCard] = useState(null);
+  const [editNicknameValue, setEditNicknameValue] = useState('');
 
   // Helper to get cache keys bound to a specific studentId
   const getCacheKey = (base, id) => id ? `${base}_${id}` : base;
@@ -346,6 +348,18 @@ export default function Study() {
     }
   };
 
+  const handleSaveNickname = (cardNumber) => {
+    const newList = friendsList.map(f => {
+      if (f.studentCardNumber === cardNumber) {
+        return { ...f, nickname: editNicknameValue.trim() || null };
+      }
+      return f;
+    });
+    setFriendsList(newList);
+    localStorage.setItem('rating_friends_list', JSON.stringify(newList));
+    setEditingFriendCard(null);
+  };
+
   const handleSaveStudentId = async () => {
     if (!studentCard) return;
     const success = await updatePreferences(group, 0, studentCard);
@@ -556,19 +570,60 @@ export default function Study() {
                                           </div>
 
                                           <div className="flex-1 min-w-0">
-                                            <div className="font-bold text-xs text-tg-text group-hover:text-tg-button transition-colors flex items-center gap-1">
-                                              <span className="truncate">{student.fio}</span>
-                                              {isYou && (
-                                                <span className="text-[7px] font-black uppercase bg-tg-button text-tg-buttonText px-1 py-0.5 rounded shadow-sm shrink-0">Ты</span>
-                                              )}
-                                            </div>
-                                            <div className="text-[9px] text-tg-hint truncate mt-0.5">
-                                              Зачетка: {student.studentCardNumber} • {student.specName}
-                                            </div>
+                                            {editingFriendCard === student.studentCardNumber ? (
+                                              <div className="flex gap-1.5 items-center" onClick={e => e.stopPropagation()}>
+                                                <input
+                                                  type="text"
+                                                  value={editNicknameValue}
+                                                  onChange={e => setEditNicknameValue(e.target.value)}
+                                                  placeholder="Имя друга..."
+                                                  className="bg-tg-bg text-tg-text px-2 py-1 rounded text-xs focus:outline-none focus:ring-1 focus:ring-tg-button border border-tg-hint border-opacity-15 w-full font-bold"
+                                                  autoFocus
+                                                />
+                                                <button
+                                                  onClick={() => handleSaveNickname(student.studentCardNumber)}
+                                                  className="px-2 py-1 bg-tg-button text-tg-buttonText rounded text-[10px] font-black shrink-0 active:scale-90 transition-all"
+                                                >
+                                                  OK
+                                                </button>
+                                                <button
+                                                  onClick={() => setEditingFriendCard(null)}
+                                                  className="px-2 py-1 bg-tg-bg text-tg-hint rounded text-[10px] font-bold shrink-0 active:scale-90 transition-all border border-tg-hint border-opacity-10"
+                                                >
+                                                  Отмена
+                                                </button>
+                                              </div>
+                                            ) : (
+                                              <>
+                                                <div className="font-bold text-xs text-tg-text group-hover:text-tg-button transition-colors flex items-center gap-1">
+                                                  <span className="truncate">{student.nickname || student.fio}</span>
+                                                  {isYou && (
+                                                    <span className="text-[7px] font-black uppercase bg-tg-button text-tg-buttonText px-1 py-0.5 rounded shadow-sm shrink-0">Ты</span>
+                                                  )}
+                                                </div>
+                                                <div className="text-[9px] text-tg-hint truncate mt-0.5">
+                                                  {student.nickname && <span className="opacity-60 italic mr-1">({student.fio.split(' ')[0]})</span>}
+                                                  Зачетка: {student.studentCardNumber} • {student.specName}
+                                                </div>
+                                              </>
+                                            )}
                                           </div>
 
                                           <div className="flex items-center gap-2 shrink-0">
                                             <span className="font-black text-sm text-tg-button">{student.average.toFixed(1)}</span>
+                                            {editingFriendCard !== student.studentCardNumber && (
+                                              <button 
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  setEditingFriendCard(student.studentCardNumber);
+                                                  setEditNicknameValue(student.nickname || student.fio);
+                                                }}
+                                                className="p-1 text-tg-hint hover:text-tg-button rounded transition-colors opacity-0 group-hover:opacity-100 max-sm:opacity-100"
+                                                title="Задать имя"
+                                              >
+                                                <Pencil size={12} />
+                                              </button>
+                                            )}
                                             <button 
                                               onClick={(e) => {
                                                 e.stopPropagation();
