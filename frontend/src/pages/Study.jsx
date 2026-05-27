@@ -596,13 +596,15 @@ export default function Study() {
                                             ) : (
                                               <>
                                                 <div className="font-bold text-xs text-tg-text group-hover:text-tg-button transition-colors flex items-center gap-1">
-                                                  <span className="truncate">{student.nickname || student.fio}</span>
+                                                  <span className="truncate">{student.nickname || student.fio || 'Студент БГУИР'}</span>
                                                   {isYou && (
                                                     <span className="text-[7px] font-black uppercase bg-tg-button text-tg-buttonText px-1 py-0.5 rounded shadow-sm shrink-0">Ты</span>
                                                   )}
                                                 </div>
                                                 <div className="text-[9px] text-tg-hint truncate mt-0.5">
-                                                  {student.nickname && <span className="opacity-60 italic mr-1">({student.fio.split(' ')[0]})</span>}
+                                                  {student.nickname && student.fio && (
+                                                    <span className="opacity-60 italic mr-1">({(student.fio || '').split(' ')[0]})</span>
+                                                  )}
                                                   Зачетка: {student.studentCardNumber} • {student.specName}
                                                 </div>
                                               </>
