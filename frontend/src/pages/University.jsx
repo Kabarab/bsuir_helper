@@ -24,12 +24,12 @@ const COLOR_PRESETS = {
 };
 
 import axios from 'axios';
-import { Search, Users, Building, GraduationCap, MapPin, Trophy, ChevronRight, X, Info, Pin, Filter } from 'lucide-react';
+import { Search, Users, Building, GraduationCap, MapPin, Trophy, ChevronRight, X, Info, Pin, Filter, UserPlus, Trash2, RefreshCw } from 'lucide-react';
 import { getFaculties, getSpecialities, getActiveSpecialities, getCourses, getRating, getStudentGrades, fetchStudentRating } from '../utils/bsuirApi';
 import { useUser } from '../contexts/UserContext';
 
 export default function University() {
-  const { group: userGroup, subgroup: userSubgroup, isTeacher } = useUser();
+  const { group: userGroup, subgroup: userSubgroup, isTeacher, studentId } = useUser();
   const location = useLocation();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('teachers'); // teachers, faculties, groups, rating
@@ -40,6 +40,10 @@ export default function University() {
     const tabParam = params.get('tab');
     if (tabParam && ['teachers', 'faculties', 'groups', 'rating'].includes(tabParam)) {
       setActiveTab(tabParam);
+    }
+    const subtabParam = params.get('subtab');
+    if (subtabParam && ['global', 'friends'].includes(subtabParam)) {
+      setRatingSubTab(subtabParam);
     }
   }, [location]);
   const [teachers, setTeachers] = useState([]);
@@ -255,6 +259,101 @@ export default function University() {
   const [searchResult, setSearchResult] = useState(null);
   const [isSearchingRating, setIsSearchingRating] = useState(false);
 
+  // States for custom Friends Leaderboard
+  const [ratingSubTab, setRatingSubTab] = useState('global'); // 'global' or 'friends'
+  const [friendsList, setFriendsList] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('rating_friends_list')) || [];
+    } catch {
+      return [];
+    }
+  });
+  const [friendSearch, setFriendSearch] = useState('');
+  const [isAddingFriend, setIsAddingFriend] = useState(false);
+  const [refreshingFriends, setRefreshingFriends] = useState(false);
+  const [addFriendError, setAddFriendError] = useState('');
+
+  const handleAddFriend = async (cardNumberToSearch) => {
+    const cardToSearch = cardNumberToSearch || friendSearch;
+    if (!cardToSearch || !cardToSearch.trim()) return;
+    
+    const cleanCard = cardToSearch.replace(/[^0-9]/g, '');
+    if (cleanCard.length < 4) {
+      setAddFriendError('Номер студенческого слишком короткий');
+      return;
+    }
+
+    setAddFriendError('');
+    // Check if duplicate
+    const isDuplicate = friendsList.some(f => f.studentCardNumber?.replace(/[^0-9]/g, '') === cleanCard);
+    if (isDuplicate) {
+      setAddFriendError('Студент уже добавлен в ваш список');
+      return;
+    }
+
+    setIsAddingFriend(true);
+    try {
+      const result = await fetchStudentRating(cleanCard);
+      if (result && result.student) {
+        const friendObj = {
+          fio: result.student.fio,
+          average: result.student.average,
+          studentCardNumber: result.student.studentCardNumber,
+          specName: result.specName || 'Специальность определена'
+        };
+        const newList = [...friendsList, friendObj].sort((a, b) => b.average - a.average);
+        setFriendsList(newList);
+        localStorage.setItem('rating_friends_list', JSON.stringify(newList));
+        if (!cardNumberToSearch) setFriendSearch('');
+      } else {
+        setAddFriendError('Студент не найден. Проверьте номер студенческого.');
+      }
+    } catch (err) {
+      console.error(err);
+      setAddFriendError('Ошибка поиска студента. Попробуйте еще раз.');
+    } finally {
+      setIsAddingFriend(false);
+    }
+  };
+
+  const handleRemoveFriend = (cardToRemove) => {
+    const newList = friendsList.filter(f => f.studentCardNumber !== cardToRemove);
+    setFriendsList(newList);
+    localStorage.setItem('rating_friends_list', JSON.stringify(newList));
+  };
+
+  const handleRefreshFriends = async () => {
+    if (friendsList.length === 0) return;
+    setRefreshingFriends(true);
+    try {
+      const updatedList = await Promise.all(
+        friendsList.map(async (friend) => {
+          try {
+            const result = await fetchStudentRating(friend.studentCardNumber);
+            if (result && result.student) {
+              return {
+                ...friend,
+                average: result.student.average,
+                fio: result.student.fio,
+                specName: result.specName || friend.specName
+              };
+            }
+          } catch (e) {
+            console.error(`Failed to refresh friend ${friend.studentCardNumber}:`, e);
+          }
+          return friend;
+        })
+      );
+      const sortedList = updatedList.sort((a, b) => b.average - a.average);
+      setFriendsList(sortedList);
+      localStorage.setItem('rating_friends_list', JSON.stringify(sortedList));
+    } catch (err) {
+      console.error('Error refreshing friends list:', err);
+    } finally {
+      setRefreshingFriends(false);
+    }
+  };
+
   const handleRatingSearch = async (e) => {
     e?.preventDefault();
     if (!ratingSearch.trim()) return;
@@ -415,7 +514,7 @@ export default function University() {
     setLoading(true);
     try {
       const marks = await getStudentGrades(student.studentCardNumber);
-      setStudentMarks(marks);
+      setStudentMarks(marks.subjects || marks || []);
     } catch (e) {
       console.error(e);
     } finally {
@@ -1591,158 +1690,314 @@ export default function University() {
 
           {/* RATING TAB (Task 2) */}
           {activeTab === 'rating' && (
-            <div className="space-y-5">
-              {/* Search by Student Card */}
-              <div className="bg-tg-secondaryBg p-4 rounded-2xl shadow-sm border border-tg-hint border-opacity-5 space-y-3">
-                <label className="text-[10px] uppercase font-bold text-tg-hint ml-1 tracking-wider">Поиск по зачетке</label>
-                <form onSubmit={handleRatingSearch} className="flex gap-2">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-tg-hint" size={16} />
-                    <input 
-                      type="text" 
-                      placeholder="Номер зачетки..." 
-                      value={ratingSearch}
-                      onChange={e => setRatingSearch(e.target.value)}
-                      className="w-full bg-tg-bg text-tg-text pl-9 pr-4 py-2.5 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-tg-button border border-tg-hint border-opacity-10"
-                    />
-                  </div>
-                  <button 
-                    type="submit"
-                    disabled={isSearchingRating}
-                    className="bg-tg-button text-tg-buttonText px-4 py-2.5 rounded-xl text-sm font-bold shadow-sm active:scale-95 transition-all disabled:opacity-50"
-                  >
-                    {isSearchingRating ? '...' : 'Найти'}
-                  </button>
-                </form>
+            <div className="space-y-5 animate-in fade-in duration-300">
+              {/* Rating Sub-Tabs Toggle */}
+              <div className="flex bg-tg-secondaryBg p-1 rounded-xl w-full text-xs font-semibold border border-[var(--tg-theme-hint-color)] border-opacity-10">
+                <button 
+                  onClick={() => setRatingSubTab('global')} 
+                  className={`flex-1 py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 ${ratingSubTab === 'global' ? 'bg-[var(--tg-theme-bg-color)] text-tg-button shadow-sm' : 'text-tg-hint hover:text-tg-text'}`}
+                >
+                  <Trophy size={14} /> Потоковый рейтинг
+                </button>
+                <button 
+                  onClick={() => setRatingSubTab('friends')} 
+                  className={`flex-1 py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 ${ratingSubTab === 'friends' ? 'bg-[var(--tg-theme-bg-color)] text-tg-button shadow-sm' : 'text-tg-hint hover:text-tg-text'}`}
+                >
+                  <Users size={14} /> Рейтинг с друзьями
+                </button>
+              </div>
 
-                {searchResult && (
-                  <div className="mt-4 p-4 bg-tg-bg rounded-xl border border-tg-button border-opacity-20 animate-in fade-in slide-in-from-top-2 duration-300">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-tg-button/10 flex items-center justify-center text-tg-button font-black text-xs border border-tg-button/20">
-                          #{searchResult.rank}
-                        </div>
-                        <div>
-                          <div className="font-bold text-sm text-tg-text">{searchResult.student.fio}</div>
-                          <div className="text-[10px] text-tg-hint">{searchResult.specName || 'Специальность определена'}</div>
-                        </div>
+              {ratingSubTab === 'global' ? (
+                <div className="space-y-5 animate-in fade-in duration-200">
+                  {/* Search by Student Card */}
+                  <div className="bg-tg-secondaryBg p-4 rounded-2xl shadow-sm border border-tg-hint border-opacity-5 space-y-3">
+                    <label className="text-[10px] uppercase font-bold text-tg-hint ml-1 tracking-wider">Поиск по зачетке</label>
+                    <form onSubmit={handleRatingSearch} className="flex gap-2">
+                      <div className="relative flex-1">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-tg-hint" size={16} />
+                        <input 
+                          type="text" 
+                          placeholder="Номер зачетки..." 
+                          value={ratingSearch}
+                          onChange={e => setRatingSearch(e.target.value)}
+                          className="w-full bg-tg-bg text-tg-text pl-9 pr-4 py-2.5 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-tg-button border border-tg-hint border-opacity-10"
+                        />
                       </div>
-                      <div className="text-right">
-                        <div className="font-black text-lg text-tg-button">{searchResult.student.average.toFixed(2)}</div>
-                        <div className="text-[9px] text-tg-hint uppercase font-bold">средний балл</div>
-                      </div>
-                    </div>
-                    <button 
-                      onClick={() => fetchStudentMarks(searchResult.student)}
-                      className="w-full py-2 bg-tg-button/10 text-tg-button rounded-lg text-xs font-bold hover:bg-tg-button hover:text-tg-buttonText transition-colors"
-                    >
-                      Посмотреть оценки
-                    </button>
-                  </div>
-                )}
-                
-                {searchResult === null && !isSearchingRating && ratingSearch && (
-                   <div className="text-[10px] text-center text-red-500 font-medium">Студент не найден. Проверьте номер зачетки.</div>
-                )}
-              </div>
+                      <button 
+                        type="submit"
+                        disabled={isSearchingRating}
+                        className="bg-tg-button text-tg-buttonText px-4 py-2.5 rounded-xl text-sm font-bold shadow-sm active:scale-95 transition-all disabled:opacity-50"
+                      >
+                        {isSearchingRating ? '...' : 'Найти'}
+                      </button>
+                    </form>
 
-              <div className="flex items-center gap-2 px-1">
-                <div className="h-px flex-1 bg-tg-hint opacity-10"></div>
-                <span className="text-[10px] uppercase font-bold text-tg-hint tracking-widest px-2">Или выберите группу</span>
-                <div className="h-px flex-1 bg-tg-hint opacity-10"></div>
-              </div>
-
-              <div className="grid gap-4 bg-tg-secondaryBg p-4 rounded-2xl shadow-sm border border-tg-hint border-opacity-5">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] uppercase font-bold text-tg-hint ml-1 tracking-wider">Факультет</label>
-                  <select 
-                    value={selFaculty}
-                    onChange={(e) => handleFacultyChange(e.target.value)}
-                    className="w-full bg-tg-bg text-tg-text p-2.5 rounded-xl border border-tg-hint border-opacity-10 focus:outline-none focus:ring-2 focus:ring-tg-button appearance-none text-sm"
-                  >
-                    <option value="">Выберите факультет...</option>
-                    {facultiesXml.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
-                  </select>
-                </div>
-
-                <div className={`space-y-1.5 transition-opacity ${!selFaculty ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}>
-                  <label className="text-[10px] uppercase font-bold text-tg-hint ml-1 tracking-wider">Специальность</label>
-                  <select 
-                    value={selSpec}
-                    onChange={(e) => handleSpecChange(e.target.value)}
-                    className="w-full bg-tg-bg text-tg-text p-2.5 rounded-xl border border-tg-hint border-opacity-10 focus:outline-none focus:ring-2 focus:ring-tg-button appearance-none text-sm"
-                  >
-                    <option value="">Выберите специальность...</option>
-                    {specsXml.map(s => (
-                      <option key={s.id} value={s.id}>
-                        {s.name} ({s.abbrev}) — {s.educationForm?.name || 'дневная'}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className={`space-y-1.5 transition-opacity ${!selSpec ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}>
-                  <label className="text-[10px] uppercase font-bold text-tg-hint ml-1 tracking-wider">Курс</label>
-                  <select 
-                    value={selCourse}
-                    onChange={(e) => handleCourseChange(e.target.value)}
-                    className="w-full bg-tg-bg text-tg-text p-2.5 rounded-xl border border-tg-hint border-opacity-10 focus:outline-none focus:ring-2 focus:ring-tg-button appearance-none text-sm"
-                  >
-                    <option value="">Выберите курс...</option>
-                    {coursesXml.map(c => <option key={c} value={c}>{c} курс</option>)}
-                  </select>
-                </div>
-              </div>
-
-              {loadingRating ? (
-                <div className="flex flex-col items-center justify-center p-12 space-y-3">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-tg-button"></div>
-                  <span className="text-xs text-tg-hint">Загрузка рейтинга...</span>
-                </div>
-              ) : leaderboard.length > 0 ? (
-                <div className="space-y-3">
-                  <h3 className="font-bold text-sm flex items-center gap-2 mb-2 px-1">
-                    <Trophy size={16} className="text-yellow-500" /> Таблица лидеров
-                    {refreshingRating && (
-                      <div className="ml-auto flex items-center gap-1.5 text-tg-hint">
-                        <div className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-tg-hint/30 border-t-tg-button"></div>
-                        <span className="text-[10px]">обновление...</span>
+                    {searchResult && (
+                      <div className="mt-4 p-4 bg-tg-bg rounded-xl border border-tg-button border-opacity-20 animate-in fade-in slide-in-from-top-2 duration-300">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-tg-button/10 flex items-center justify-center text-tg-button font-black text-xs border border-tg-button/20">
+                              #{searchResult.rank}
+                            </div>
+                            <div>
+                              <div className="font-bold text-sm text-tg-text">{searchResult.student.fio}</div>
+                              <div className="text-[10px] text-tg-hint">{searchResult.specName || 'Специальность определена'}</div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="font-black text-lg text-tg-button">{searchResult.student.average.toFixed(2)}</div>
+                            <div className="text-[9px] text-tg-hint uppercase font-bold">средний балл</div>
+                          </div>
+                        </div>
+                        <button 
+                          onClick={() => fetchStudentMarks(searchResult.student)}
+                          className="w-full py-2 bg-tg-button/10 text-tg-button rounded-lg text-xs font-bold hover:bg-tg-button hover:text-tg-buttonText transition-colors"
+                        >
+                          Посмотреть оценки
+                        </button>
                       </div>
                     )}
-                  </h3>
-                  <div className="bg-tg-secondaryBg rounded-2xl overflow-hidden shadow-sm divide-y divide-tg-hint divide-opacity-10">
-                    {leaderboard.map((student, idx) => (
-                      <div 
-                        key={idx} 
-                        onClick={() => fetchStudentMarks(student)}
-                        className="p-4 flex items-center gap-4 active:bg-tg-bg transition-colors cursor-pointer group"
-                      >
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${
-                          idx === 0 ? 'bg-yellow-500/20 text-yellow-600 border border-yellow-500/30' : 
-                          idx === 1 ? 'bg-gray-400/20 text-gray-500 border border-gray-400/30' : 
-                          idx === 2 ? 'bg-orange-600/20 text-orange-700 border border-orange-600/30' : 
-                          'bg-tg-bg text-tg-hint'
-                        }`}>
-                          {idx + 1}
-                        </div>
-                        <div className="flex-1">
-                          <div className="font-bold text-sm text-tg-text group-hover:text-tg-button transition-colors">{student.fio}</div>
-                          <div className="text-[10px] text-tg-hint">Зачетка: {student.studentCardNumber}</div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-black text-tg-button">{student.average.toFixed(1)}</span>
-                          <ChevronRight size={14} className="text-tg-hint opacity-30 group-hover:opacity-100" />
-                        </div>
-                      </div>
-                    ))}
+                    
+                    {searchResult === null && !isSearchingRating && ratingSearch && (
+                       <div className="text-[10px] text-center text-red-500 font-medium">Студент не найден. Проверьте номер зачетки.</div>
+                    )}
                   </div>
+
+                  <div className="flex items-center gap-2 px-1">
+                    <div className="h-px flex-1 bg-tg-hint opacity-10"></div>
+                    <span className="text-[10px] uppercase font-bold text-tg-hint tracking-widest px-2">Или выберите группу</span>
+                    <div className="h-px flex-1 bg-tg-hint opacity-10"></div>
+                  </div>
+
+                  <div className="grid gap-4 bg-tg-secondaryBg p-4 rounded-2xl shadow-sm border border-tg-hint border-opacity-5">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] uppercase font-bold text-tg-hint ml-1 tracking-wider">Факультет</label>
+                      <select 
+                        value={selFaculty}
+                        onChange={(e) => handleFacultyChange(e.target.value)}
+                        className="w-full bg-tg-bg text-tg-text p-2.5 rounded-xl border border-tg-hint border-opacity-10 focus:outline-none focus:ring-2 focus:ring-tg-button appearance-none text-sm"
+                      >
+                        <option value="">Выберите факультет...</option>
+                        {facultiesXml.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                      </select>
+                    </div>
+
+                    <div className={`space-y-1.5 transition-opacity ${!selFaculty ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}>
+                      <label className="text-[10px] uppercase font-bold text-tg-hint ml-1 tracking-wider">Специальность</label>
+                      <select 
+                        value={selSpec}
+                        onChange={(e) => handleSpecChange(e.target.value)}
+                        className="w-full bg-tg-bg text-tg-text p-2.5 rounded-xl border border-tg-hint border-opacity-10 focus:outline-none focus:ring-2 focus:ring-tg-button appearance-none text-sm"
+                      >
+                        <option value="">Выберите специальность...</option>
+                        {specsXml.map(s => (
+                          <option key={s.id} value={s.id}>
+                            {s.name} ({s.abbrev}) — {s.educationForm?.name || 'дневная'}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className={`space-y-1.5 transition-opacity ${!selSpec ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}>
+                      <label className="text-[10px] uppercase font-bold text-tg-hint ml-1 tracking-wider">Курс</label>
+                      <select 
+                        value={selCourse}
+                        onChange={(e) => handleCourseChange(e.target.value)}
+                        className="w-full bg-tg-bg text-tg-text p-2.5 rounded-xl border border-tg-hint border-opacity-10 focus:outline-none focus:ring-2 focus:ring-tg-button appearance-none text-sm"
+                      >
+                        <option value="">Выберите курс...</option>
+                        {coursesXml.map(c => <option key={c} value={c}>{c} курс</option>)}
+                      </select>
+                    </div>
+                  </div>
+
+                  {loadingRating ? (
+                    <div className="flex flex-col items-center justify-center p-12 space-y-3">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-tg-button"></div>
+                      <span className="text-xs text-tg-hint">Загрузка рейтинга...</span>
+                    </div>
+                  ) : leaderboard.length > 0 ? (
+                    <div className="space-y-3 animate-in fade-in duration-300">
+                      <h3 className="font-bold text-sm flex items-center gap-2 mb-2 px-1">
+                        <Trophy size={16} className="text-yellow-500" /> Таблица лидеров
+                        {refreshingRating && (
+                          <div className="ml-auto flex items-center gap-1.5 text-tg-hint">
+                            <div className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-tg-hint/30 border-t-tg-button"></div>
+                            <span className="text-[10px]">обновление...</span>
+                          </div>
+                        )}
+                      </h3>
+                      <div className="bg-tg-secondaryBg rounded-2xl overflow-hidden shadow-sm divide-y divide-tg-hint divide-opacity-10">
+                        {leaderboard.map((student, idx) => (
+                          <div 
+                            key={idx} 
+                            onClick={() => fetchStudentMarks(student)}
+                            className="p-4 flex items-center gap-4 active:bg-tg-bg transition-colors cursor-pointer group"
+                          >
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${
+                              idx === 0 ? 'bg-yellow-500/20 text-yellow-600 border border-yellow-500/30' : 
+                              idx === 1 ? 'bg-gray-400/20 text-gray-500 border border-gray-400/30' : 
+                              idx === 2 ? 'bg-orange-600/20 text-orange-700 border border-orange-600/30' : 
+                              'bg-tg-bg text-tg-hint'
+                            }`}>
+                              {idx + 1}
+                            </div>
+                            <div className="flex-1">
+                              <div className="font-bold text-sm text-tg-text group-hover:text-tg-button transition-colors">{student.fio}</div>
+                              <div className="text-[10px] text-tg-hint">Зачетка: {student.studentCardNumber}</div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-black text-tg-button">{student.average.toFixed(1)}</span>
+                              <ChevronRight size={14} className="text-tg-hint opacity-30 group-hover:opacity-100" />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : selCourse ? (
+                    <div className="text-center py-12 text-tg-hint text-sm">Данные рейтинга не найдены</div>
+                  ) : (
+                    <div className="text-center py-12 text-tg-hint text-sm flex flex-col items-center gap-2">
+                      <Info size={24} className="opacity-20" />
+                      Выберите параметры для просмотра рейтинга
+                    </div>
+                  )}
                 </div>
-              ) : selCourse ? (
-                <div className="text-center py-12 text-tg-hint text-sm">Данные рейтинга не найдены</div>
               ) : (
-                <div className="text-center py-12 text-tg-hint text-sm flex flex-col items-center gap-2">
-                  <Info size={24} className="opacity-20" />
-                  Выберите параметры для просмотра рейтинга
+                <div className="space-y-5 animate-in fade-in duration-200">
+                  {/* Add Friend Form */}
+                  <div className="bg-tg-secondaryBg p-4 rounded-2xl shadow-sm border border-tg-hint border-opacity-5 space-y-3">
+                    <div className="flex justify-between items-center">
+                      <label className="text-[10px] uppercase font-bold text-tg-hint ml-1 tracking-wider">Добавить друга в рейтинг</label>
+                      {studentId && !friendsList.some(f => f.studentCardNumber?.replace(/[^0-9]/g, '') === studentId.replace(/[^0-9]/g, '')) && (
+                        <button 
+                          onClick={() => handleAddFriend(studentId)}
+                          disabled={isAddingFriend}
+                          className="text-[10px] font-bold text-tg-button hover:underline flex items-center gap-1 active:scale-95 transition-all"
+                        >
+                          <UserPlus size={12} /> Добавить себя
+                        </button>
+                      )}
+                    </div>
+                    <form 
+                      onSubmit={(e) => { e.preventDefault(); handleAddFriend(); }} 
+                      className="flex gap-2"
+                    >
+                      <div className="relative flex-1">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-tg-hint" size={16} />
+                        <input 
+                          type="text" 
+                          placeholder="Номер зачетки друга..." 
+                          value={friendSearch}
+                          onChange={e => setFriendSearch(e.target.value)}
+                          className="w-full bg-tg-bg text-tg-text pl-9 pr-4 py-2.5 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-tg-button border border-tg-hint border-opacity-10"
+                        />
+                      </div>
+                      <button 
+                        type="submit"
+                        disabled={isAddingFriend || !friendSearch.trim()}
+                        className="bg-tg-button text-tg-buttonText px-4 py-2.5 rounded-xl text-sm font-bold shadow-sm active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center w-12"
+                      >
+                        {isAddingFriend ? '...' : <UserPlus size={16} />}
+                      </button>
+                    </form>
+
+                    {addFriendError && (
+                      <div className="text-[10px] text-red-500 font-bold ml-1 animate-pulse">{addFriendError}</div>
+                    )}
+                  </div>
+
+                  {/* Friends Leaderboard List */}
+                  {friendsList.length > 0 ? (
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center px-1">
+                        <h3 className="font-bold text-sm flex items-center gap-2">
+                          <Trophy size={16} className="text-yellow-500" /> Рейтинг с друзьями
+                          <span className="text-[10px] text-tg-hint font-normal">({friendsList.length})</span>
+                        </h3>
+                        <button 
+                          onClick={handleRefreshFriends}
+                          disabled={refreshingFriends}
+                          className={`p-2 bg-tg-secondaryBg text-tg-hint hover:text-tg-button rounded-xl border border-[var(--tg-theme-hint-color)] border-opacity-10 shadow-sm active:scale-90 transition-all ${refreshingFriends ? 'opacity-50' : ''}`}
+                          title="Обновить баллы"
+                        >
+                          <RefreshCw size={14} className={refreshingFriends ? "animate-spin" : ""} />
+                        </button>
+                      </div>
+
+                      <div className="bg-tg-secondaryBg rounded-2xl overflow-hidden shadow-sm divide-y divide-tg-hint divide-opacity-10 animate-in slide-in-from-bottom duration-300">
+                        {friendsList.map((student, idx) => {
+                          const isYou = studentId && student.studentCardNumber?.replace(/[^0-9]/g, '') === studentId.replace(/[^0-9]/g, '');
+                          
+                          return (
+                            <div 
+                              key={student.studentCardNumber} 
+                              onClick={() => fetchStudentMarks(student)}
+                              className={`p-4 flex items-center gap-4 active:bg-tg-bg transition-all cursor-pointer group relative ${isYou ? 'bg-tg-button/5 border-l-4 border-tg-button' : ''}`}
+                            >
+                              {/* Rank badge */}
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0 transition-transform group-hover:scale-105 ${
+                                idx === 0 ? 'bg-yellow-500/20 text-yellow-600 border border-yellow-500/30' : 
+                                idx === 1 ? 'bg-gray-400/20 text-gray-500 border border-gray-400/30' : 
+                                idx === 2 ? 'bg-orange-600/20 text-orange-700 border border-orange-600/30' : 
+                                'bg-tg-bg text-tg-hint'
+                              }`}>
+                                {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : idx + 1}
+                              </div>
+
+                              <div className="flex-1 min-w-0">
+                                <div className="font-bold text-sm text-tg-text group-hover:text-tg-button transition-colors flex items-center gap-1.5">
+                                  <span className="truncate">{student.fio}</span>
+                                  {isYou && (
+                                    <span className="text-[8px] font-black uppercase bg-tg-button text-tg-buttonText px-1.5 py-0.5 rounded-md shadow-sm shrink-0">Ты</span>
+                                  )}
+                                </div>
+                                <div className="text-[10px] text-tg-hint truncate mt-0.5">
+                                  Зачетка: {student.studentCardNumber} • {student.specName}
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-3 shrink-0">
+                                <span className="font-black text-lg text-tg-button">{student.average.toFixed(1)}</span>
+                                <button 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleRemoveFriend(student.studentCardNumber);
+                                  }}
+                                  className="p-2 text-red-500 hover:bg-red-500/10 rounded-xl transition-colors opacity-0 group-hover:opacity-100 max-sm:opacity-100"
+                                  title="Удалить из рейтинга"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                                <ChevronRight size={14} className="text-tg-hint opacity-30 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-16 text-tg-hint text-sm bg-tg-secondaryBg rounded-3xl border border-dashed border-[var(--tg-theme-hint-color)] border-opacity-20 flex flex-col items-center gap-3 px-6 animate-in zoom-in duration-300">
+                      <div className="w-14 h-14 bg-tg-button/10 rounded-full flex items-center justify-center text-tg-button">
+                        <Users size={28} />
+                      </div>
+                      <div className="space-y-1">
+                        <h4 className="font-bold text-tg-text">Соревнуйтесь с друзьями!</h4>
+                        <p className="text-xs text-tg-hint max-w-[240px] mx-auto leading-relaxed">
+                          Добавьте своих друзей по номеру студенческого, чтобы создать свой собственный рейтинг и видеть, кто учится лучше всех!
+                        </p>
+                      </div>
+                      {studentId && (
+                        <button 
+                          onClick={() => handleAddFriend(studentId)}
+                          disabled={isAddingFriend}
+                          className="mt-2 px-5 py-2.5 bg-tg-button text-tg-buttonText rounded-xl font-bold text-xs shadow-md active:scale-95 transition-all flex items-center gap-1.5"
+                        >
+                          <UserPlus size={14} /> Добавить себя первым
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
-import { BookOpen, Star, GraduationCap, Settings, Info, Search, Trophy, Loader2, Clock, AlertTriangle, ChevronDown, CalendarDays } from 'lucide-react';
+import { BookOpen, Star, GraduationCap, Settings, Info, Search, Trophy, Loader2, Clock, AlertTriangle, ChevronDown, CalendarDays, Users } from 'lucide-react';
 import icon from '../assets/icon.png';
 import { useUser } from '../contexts/UserContext';
 import { useNavigate } from 'react-router-dom';
@@ -350,6 +350,15 @@ export default function Study() {
                               </div>
                             </div>
                           </div>
+
+                          <div className="h-px bg-tg-hint opacity-10 my-3"></div>
+
+                          <button 
+                            onClick={() => navigate('/university?tab=rating&subtab=friends')}
+                            className="w-full py-2 bg-tg-button/10 text-tg-button hover:bg-tg-button hover:text-tg-buttonText rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 active:scale-95"
+                          >
+                            <Users size={14} /> Соревноваться с друзьями
+                          </button>
                         </>
                       ) : null}
                     </div>
