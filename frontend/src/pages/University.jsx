@@ -802,8 +802,12 @@ export default function University() {
                             dayLessons.forEach(l => {
                               if (l.note) {
                                 const noteLower = l.note.toLowerCase();
-                                if (noteLower.includes('по состоянию на') && noteLower.includes('вычитан')) {
-                                  const match = noteLower.match(/(?:по состоянию на\s*)(\d{2})\.(\d{2})/);
+                                const isVichitan = noteLower.includes('по состоянию на') && noteLower.includes('вычитан');
+                                const isLastDate = noteLower.includes('дата последнего занятия');
+                                if (isVichitan || isLastDate) {
+                                  const match = isVichitan 
+                                    ? noteLower.match(/(?:по состоянию на\s*)(\d{2})\.(\d{2})/)
+                                    : noteLower.match(/(?:дата последнего занятия[^\d]*)(\d{2})\.(\d{2})/);
                                   if (match) {
                                     const day = parseInt(match[1], 10);
                                     const month = parseInt(match[2], 10) - 1;
@@ -978,7 +982,23 @@ export default function University() {
                           isExam: true
                         }));
 
-                        const activeLessons = [...lessons, ...transferredLessons, ...formattedExams].sort((a,b) => a.startLessonTime.localeCompare(b.startLessonTime));
+                        let allLessons = [...lessons, ...transferredLessons, ...formattedExams];
+                        allLessons = allLessons.map(l => {
+                          if (l.note && !l.isCustom) {
+                            const noteMatch = l.note.match(/(\d{2})\.(\d{2})\s*(?:в\s*)?ауд\.?\s*([^\s,]+)/i);
+                            if (noteMatch) {
+                              const day = parseInt(noteMatch[1], 10);
+                              const month = parseInt(noteMatch[2], 10) - 1;
+                              const year = selectedDate.getFullYear();
+                              const targetDate = new Date(year, month, day);
+                              if (isSameDay(targetDate, selectedDate)) {
+                                return { ...l, auditories: [noteMatch[3]] };
+                              }
+                            }
+                          }
+                          return l;
+                        });
+                        const activeLessons = allLessons.sort((a,b) => a.startLessonTime.localeCompare(b.startLessonTime));
                         return activeLessons.length > 0 ? (
                           <div className="space-y-4 mt-2">
                             <h2 className="font-bold text-lg text-tg-text capitalize">{format(selectedDate, 'EEEE, d MMMM', { locale: ru })}</h2>
@@ -1328,8 +1348,12 @@ export default function University() {
                             dayLessons.forEach(l => {
                               if (l.note) {
                                 const noteLower = l.note.toLowerCase();
-                                if (noteLower.includes('по состоянию на') && noteLower.includes('вычитан')) {
-                                  const match = noteLower.match(/(?:по состоянию на\s*)(\d{2})\.(\d{2})/);
+                                const isVichitan = noteLower.includes('по состоянию на') && noteLower.includes('вычитан');
+                                const isLastDate = noteLower.includes('дата последнего занятия');
+                                if (isVichitan || isLastDate) {
+                                  const match = isVichitan 
+                                    ? noteLower.match(/(?:по состоянию на\s*)(\d{2})\.(\d{2})/)
+                                    : noteLower.match(/(?:дата последнего занятия[^\d]*)(\d{2})\.(\d{2})/);
                                   if (match) {
                                     const day = parseInt(match[1], 10);
                                     const month = parseInt(match[2], 10) - 1;
@@ -1506,7 +1530,23 @@ export default function University() {
                           isExam: true
                         }));
 
-                        const activeLessons = [...lessons, ...transferredLessons, ...formattedExams].sort((a,b) => a.startLessonTime.localeCompare(b.startLessonTime));
+                        let allLessons = [...lessons, ...transferredLessons, ...formattedExams];
+                        allLessons = allLessons.map(l => {
+                          if (l.note && !l.isCustom) {
+                            const noteMatch = l.note.match(/(\d{2})\.(\d{2})\s*(?:в\s*)?ауд\.?\s*([^\s,]+)/i);
+                            if (noteMatch) {
+                              const day = parseInt(noteMatch[1], 10);
+                              const month = parseInt(noteMatch[2], 10) - 1;
+                              const year = selectedDate.getFullYear();
+                              const targetDate = new Date(year, month, day);
+                              if (isSameDay(targetDate, selectedDate)) {
+                                return { ...l, auditories: [noteMatch[3]] };
+                              }
+                            }
+                          }
+                          return l;
+                        });
+                        const activeLessons = allLessons.sort((a,b) => a.startLessonTime.localeCompare(b.startLessonTime));
 
                         return activeLessons.length > 0 ? (
                           <div className="space-y-4 mt-2">
