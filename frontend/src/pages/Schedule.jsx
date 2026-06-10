@@ -692,13 +692,17 @@ export default function Schedule() {
     let allLessons = [...lessons, ...formattedPlans, ...formattedExams, ...transferredLessons];
     allLessons = allLessons.map(l => {
       if (l.note && !l.isCustom) {
-        const noteMatch = l.note.match(/(\d{2})\.(\d{2})\s*(?:в\s*)?(?:ауд\.?\s*)?([^\s,]+)/i);
-        if (noteMatch) {
-          const day = parseInt(noteMatch[1], 10);
-          const month = parseInt(noteMatch[2], 10) - 1;
+        let overrides = null;
+        const matches = [...l.note.matchAll(/(\d{2})\.(\d{2})\s*(?:[вb]\s*)?(?:[aа]уд\.?\s*)?([^\s,]+)/gi)];
+        for (const match of matches) {
+          const day = parseInt(match[1], 10);
+          const month = parseInt(match[2], 10) - 1;
           if (day === selectedDate.getDate() && month === selectedDate.getMonth()) {
-            return { ...l, auditories: [noteMatch[3]] };
+            overrides = [match[3]];
           }
+        }
+        if (overrides) {
+          return { ...l, auditories: overrides };
         }
       }
       return l;
